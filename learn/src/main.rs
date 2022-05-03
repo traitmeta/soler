@@ -1,29 +1,29 @@
 use std::env;
+use std::fs::File;
+use std::io::prelude::BufRead;
+use std::io::BufReader;
+use learn::word_counter::WordCounter;
 
 fn main() {
-    let name = env::args().skip(1).next();
-    match name {
-        Some(n) => println!("Hi there ! {}", n),
-        None => panic!("Didn't reveive any name ?"),
+    let arguments: Vec<String>  = env::args().collect();
+    let filename = &arguments[1];
+    println!("Processing file: {}", filename);
+
+    let file = File::open(filename).expect("Could not open file");
+    let reader = BufReader::new(file);
+
+    let mut word_counter = WordCounter::new();
+    for line in reader.lines(){
+        let line = line.expect("Could not read line");
+        let words = line.split(" ");
+        for word in words{
+            if word == ""{
+                continue;
+            }else{
+                word_counter.increment(word);
+            }
+
+        }
     }
-
-    let doubler = |x| x * 2;
-    let value = 5;
-    let twice = doubler(value);
-    println!("{} doubled is {}", value, twice);
-
-    let big_closure = |b, c| {
-        let z = b + c;
-        z * twice
-    };
-
-    let some_number = big_closure(1, 2);
-    println!("Result form closure: {}", some_number);
-
-    let result = if 1 == 2 {
-        "Nothing makes sense";
-    } else {
-        "Sanity reigns";
-    };
-    print!("Result of computation: {:?}", result);
+    word_counter.display();
 }
