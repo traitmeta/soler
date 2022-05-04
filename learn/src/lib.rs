@@ -6,3 +6,6 @@ pub mod word_counter;
 
 #[path = "./mastering/chp02/image_tool.rs"]
 pub mod image_tool;
+
+#[path = "./mastering/logic_gates/logic_gates.rs"]
+pub mod logic_gates;
