@@ -1,14 +1,14 @@
 language: rust
 rust:
- - tatble
- - beta
- - nightly
-matrix:
- allow_failures:
-  - rust: nightly
- fast_finish: true
+  - stable
+  - beta
+  - nightly
+jobs:
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
 cache: cargo
 
 script:
- - cargo build --verbose
- - cargo test --verbose
+  - cargo build --verbose --workspace
+  - cargo test --verbose --workspace
