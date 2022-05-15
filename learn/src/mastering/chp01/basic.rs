@@ -45,6 +45,17 @@ fn basic() {
     print!("Result of computation: {:?}", result);
 }
 
+
+#[derive(Debug)]
+struct Items(u32);
+
+fn assert_items() {
+    let items = Items(2);
+    let items_ptr = &items;
+    let ref items_ref = items;
+    assert_eq!(items_ptr as *const Items, items_ref as *const Items);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
