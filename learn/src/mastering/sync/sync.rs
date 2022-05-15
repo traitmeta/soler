@@ -22,20 +22,8 @@ fn run_mpsc_sync_channel() {
     println!("Received {:?} via the channel", rx.recv());
 }
 
-fn run_mpsc() {
-    let (tx, rx) = channel();
-    let join_handle = thread::spawn(move || {
-        while let Ok(n) = rx.recv() {
-            println!("Received {}", n);
-        }
-    });
-    for i in 0..10 {
-        tx.send(i).unwrap();
-    }
-    join_handle.join().unwrap();
-}
-
 // 出现了死锁，注释其中一个joinHandler，可以解锁
+
 fn run_mpsc_multi_tx() {
     let (tx, rx) = channel();
     let mut childs = vec![];
@@ -111,11 +99,6 @@ pub mod tests {
     #[test]
     fn test_run_rwlock() {
         run_rwlock();
-    }
-
-    #[test]
-    fn test_run_mpsc() {
-        run_mpsc();
     }
 
     #[test]
