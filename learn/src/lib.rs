@@ -9,3 +9,9 @@ pub mod image_tool;
 
 #[path = "./mastering/logic_gates/logic_gates.rs"]
 pub mod logic_gates;
+
+#[path = "./mastering/iter/iter.rs"]
+pub mod iter;
+
+#[path = "./mastering/sync/sync.rs"]
+pub mod sync;
