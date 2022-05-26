@@ -3,4 +3,6 @@ members = [
     "chain",
     "core",
     "learn",
+    "meta/kafka",
+    "mq",
 ]
