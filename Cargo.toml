@@ -1,8 +1,9 @@
 [workspace]
 members = [
-    "chain",
-    "core",
-    "learn",
-    "meta/kafka",
-    "mq",
+  "chain",
+  "core",
+  "learn",
+  "meta/kafka",
+  "meta/rpc",
+  "mq",
 ]

@@ -15,10 +15,3 @@ pub mod iter;
 
 #[path = "./mastering/sync/sync.rs"]
 pub mod sync;
-
-#[path = "./aptos/first_transaction/account.rs"]
-pub mod account;
-#[path = "./aptos/first_transaction/rest.rs"]
-pub mod rest;
-#[path = "./aptos/first_transaction/faucet.rs"]
-pub mod faucet;
