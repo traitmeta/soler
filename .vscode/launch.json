@@ -4,6 +4,38 @@
     // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+    {
+        "type": "lldb",
+        "request": "launch",
+        "name": "Cargo test",
+        "cargo": {
+            "args": [
+                "test",
+                "--no-run",
+                "--lib"
+            ]
+        },
+        "args": []
+    },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'core'",
+            "env": { "JWT_SECRET":"secret"},
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=core",
+                    "--package=core"
+                ],
+                "filter": {
+                    "name": "core",
+                    "kind": "bin"
+                },
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
         {
             "type": "lldb",
             "request": "launch",

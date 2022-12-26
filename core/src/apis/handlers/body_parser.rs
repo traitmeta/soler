@@ -1,11 +1,4 @@
-use axum::{
-    async_trait,
-    body::{self, BoxBody, Bytes, Full},
-    extract::{FromRequest, RequestParts},
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
-use hyper::{Request, StatusCode};
+use super::*;
 
 // middleware that shows how to consume the request body upfront
 pub async fn print_request_body(
@@ -36,8 +29,9 @@ fn do_thing_with_request_body(bytes: Bytes) {
     tracing::debug!(body = ?bytes);
 }
 
-pub async fn handler(_: PrintRequestBody, body: Bytes) {
+pub(crate) async fn handler(_: PrintRequestBody, body: Bytes) ->  &'static str{
     tracing::debug!(?body, "handler received body");
+    "read body"
 }
 
 // extractor that shows how to consume the request body upfront

@@ -1,12 +1,5 @@
-use axum::{
-    body,
-    middleware,
-    routing::{get, post},
-    Router,
-};
-use core::{print, validater, serve};
-use tower::ServiceBuilder;
-use tower_http::ServiceBuilderExt;
+use core::apis::router;
+use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -17,16 +10,9 @@ async fn main() {
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
-    let app = Router::new()
-        .route(
-            "/",
-            post(print::handler).layer(
-                ServiceBuilder::new()
-                    .map_request_body(body::boxed)
-                    .layer(middleware::from_fn(print::print_request_body)),
-            ),
-        )
-        .route("/name", get(validater::handler));
 
-    serve::Serve(app, 3000).await;
+    // run it
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    tracing::debug!("listening on {}", addr);
+    router::route(addr).await
 }

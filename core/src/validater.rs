@@ -1,10 +1,14 @@
 use async_trait::async_trait;
-use axum::{response::{Html, IntoResponse, Response}, extract::{FromRequest, RequestParts}, BoxError, Form};
-use hyper::StatusCode;
-use serde::{Deserialize, de::DeserializeOwned};
+use axum::{
+    http::StatusCode,
+    extract::{FromRequest, RequestParts},
+    response::{Html, IntoResponse, Response},
+    BoxError, Form,
+};
+
+use serde::{de::DeserializeOwned, Deserialize};
 use thiserror::Error;
 use validator::Validate;
-
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct NameInput {

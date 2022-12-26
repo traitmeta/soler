@@ -1,4 +1,4 @@
-use clap::{Command, Arg};
+use clap::{Arg, ArgAction, Command};
 use rdkafka::config::ClientConfig;
 use std::io::Write;
 use std::thread;
@@ -10,8 +10,7 @@ use log::{LevelFilter, Record};
 
 use std::boxed::Box;
 use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
+use std::io::{BufRead, BufReader};
 
 pub fn get_config() -> Result<(String, ClientConfig), Box<dyn std::error::Error>> {
     let matches = Command::new("rust client example")
@@ -20,21 +19,21 @@ pub fn get_config() -> Result<(String, ClientConfig), Box<dyn std::error::Error>
             Arg::new("config")
                 .help("path to confluent cloud config file")
                 .long("config")
-                .takes_value(true)
+                .action(ArgAction::SetTrue)
                 .required(true),
         )
         .arg(
             Arg::new("topic")
                 .help("test topic to use")
                 .long("topic")
-                .takes_value(true)
+                .action(ArgAction::SetTrue)
                 .required(true),
         )
         .get_matches();
 
     let mut kafka_config = ClientConfig::new();
 
-    let file = File::open(matches.value_of("config").ok_or("error parsing config")?)?;
+    let file = File::open(matches.get_one::<String>("config").expect("error parsing config"))?;
     for line in BufReader::new(&file).lines() {
         let cur_line: String = line?.trim().to_string();
         if cur_line.starts_with('#') || cur_line.len() < 1 {
@@ -49,13 +48,11 @@ pub fn get_config() -> Result<(String, ClientConfig), Box<dyn std::error::Error>
 
     Ok((
         matches
-            .value_of("topic")
-            .ok_or("error parsing topic")?
-            .to_string(),
+            .get_one::<String>("topic")
+            .expect("error parsing topic").to_owned(),
         kafka_config,
     ))
 }
-
 
 pub fn setup_logger(log_thread: bool, rust_log: Option<&str>) {
     let output_format = move |formatter: &mut Formatter, record: &Record| {

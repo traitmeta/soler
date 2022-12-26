@@ -1,4 +1,4 @@
-use clap::{App, Arg};
+use clap::{Arg, ArgAction, Command};
 use log::{info, warn};
 
 use rdkafka::client::ClientContext;
@@ -68,12 +68,10 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
                     }
                 };
                 info!("key: '{:?}', payload: '{}', topic: {}, partition: {}, offset: {}, timestamp: {:?}",
-                      m.key(), payload, m.topic(), m.partition(), m.offset(), m.timestamp());
+                          m.key(), payload, m.topic(), m.partition(), m.offset(), m.timestamp());
                 if let Some(headers) = m.headers() {
-                    for i in 0..headers.count() {
-                        if let Some(header) = headers.get(i){
-                            info!("  Header {:#?}: {:?}", header.0, header.1);
-                        }
+                    for header in headers.iter() {
+                        info!("  Header {:#?}: {:?}", header.key, header.value);
                     }
                 }
                 consumer.commit_message(&m, CommitMode::Async).unwrap();
@@ -84,50 +82,68 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
 
 #[tokio::main]
 async fn main() {
-    let matches = App::new("consumer example")
+    let matches = Command::new("consumer example")
         .version(option_env!("CARGO_PKG_VERSION").unwrap_or(""))
         .about("Simple command line consumer")
         .arg(
-            Arg::with_name("brokers")
+            Arg::new("brokers")
                 .short('b')
                 .long("brokers")
                 .help("Broker list in kafka format")
-                .takes_value(true)
+                .action(ArgAction::SetTrue)
                 .default_value("localhost:9092"),
         )
         .arg(
-            Arg::with_name("group-id")
+            Arg::new("group-id")
                 .short('g')
                 .long("group-id")
                 .help("Consumer group id")
-                .takes_value(true)
+                .action(ArgAction::SetTrue)
                 .default_value("example_consumer_group_id"),
         )
         .arg(
-            Arg::with_name("log-conf")
+            Arg::new("log-conf")
                 .long("log-conf")
                 .help("Configure the logging format (example: 'rdkafka=trace')")
-                .takes_value(true),
+                .action(ArgAction::SetTrue),
         )
         .arg(
-            Arg::with_name("topics")
+            Arg::new("topics")
                 .short('t')
                 .long("topics")
                 .help("Topic list")
-                .takes_value(true)
-                .multiple(true)
+                .action(ArgAction::SetTrue)
+                .num_args(0..)
                 .required(true),
         )
         .get_matches();
 
-    setup_logger(true, matches.value_of("log-conf"));
+    setup_logger(
+        true,
+        Some(
+            matches
+                .get_one::<String>("log-conf")
+                .expect("read brokers fail from config")
+                .as_str(),
+        ),
+    );
 
     let (version_n, version_s) = get_rdkafka_version();
     info!("rd_kafka_version: 0x{:08x}, {}", version_n, version_s);
 
-    let topics = matches.values_of("topics").unwrap().collect::<Vec<&str>>();
-    let brokers = matches.value_of("brokers").unwrap();
-    let group_id = matches.value_of("group-id").unwrap();
+    let topics = matches
+        .get_many("topics")
+        .unwrap()
+        .copied()
+        .collect::<Vec<&str>>();
+    let brokers = matches
+        .get_one::<String>("brokers")
+        .expect("read brokers fail from config")
+        .as_str();
+    let group_id = matches
+        .get_one::<String>("group-id")
+        .expect("read brokers fail from config")
+        .as_str();
 
     consume_and_print(brokers, group_id, &topics).await
 }

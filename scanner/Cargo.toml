@@ -1,0 +1,34 @@
+[package]
+edition = "2018"
+name = "scanner"
+version = "0.1.0"
+
+[dependencies]
+entity = {path = "../entity"}
+migration = {path = "../migration"}
+
+anyhow = {version = "1"}
+ethers = "1.0.0"
+ethers-core = "1.0.0"
+ethers-signers = "1.0.0"
+hex = "0.4"
+md5 = "0.7"
+rand = "0.8"
+tokio = {version = "1.0", features = ["full"]}
+tracing = "0.1"
+tracing-subscriber = {version = "0.3", features = ["env-filter"]}
+web3 = "0.18.0"
+
+[dependencies.sea-orm]
+features = ["sqlx-mysql", "runtime-tokio-native-tls", "macros", "debug-print"]
+version = "^0"
+
+[features]
+mock = ["sea-orm/mock"]
+
+[[test]]
+name = "mock"
+required-features = ["mock"]
+
+[dev-dependencies]
+tokio = { version = "1.20.0", features = ["macros", "rt"] }

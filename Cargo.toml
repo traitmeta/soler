@@ -6,4 +6,7 @@ members = [
   "meta/kafka",
   "meta/rpc",
   "mq",
+  "scanner",
+  "migration",
+  "entity",
 ]
