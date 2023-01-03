@@ -9,6 +9,11 @@ use scanner::{
     orm::conn::connect_db,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use web3::{
+    transports::Http,
+    types::{H160, U256},
+    Web3,
+};
 
 #[tokio::main]
 async fn main() -> web3::Result<()> {
@@ -22,16 +27,7 @@ async fn main() -> web3::Result<()> {
     let transport = web3::transports::Http::new("https://rpc.ankr.com/eth_goerli")?;
     let web3 = web3::Web3::new(transport);
 
-//    println!("Calling accounts.");
-//    let mut accounts = web3.eth().accounts().await?;
-//    println!("Accounts: {:?}", accounts);
-//    accounts.push("00a329c0648769a73afac7f9381e08fb43dbea72".parse().unwrap()`);
-
-//    println!("Calling balance.");
-//    for account in accounts {
-//        let balance = web3.eth().balance(account, None).await?;
-//        println!("Balance of {:?}: {}", account, balance);
-//    }
+    list_account_balances(web3);
 
     let conn = connect_db("mysql://root:meta@localhost/rust_test".to_owned())
         .await
@@ -90,7 +86,28 @@ async fn main() -> web3::Result<()> {
         _ => tracing::debug!("not found need hanlder tx in height: {}", height),
     }
 
-    Mutation::update_height_by_task_name(&conn, "eth:5", height).await;
+    let res = Mutation::update_height_by_task_name(&conn, "eth:5", height).await;
+    match res {
+        Err(e) => tracing::debug!("hanlder height {} failed,err:{}", height, e),
+        _ => tracing::debug!("hanlded height: {}", height),
+    }
 
     Ok(())
+}
+
+async fn list_account_balances(web3: Web3<Http>)-> Result<Vec<(H160, U256)>, web3::Error>{
+    println!("Calling accounts.");
+    let mut accounts = web3.eth().accounts().await?;
+    println!("Accounts: {:?}", accounts);
+    accounts.push("00a329c0648769a73afac7f9381e08fb43dbea72".parse().unwrap());
+
+    println!("Calling balance.");
+    let mut res: Vec<(H160, U256)> = Vec::new();
+    for account in accounts {
+        let balance = web3.eth().balance(account, None).await?;
+        println!("Balance of {:?}: {}", account, balance);
+        res.push((account, balance));
+    }
+    
+    Ok(res)
 }
