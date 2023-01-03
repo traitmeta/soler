@@ -8,6 +8,7 @@ use scanner::{
     },
     orm::conn::connect_db,
 };
+use sea_orm::DbConn;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use web3::{
     transports::Http,
@@ -27,7 +28,7 @@ async fn main() -> web3::Result<()> {
     let transport = web3::transports::Http::new("https://rpc.ankr.com/eth_goerli")?;
     let web3 = web3::Web3::new(transport);
 
-    list_account_balances(web3);
+    list_account_balances(&web3);
 
     let conn = connect_db("mysql://root:meta@localhost/rust_test".to_owned())
         .await
@@ -54,19 +55,7 @@ async fn main() -> web3::Result<()> {
         }
     }
 
-    let mut contract_addr_cache = ContractAddrCache::new();
-    let (contracts, _) = ContractQuery::find_scanner_contract_in_page(&conn, 1, 100)
-        .await
-        .unwrap();
-    for v in contracts {
-        let data = ScannerContract {
-            chain_name: v.chain_name,
-            chain_id: v.chain_id,
-            address: v.address,
-            event_sign: v.event_sign,
-        };
-        contract_addr_cache.insert(data.cache_key(), data);
-    }
+    let contract_addr_cache = update_contract_cache(&conn).await;
 
     tracing::debug!("start handle height: {}", height);
     match eth::batch_get_tx_logs(height, &web3).await {
@@ -83,7 +72,7 @@ async fn main() -> web3::Result<()> {
                 }
             }
         }
-        _ => tracing::debug!("not found need hanlder tx in height: {}", height),
+        (_, _) => tracing::debug!("not found need hanlder tx in height: {}", height),
     }
 
     let res = Mutation::update_height_by_task_name(&conn, "eth:5", height).await;
@@ -95,7 +84,25 @@ async fn main() -> web3::Result<()> {
     Ok(())
 }
 
-async fn list_account_balances(web3: Web3<Http>)-> Result<Vec<(H160, U256)>, web3::Error>{
+async fn update_contract_cache(conn: &DbConn) -> ContractAddrCache {
+    let mut contract_addr_cache = ContractAddrCache::new();
+    let (contracts, _) = ContractQuery::find_scanner_contract_in_page(conn, 1, 100)
+        .await
+        .unwrap();
+    for v in contracts {
+        let data = ScannerContract {
+            chain_name: v.chain_name,
+            chain_id: v.chain_id,
+            address: v.address,
+            event_sign: v.event_sign,
+        };
+        contract_addr_cache.insert(data.cache_key(), data);
+    }
+
+    contract_addr_cache
+}
+
+async fn list_account_balances(web3: &Web3<Http>) -> Result<Vec<(H160, U256)>, web3::Error> {
     println!("Calling accounts.");
     let mut accounts = web3.eth().accounts().await?;
     println!("Accounts: {:?}", accounts);
@@ -108,6 +115,6 @@ async fn list_account_balances(web3: Web3<Http>)-> Result<Vec<(H160, U256)>, web
         println!("Balance of {:?}: {}", account, balance);
         res.push((account, balance));
     }
-    
+
     Ok(res)
 }
