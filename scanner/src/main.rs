@@ -6,7 +6,7 @@ use scanner::{
         contract::Query as ContractQuery,
         height::{Mutation, Query},
     },
-    orm::conn::connect_db,
+    orm::conn::connect_db, handler::block::current_height,
 };
 use sea_orm::DbConn;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -33,26 +33,10 @@ async fn main() -> web3::Result<()> {
     let conn = connect_db("mysql://root:meta@localhost/rust_test".to_owned())
         .await
         .unwrap();
+        
     let mut height = 1999;
-
-    let current_model = Query::select_one(&conn, "eth:5").await.unwrap();
-    match current_model {
-        Some(current) => height = current.height + 1,
-        None => {
-            tracing::debug!("not found eth:5");
-            let insert_data = Model {
-                id: 0,
-                task_name: "eth:5".to_owned(),
-                chain_name: "eth".to_owned(),
-                height: 1998,
-                created_at: None,
-                updated_at: None,
-            };
-            let result = Mutation::create_scanner_height(&conn, insert_data)
-                .await
-                .expect("insert eth:5 to scanner height table err");
-            tracing::debug!("insert eth:5 return :{:?}", result);
-        }
+    if let Some(db_height) = current_height(&conn,"eth:5","eth").await{
+        height =  db_height+ 1;
     }
 
     let contract_addr_cache = update_contract_cache(&conn).await;
@@ -83,6 +67,7 @@ async fn main() -> web3::Result<()> {
 
     Ok(())
 }
+
 
 async fn update_contract_cache(conn: &DbConn) -> ContractAddrCache {
     let mut contract_addr_cache = ContractAddrCache::new();
