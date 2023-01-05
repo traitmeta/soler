@@ -33,8 +33,8 @@ async fn main() -> web3::Result<()> {
     let conn = connect_db("mysql://root:meta@localhost/rust_test".to_owned())
         .await
         .unwrap();
-        
-    let mut height = 1999;
+
+    let mut height = 0;
     if let Some(db_height) = current_height(&conn,"eth:5","eth").await{
         height =  db_height+ 1;
     }
