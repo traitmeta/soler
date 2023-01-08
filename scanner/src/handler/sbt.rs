@@ -43,6 +43,21 @@ pub struct SBT {
     delete_queue: Vec<SBTInfo>,
 }
 
+impl SBT {
+    fn new() -> Self {
+        SBT {
+            contract_map: HashMap::new(),
+            insert_queue: vec![],
+            update_queue: vec![],
+            delete_queue: vec![],
+        }
+    }
+
+    fn add_contract_to_map(&mut self, contract: String) {
+        self.contract_map.insert(contract, true)
+    }
+}
+
 impl EventHandler for SBT {
     fn handle(&self) -> Result<(), Box<dyn Error>> {
         Ok(())
@@ -51,11 +66,11 @@ impl EventHandler for SBT {
     fn handle_log(&self, log: web3::types::Log) -> Result<(), Box<dyn Error>> {
         let contract_addr = log.topics.get(0);
 
-        let value = match self.contract_map.get(&log.address.to_string()){
-            Some(exist) =>  true,
-            None =>  return Ok(())
+        let value = match self.contract_map.get(&log.address.to_string()) {
+            Some(exist) => true,
+            None => return Ok(()),
         };
-        
+
         Ok(())
     }
 }
