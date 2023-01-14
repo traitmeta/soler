@@ -54,7 +54,7 @@ impl SBT {
     }
 
     fn add_contract_to_map(&mut self, contract: String) {
-        self.contract_map.insert(contract, true)
+        self.contract_map.insert(contract, true);
     }
 }
 
