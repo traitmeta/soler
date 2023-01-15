@@ -31,9 +31,31 @@ pub trait EventHandler {
 enum OprType {
     Unkonw = 0,
     Mint = 1,
-    Renewal = 2,
-    Burn = 3,
+    Burn = 2,
 }
+
+struct SBTEvent {
+    chain_id: u64,
+    contract: String,
+    block_timestamp: i64,
+    event_topic_addr: String,
+}
+
+struct SBTMintEvent {
+    who: String,
+    token_id: String,
+    sbt_id: String,
+    base: SBTEvent,
+}
+
+
+struct SBTBurnEvent {
+    who: String,
+    token_id: String,
+    base: SBTEvent,
+}
+
+
 
 struct SBTInfo {
     chain_id: u64,
@@ -74,7 +96,6 @@ impl SBT {
     fn get_opr_type_from_address(&self, addr: &str) -> OprType {
         match addr {
             "0x12345" => return OprType::Mint,
-            "0x22345" => return OprType::Renewal,
             "0x32345" => return OprType::Burn,
             _ => OprType::Unkonw,
         }
