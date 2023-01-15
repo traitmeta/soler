@@ -106,7 +106,17 @@ impl EventHandler for SBT {
         log: web3::types::Log,
         block_timestamp: i64,
     ) -> Result<(), Box<dyn Error>> {
-        let topic  = log.topics.get(0).unwrap();
+        let topic = log.topics.get(0).unwrap();
+
+        // TODO 从LOG获取改为从自定义Model获取
+        let sbt_info = SBTInfo {
+            chain_id: todo!(),
+            contract: todo!(),
+            sbt_id: todo!(),
+            token_id: todo!(),
+            status: todo!(),
+            lifetime: todo!(),
+        };
         let insert_info = SBTLifetime {
             sbt_info_id: todo!(),
             opr_type: self.get_opr_type_from_address(topic.to_string().as_str()) as u8,
