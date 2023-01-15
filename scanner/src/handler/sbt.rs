@@ -18,7 +18,21 @@ use std::{
 
 pub trait EventHandler {
     fn handle(&self) -> Result<(), Box<dyn Error>>;
-    fn handle_log(&self, log: web3::types::Log) -> Result<(), Box<dyn Error>>;
+    fn handle_log(&self, log: web3::types::Log, block_timestamp: i64)
+        -> Result<(), Box<dyn Error>>;
+    fn handle_insert(
+        &self,
+        log: web3::types::Log,
+        block_timestamp: i64,
+    ) -> Result<(), Box<dyn Error>>;
+}
+
+#[repr(u8)]
+enum OprType {
+    Unkonw = 0,
+    Mint = 1,
+    Renewal = 2,
+    Burn = 3,
 }
 
 struct SBTInfo {
@@ -33,7 +47,7 @@ struct SBTInfo {
 struct SBTLifetime {
     sbt_info_id: u64,
     opr_type: u8,
-    opr_timestamp: i32,
+    opr_timestamp: i64,
 }
 
 pub struct SBT {
@@ -56,6 +70,15 @@ impl SBT {
     fn add_contract_to_map(&mut self, contract: String) {
         self.contract_map.insert(contract, true);
     }
+
+    fn get_opr_type_from_address(&self, addr: &str) -> OprType {
+        match addr {
+            "0x12345" => return OprType::Mint,
+            "0x22345" => return OprType::Renewal,
+            "0x32345" => return OprType::Burn,
+            _ => OprType::Unkonw,
+        }
+    }
 }
 
 impl EventHandler for SBT {
@@ -63,12 +86,31 @@ impl EventHandler for SBT {
         Ok(())
     }
 
-    fn handle_log(&self, log: web3::types::Log) -> Result<(), Box<dyn Error>> {
+    fn handle_log(
+        &self,
+        log: web3::types::Log,
+        block_timestamp: i64,
+    ) -> Result<(), Box<dyn Error>> {
         let contract_addr = log.topics.get(0);
 
         let value = match self.contract_map.get(&log.address.to_string()) {
             Some(exist) => true,
             None => return Ok(()),
+        };
+
+        Ok(())
+    }
+
+    fn handle_insert(
+        &self,
+        log: web3::types::Log,
+        block_timestamp: i64,
+    ) -> Result<(), Box<dyn Error>> {
+        let topic  = log.topics.get(0).unwrap();
+        let insert_info = SBTLifetime {
+            sbt_info_id: todo!(),
+            opr_type: self.get_opr_type_from_address(topic.to_string().as_str()) as u8,
+            opr_timestamp: block_timestamp,
         };
 
         Ok(())
