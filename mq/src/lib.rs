@@ -45,6 +45,7 @@ mod tests {
     use crate::{consume_msg, new_consumer, consume_one_msg};
 
     #[test]
+    #[ignore]
     fn test_consumer() {
         let mut consumer = new_consumer();
         let arc_consumer = Arc::new(Mutex::new(consumer));

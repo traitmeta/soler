@@ -15,7 +15,7 @@ impl Query {
             .await
     }
 
-    /// If ok, returns (post models, num pages).
+    // If ok, returns (post models, num pages).
     pub async fn find_scanner_height_in_page(
         db: &DbConn,
         page: u64,

@@ -1,4 +1,4 @@
-use crate::apis::handlers::{common, user};
+use crate::handlers::{common, user};
 use axum::{
     body,
     handler::Handler,

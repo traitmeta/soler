@@ -11,7 +11,7 @@ pub trait Rpc<Hash: Clone, StorageKey>
 where
     Hash: std::fmt::Debug,
 {
-    /// Async method call example.
+    // Async method call example.
     #[method(name = "getKeys")]
     async fn storage_keys(
         &self,
@@ -19,7 +19,7 @@ where
         hash: Option<Hash>,
     ) -> Result<Vec<StorageKey>, Error>;
 
-    /// Subscription that takes a `StorageKey` as input and produces a `Vec<Hash>`.
+    // Subscription that takes a `StorageKey` as input and produces a `Vec<Hash>`.
     #[subscription(name = "subscribeStorage" => "override", item = Vec<Hash>)]
     fn subscribe_storage(&self, keys: Option<Vec<StorageKey>>);
 }

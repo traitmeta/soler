@@ -1,14 +1,14 @@
-use entity::scanner_height::Model;
 use scanner::{
     cache::{ContractAddrCache, ScannerContract},
     evms::eth,
     model::{
         contract::Query as ContractQuery,
-        height::{Mutation, Query},
+        height::Mutation,
     },
     orm::conn::connect_db, handler::block::current_height,
 };
 use sea_orm::DbConn;
+use tracing::instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use web3::{
     transports::Http,
@@ -17,6 +17,7 @@ use web3::{
 };
 
 #[tokio::main]
+#[instrument]
 async fn main() -> web3::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
@@ -28,7 +29,7 @@ async fn main() -> web3::Result<()> {
     let transport = web3::transports::Http::new("https://rpc.ankr.com/eth_goerli")?;
     let web3 = web3::Web3::new(transport);
 
-    list_account_balances(&web3);
+    list_account_balances(&web3).await;
 
     let conn = connect_db("mysql://root:meta@localhost/rust_test".to_owned())
         .await

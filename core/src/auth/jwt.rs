@@ -8,8 +8,7 @@ static KEYS: Lazy<Keys> = Lazy::new(|| {
 pub async fn protected(claims: Claims) -> Result<String, AuthError> {
     // Send the protected data to the user
     Ok(format!(
-        "Welcome to the protected area :)\nYour data:\n{}",
-        claims
+        "Welcome to the protected area :)\nYour data:\n{claims}"
     ))
 }
 
@@ -21,7 +20,7 @@ pub async fn authorize_api_token(Json(payload): Json<Claims>) -> Result<Json<Aut
 
     let claims = Claims {
         address: payload.address.to_owned(),
-        nonce: payload.nonce.to_owned(),
+        nonce: payload.nonce,
         // Mandatory expiry time as UTC timestamp
         exp: Some(2000000000), // May 2033
     };
@@ -38,16 +37,19 @@ pub async fn authorize(Json(payload): Json<AuthPayload>) -> Result<Json<AuthBody
     if payload.client_id.is_empty() || payload.client_secret.is_empty() {
         return Err(AuthError::MissingCredentials);
     }
+    
     // TODO Here you can check the user credentials from a database
     if payload.client_id != "foo" || payload.client_secret != "bar" {
         return Err(AuthError::WrongCredentials);
     }
+
     let claims = Claims {
         address: "0x0x3bfc6e0fe30a5ae3e42b085293c1586e5c28a75d".to_owned(),
         nonce: "19939393".to_owned(),
         // Mandatory expiry time as UTC timestamp
         exp: Some(2000000000), // May 2033
     };
+
     // Create the authorization token
     let token = encode(&Header::default(), &claims, &KEYS.encoding)
         .map_err(|_| AuthError::TokenCreation)?;
