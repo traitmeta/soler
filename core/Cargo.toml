@@ -1,13 +1,14 @@
 [package]
 name = "core"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
+doctest = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0"
-async-trait = "0.1"
+async-trait = "0.1.63"
 axum = {version = "0.5.17", features = ["headers"]}
 http-body = "0.4.3"
 hyper = "0.14"

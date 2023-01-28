@@ -1,7 +1,7 @@
 pub mod jwt;
 
+use async_trait::async_trait;
 use axum::{
-    async_trait,
     extract::{FromRequest, RequestParts, TypedHeader},
     headers::{authorization::Bearer, Authorization},
     http::StatusCode,

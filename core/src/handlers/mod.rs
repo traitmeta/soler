@@ -5,12 +5,12 @@ pub mod form;
 pub mod response;
 pub mod user;
 
+use async_trait::async_trait;
 use axum::{
-    async_trait,
     body::{self, Body, BoxBody, Bytes, Full},
     extract::{FromRequest, RequestParts},
-    http::{header::CONTENT_TYPE, Request, StatusCode},
-    middleware::{self, Next},
+    http::{Request, StatusCode},
+    middleware::Next,
     response::{Html, IntoResponse, Response},
     Form, Json,
 };
