@@ -8,5 +8,5 @@ members = [
   "mq",
   "scanner",
   "migration",
-  "entity",
+  "entities",
 ]

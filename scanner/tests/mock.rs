@@ -1,6 +1,6 @@
 mod prepare;
 
-use entity::scanner_height;
+use entities::scanner_height;
 use prepare::prepare_mock_db;
 use scanner::model::height::{Mutation, Query};
 

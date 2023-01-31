@@ -1,5 +1,5 @@
-use ::entity::scanner_contract;
-use ::entity::scanner_contract::Entity as ScannerContract;
+use ::entities::scanner_contract;
+use ::entities::scanner_contract::Entity as ScannerContract;
 use sea_orm::*;
 
 pub struct Query;

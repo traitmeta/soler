@@ -1,5 +1,5 @@
-use ::entity::scanner_height;
-use ::entity::scanner_height::Entity as ScannerHeight;
+use ::entities::scanner_height;
+use ::entities::scanner_height::Entity as ScannerHeight;
 use sea_orm::*;
 
 pub struct Query;

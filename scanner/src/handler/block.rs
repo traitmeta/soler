@@ -1,4 +1,4 @@
-use entity::scanner_height::Model;
+use entities::scanner_height::Model;
 use sea_orm::DbConn;
 
 use crate::model::height::{Query, Mutation};

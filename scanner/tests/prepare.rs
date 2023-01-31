@@ -1,4 +1,4 @@
-use ::entity::scanner_height;
+use ::entities::scanner_height;
 use sea_orm::*;
 
 #[cfg(feature = "mock")]

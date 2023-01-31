@@ -4,7 +4,7 @@ name = "scanner"
 version = "0.1.0"
 
 [dependencies]
-entity = {path = "../entity"}
+entities = {path = "../entities"}
 migration = {path = "../migration"}
 
 anyhow = {version = "1"}
