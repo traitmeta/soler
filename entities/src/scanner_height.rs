@@ -18,3 +18,9 @@ pub struct Model {
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
+
+impl Entity {
+    pub fn find_by_task_name(task_name: &str) -> Select<Entity> {
+        Self::find().filter(Column::TaskName.eq(task_name))
+    }
+}
