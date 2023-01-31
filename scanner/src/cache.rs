@@ -21,6 +21,12 @@ pub struct ContractAddrCache {
     contact_map: HashMap<String, ScannerContract>,
 }
 
+impl Default for ContractAddrCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ContractAddrCache {
     pub fn new() -> Self {
         Self {

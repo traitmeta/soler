@@ -29,7 +29,7 @@ async fn main() -> web3::Result<()> {
     let transport = web3::transports::Http::new("https://rpc.ankr.com/eth_goerli")?;
     let web3 = web3::Web3::new(transport);
 
-    list_account_balances(&web3).await;
+    list_account_balances(&web3).await?;
 
     let conn = connect_db("mysql://root:meta@localhost/rust_test".to_owned())
         .await
@@ -91,14 +91,14 @@ async fn update_contract_cache(conn: &DbConn) -> ContractAddrCache {
 async fn list_account_balances(web3: &Web3<Http>) -> Result<Vec<(H160, U256)>, web3::Error> {
     println!("Calling accounts.");
     let mut accounts = web3.eth().accounts().await?;
-    println!("Accounts: {:?}", accounts);
+    println!("Accounts: {accounts:?}");
     accounts.push("00a329c0648769a73afac7f9381e08fb43dbea72".parse().unwrap());
 
     println!("Calling balance.");
     let mut res: Vec<(H160, U256)> = Vec::new();
     for account in accounts {
         let balance = web3.eth().balance(account, None).await?;
-        println!("Balance of {:?}: {}", account, balance);
+        println!("Balance of {account:?}: {balance}");
         res.push((account, balance));
     }
 
