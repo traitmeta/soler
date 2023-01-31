@@ -5,26 +5,23 @@ use sea_orm::*;
 pub struct Query;
 
 impl Query {
-    pub async fn select_one(
+    pub async fn select_one_by_task_name(
         db: &DbConn,
         task_name: &str,
     ) -> Result<Option<scanner_height::Model>, DbErr> {
-        ScannerHeight::find()
-            .filter(scanner_height::Column::TaskName.contains(task_name))
-            .one(db)
-            .await
+        ScannerHeight::find_by_task_name(task_name).one(db).await
     }
 
-    // If ok, returns (post models, num pages).
+    // If ok, returns (scanner height models, num pages).
     pub async fn find_scanner_height_in_page(
         db: &DbConn,
         page: u64,
-        posts_per_page: u64,
+        scanner_height_per_page: u64,
     ) -> Result<(Vec<scanner_height::Model>, u64), DbErr> {
         // Setup paginator
         let paginator = ScannerHeight::find()
             .order_by_asc(scanner_height::Column::Id)
-            .paginate(db, posts_per_page);
+            .paginate(db, scanner_height_per_page);
         let num_pages = paginator.num_pages().await?;
 
         // Fetch paginated posts
@@ -77,7 +74,7 @@ impl Mutation {
         height: u64,
     ) -> Result<scanner_height::Model, DbErr> {
         ScannerHeight::update(scanner_height::ActiveModel {
-            id:Unchanged(1),
+            id: Unchanged(1),
             task_name: Unchanged(task_name.to_owned()),
             height: Set(height.to_owned()),
             ..Default::default()

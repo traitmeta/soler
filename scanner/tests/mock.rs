@@ -9,13 +9,13 @@ async fn main() {
     let db = &prepare_mock_db();
 
     {
-        let post = Query::select_one(db, "eth:5").await.unwrap().unwrap();
+        let post = Query::select_one_by_task_name(db, "eth:5").await.unwrap().unwrap();
 
         assert_eq!(post.id, 1);
     }
 
     {
-        let post = Query::select_one(db, "heco:256").await.unwrap().unwrap();
+        let post = Query::select_one_by_task_name(db, "heco:256").await.unwrap().unwrap();
         assert_eq!(post.id, 2)
     }
 
