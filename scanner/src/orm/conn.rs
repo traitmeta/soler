@@ -4,13 +4,12 @@ use migration::DbErr;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tracing::log;
 
-pub async fn migration(database_url: String){
+pub async fn migration(database_url: String) {
     use migration::{Migrator, MigratorTrait};
 
     let connection = Database::connect(&database_url).await.unwrap();
     Migrator::up(&connection, None).await.unwrap();
 }
-
 
 pub async fn connect_db(url: String) -> Result<DatabaseConnection, DbErr> {
     let mut opt = ConnectOptions::new(url);
@@ -29,11 +28,14 @@ pub async fn connect_db(url: String) -> Result<DatabaseConnection, DbErr> {
 
 #[cfg(test)]
 pub mod test {
+    use tokio::runtime::Runtime;
+
     use super::connect_db;
 
     #[test]
     fn test_connect_db() {
         let url = "mysql://root:meta@localhost/rust_test".to_string();
-        connect_db(url);
+        let runtime = Runtime::new().unwrap();
+        runtime.block_on(connect_db(url)).unwrap();
     }
 }
