@@ -33,7 +33,7 @@ pub async fn route(addr: SocketAddr) {
         .layer(middleware::from_fn(response::print_request_response));
 
     // add a fallback service for handling routes to unknown paths
-    let app = app.fallback(common::handler_404.into_service());
+    let app = app.fallback(common::handler_404);
 
     // run it
     axum::Server::bind(&addr)

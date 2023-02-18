@@ -29,27 +29,27 @@ fn do_thing_with_request_body(bytes: Bytes) {
     tracing::debug!(body = ?bytes);
 }
 
-pub(crate) async fn handler(_: PrintRequestBody, body: Bytes) ->  &'static str{
+pub async fn handler(BufferRequestBody(body): BufferRequestBody) {
     tracing::debug!(?body, "handler received body");
-    "read body"
 }
 
 // extractor that shows how to consume the request body upfront
-pub struct PrintRequestBody;
+pub struct BufferRequestBody(Bytes);
 
 #[async_trait]
-impl FromRequest<BoxBody> for PrintRequestBody {
+impl<S> FromRequest<S, BoxBody> for BufferRequestBody
+where
+    S: Send + Sync,
+{
     type Rejection = Response;
 
-    async fn from_request(req: &mut RequestParts<BoxBody>) -> Result<Self, Self::Rejection> {
-        let request = Request::from_request(req)
+    async fn from_request(req: Request<BoxBody>, state: &S) -> Result<Self, Self::Rejection> {
+        let body = Bytes::from_request(req, state)
             .await
             .map_err(|err| err.into_response())?;
 
-        let request = buffer_request_body(request).await?;
+        do_thing_with_request_body(body.clone());
 
-        *req = RequestParts::new(request);
-
-        Ok(Self)
+        Ok(Self(body))
     }
 }

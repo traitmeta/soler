@@ -1,3 +1,5 @@
+use axum::{headers, RequestPartsExt};
+
 use super::*;
 
 static KEYS: Lazy<Keys> = Lazy::new(|| {
@@ -29,7 +31,7 @@ pub async fn authorize_api_token(Json(payload): Json<Claims>) -> Result<Json<Aut
         .map_err(|_| AuthError::TokenCreation)?;
 
     // Send the authorized token
-    Ok(Json(AuthBody::new_auth(token, String::from("NFT-TOKEN"))))
+    Ok(Json(AuthBody::new_auth(token, String::from("API-TOKEN"))))
 }
 
 pub async fn authorize(Json(payload): Json<AuthPayload>) -> Result<Json<AuthBody>, AuthError> {
@@ -37,7 +39,7 @@ pub async fn authorize(Json(payload): Json<AuthPayload>) -> Result<Json<AuthBody
     if payload.client_id.is_empty() || payload.client_secret.is_empty() {
         return Err(AuthError::MissingCredentials);
     }
-    
+
     // TODO Here you can check the user credentials from a database
     if payload.client_id != "foo" || payload.client_secret != "bar" {
         return Err(AuthError::WrongCredentials);
@@ -81,26 +83,36 @@ impl AuthBody {
 }
 
 #[async_trait]
-impl<B> FromRequest<B> for Claims
+impl<S> FromRequestParts<S> for Claims
 where
-    B: Send,
+    S: Send + Sync,
 {
     type Rejection = AuthError;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        if let Some(nft_token) = req.headers().get("NFT-TOKEN") {
-            let token = nft_token.to_str().unwrap();
-            let token_data = decode::<Claims>(token, &KEYS.decoding, &Validation::default())
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        match parts
+            .extract::<HeaderMap>()
+            .await
+            .map_err(|_| AuthError::InvalidToken)
+        {
+            Ok(token) => {
+                let api_token = token.get("API-TOKEN").unwrap();
+                let token_data = decode::<Claims>(
+                    api_token.to_str().unwrap(),
+                    &KEYS.decoding,
+                    &Validation::default(),
+                )
                 .map_err(|_| AuthError::InvalidToken)?;
-
-            return Ok(token_data.claims);
-        }
+                return Ok(token_data.claims);
+            }
+            Err(e) => AuthError::InvalidToken,
+        };
 
         // Extract the token from the authorization header
-        let TypedHeader(Authorization(bearer)) =
-            TypedHeader::<Authorization<Bearer>>::from_request(req)
-                .await
-                .map_err(|_| AuthError::InvalidToken)?;
+        let TypedHeader(Authorization(bearer)) = parts
+            .extract::<TypedHeader<Authorization<Bearer>>>()
+            .await
+            .map_err(|_| AuthError::InvalidToken)?;
         // Decode the user data
         let token_data = decode::<Claims>(bearer.token(), &KEYS.decoding, &Validation::default())
             .map_err(|_| AuthError::InvalidToken)?;

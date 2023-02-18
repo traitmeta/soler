@@ -8,8 +8,8 @@ pub mod user;
 use async_trait::async_trait;
 use axum::{
     body::{self, Body, BoxBody, Bytes, Full},
-    extract::{FromRequest, RequestParts},
-    http::{Request, StatusCode},
+    extract::{FromRequest, FromRequestParts},
+    http::{request::Parts, Request, StatusCode},
     middleware::Next,
     response::{Html, IntoResponse, Response},
     Form, Json,
