@@ -1,8 +1,6 @@
 use crate::handlers::{common, user};
 use axum::{
-    body,
-    handler::Handler,
-    middleware,
+    body, middleware,
     routing::{get, post},
     Router,
 };
@@ -11,7 +9,10 @@ use tokio::signal;
 use tower::ServiceBuilder;
 use tower_http::ServiceBuilderExt;
 
-use super::{handlers::{body_parser, err, form, response}, auth::jwt};
+use super::{
+    auth::jwt,
+    handlers::{body_parser, err, form, response},
+};
 
 pub async fn route(addr: SocketAddr) {
     // build our application with a route
