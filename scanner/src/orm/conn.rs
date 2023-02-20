@@ -7,8 +7,8 @@ use tracing::log;
 pub async fn migration(database_url: String) {
     use migration::{Migrator, MigratorTrait};
 
-    let connection = Database::connect(&database_url).await.unwrap();
-    Migrator::up(&connection, None).await.unwrap();
+    let conn = Database::connect(&database_url).await.unwrap();
+    Migrator::up(&conn, None).await.unwrap();
 }
 
 pub async fn connect_db(url: String) -> Result<DatabaseConnection, DbErr> {
@@ -21,7 +21,7 @@ pub async fn connect_db(url: String) -> Result<DatabaseConnection, DbErr> {
         .max_lifetime(Duration::from_secs(8))
         .sqlx_logging(true)
         .sqlx_logging_level(log::LevelFilter::Info)
-        .set_schema_search_path("my_schema".into()); // Setting default PostgreSQL schema
+        .set_schema_search_path("public".into()); // Setting default PostgreSQL schema
 
     Database::connect(opt).await
 }

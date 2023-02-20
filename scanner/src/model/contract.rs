@@ -7,10 +7,10 @@ pub struct Query;
 impl Query {
     pub async fn select_one(
         db: &DbConn,
-        task_name: &str,
+        chain_id: u32,
+        address: &str,
     ) -> Result<Option<scanner_contract::Model>, DbErr> {
-        ScannerContract::find()
-            .filter(scanner_contract::Column::ChainId.contains(task_name))
+        ScannerContract::find_one(address, chain_id)
             .one(db)
             .await
     }

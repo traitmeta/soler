@@ -13,7 +13,7 @@ minting --> minted --> burning --> burned
 
 use std::{
     collections::HashMap,
-    error::{self, Error},
+    error::Error,
 };
 
 pub trait EventHandler {

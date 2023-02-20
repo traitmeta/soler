@@ -21,7 +21,7 @@ web3 = "0.18.0"
 
 [dependencies.sea-orm]
 features = ["sqlx-mysql", "runtime-tokio-native-tls", "macros", "debug-print"]
-version = "^0"
+version = "0.11.0"
 
 [features]
 mock = ["sea-orm/mock"]
