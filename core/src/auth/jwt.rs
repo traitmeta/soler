@@ -1,5 +1,3 @@
-use axum::{headers, RequestPartsExt};
-
 use super::*;
 
 static KEYS: Lazy<Keys> = Lazy::new(|| {
@@ -96,16 +94,20 @@ where
             .map_err(|_| AuthError::InvalidToken)
         {
             Ok(token) => {
-                let api_token = token.get("API-TOKEN").unwrap();
-                let token_data = decode::<Claims>(
-                    api_token.to_str().unwrap(),
-                    &KEYS.decoding,
-                    &Validation::default(),
-                )
-                .map_err(|_| AuthError::InvalidToken)?;
-                return Ok(token_data.claims);
+                if token.contains_key("API-TOKEN") {
+                    let api_token = token.get("API-TOKEN").unwrap();
+                    let token_data = decode::<Claims>(
+                        api_token.to_str().unwrap(),
+                        &KEYS.decoding,
+                        &Validation::default(),
+                    )
+                    .map_err(|_| AuthError::InvalidToken)?;
+                    return Ok(token_data.claims);
+                } 
             }
-            Err(e) => AuthError::InvalidToken,
+            Err(e) => {
+                return Err(e);
+            },
         };
 
         // Extract the token from the authorization header
