@@ -33,6 +33,7 @@ pub mod test {
     use super::connect_db;
 
     #[test]
+    #[ignore]
     fn test_connect_db() {
         let url = "mysql://root:meta@localhost/rust_test".to_string();
         let runtime = Runtime::new().unwrap();
