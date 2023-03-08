@@ -1,0 +1,13 @@
+[package]
+name = "config"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { version = "1.0.64", features = ["backtrace"] }
+serde = { version = "1.0.144", features = ["derive", "rc"] }
+serde_with = "2.1.0"
+serde_yaml = "0.9.19"
+tracing = "0.1.36"
