@@ -11,10 +11,7 @@ minting --> minted --> burning --> burned
 -- mint_fail           burn_fail
 */
 
-use std::{
-    collections::HashMap,
-    error::Error,
-};
+use std::{collections::HashMap, error::Error};
 
 pub trait EventHandler {
     fn handle(&self) -> Result<(), Box<dyn Error>>;
@@ -27,11 +24,11 @@ pub trait EventHandler {
     ) -> Result<(), Box<dyn Error>>;
 }
 
-#[repr(u8)]
+#[derive(Copy, Clone)]
 enum OprType {
-    Unkonw = 0,
-    Mint = 1,
-    Burn = 2,
+    Unkonw,
+    Mint,
+    Burn,
 }
 
 struct SBTEvent {
@@ -48,14 +45,11 @@ struct SBTMintEvent {
     base: SBTEvent,
 }
 
-
 struct SBTBurnEvent {
     who: String,
     token_id: String,
     base: SBTEvent,
 }
-
-
 
 struct SBTInfo {
     chain_id: u64,
@@ -73,6 +67,7 @@ struct SBTLifetime {
 }
 
 pub struct SBT {
+    contract_type_map: HashMap<String, OprType>,
     contract_map: HashMap<String, bool>,
     insert_queue: Vec<SBTInfo>,
     update_queue: Vec<SBTInfo>,
@@ -82,6 +77,7 @@ pub struct SBT {
 impl SBT {
     fn new() -> Self {
         SBT {
+            contract_type_map: HashMap::new(),
             contract_map: HashMap::new(),
             insert_queue: vec![],
             update_queue: vec![],
@@ -94,10 +90,9 @@ impl SBT {
     }
 
     fn get_opr_type_from_address(&self, addr: &str) -> OprType {
-        match addr {
-            "0x12345" => return OprType::Mint,
-            "0x32345" => return OprType::Burn,
-            _ => OprType::Unkonw,
+        match self.contract_type_map.get(addr) {
+            Some(opr_type) => *opr_type,
+            None => OprType::Unkonw,
         }
     }
 }
