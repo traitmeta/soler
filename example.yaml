@@ -1,0 +1,14 @@
+database:
+  url: 127.0.0.1:3306
+  schema: mysql
+  username: root
+  password: root
+  database: test
+redis:
+kafka:
+  brokers: 
+    - https://localhost:10066
+    - https://localhost:10067
+    - https://localhost:10068
+  topic: test
+seed_peers: []
