@@ -11,4 +11,9 @@ kafka:
     - https://localhost:10067
     - https://localhost:10068
   topic: test
-seed_peers: []
+chains: 
+  - 
+    url: https://localhost:65565
+    chain_id: 1
+    chain_name: ETH
+    contracts: [0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85]

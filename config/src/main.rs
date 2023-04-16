@@ -62,6 +62,9 @@ async fn main() -> Result<()> {
         info!("Started Kafka endpoint at {:?}", kafka.brokers);
     }
 
+    info!("Started Chains lens {:?}", config.chains.len());
+    info!("Started Chains endpoint at {:?}", config.chains);
+
     // TODO: Do we want to provide a way for the node to gracefully shutdown?
     loop {
         tokio::time::sleep(Duration::from_secs(1000)).await;

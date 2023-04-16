@@ -14,7 +14,7 @@ pub struct BaseConfig {
     /// SeedPeers configured with a PeerId are preferred and the node will always try to ensure a
     /// connection is established with these nodes.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub seed_peers: Vec<Chain>,
+    pub chains: Vec<Chain>,
 }
 
 impl Config for BaseConfig {}
