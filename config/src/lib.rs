@@ -12,6 +12,7 @@ pub mod db;
 pub mod redis;
 pub mod kafka;
 pub mod chain;
+pub mod whitelist;
 
 pub trait Config
 where

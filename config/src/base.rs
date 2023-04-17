@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
-use crate::{chain::Chain, db::DB, kafka::Kafka, redis::Redis, Config};
+use crate::{chain::Chain, db::DB, kafka::Kafka, redis::Redis, whitelist::Addr, Config};
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "kebab-case")]
@@ -14,7 +16,9 @@ pub struct BaseConfig {
     /// SeedPeers configured with a PeerId are preferred and the node will always try to ensure a
     /// connection is established with these nodes.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub chains: Vec<Chain>,
+    pub addresses: Vec<Addr>,
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
+    pub chains: HashMap<String, Chain>,
 }
 
 impl Config for BaseConfig {}

@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
     }
 
     info!("Started Chains lens {:?}", config.chains.len());
-    info!("Started Chains endpoint at {:?}", config.chains);
+    info!("Started ETH Chain endpoint at {:?}", config.chains["ETH"]);
 
     // TODO: Do we want to provide a way for the node to gracefully shutdown?
     loop {
