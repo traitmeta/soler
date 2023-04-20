@@ -3,3 +3,4 @@ pub mod model;
 pub mod orm;
 pub mod cache;
 pub mod handler;
+pub mod sui;

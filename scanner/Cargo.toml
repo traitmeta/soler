@@ -4,20 +4,22 @@ name = "scanner"
 version = "0.1.0"
 
 [dependencies]
-entities = {path = "../entities"}
-migration = {path = "../migration"}
+entities = { path = "../entities" }
+migration = { path = "../migration" }
 
-anyhow = {version = "1"}
-ethers = "1.0.0"
-ethers-core = "1.0.0"
-ethers-signers = "1.0.0"
+anyhow = { version = "1" }
+ethers = "2.0.3"
 hex = "0.4"
 md5 = "0.7"
 rand = "0.8"
-tokio = {version = "1.0", features = ["full"]}
+tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1"
-tracing-subscriber = {version = "0.3", features = ["env-filter"]}
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 web3 = "0.18.0"
+sui-sdk = { git = "https://github.com/MystenLabs/sui" }
+sui-json-rpc-types = { git = "https://github.com/MystenLabs/sui" }
+futures-core = "0.3.21"
+futures = "0.3.23"
 
 [dependencies.sea-orm]
 features = ["sqlx-mysql", "runtime-tokio-native-tls", "macros", "debug-print"]
