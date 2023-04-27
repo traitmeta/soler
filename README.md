@@ -11,5 +11,5 @@ this repo include something about rust.
 
 ## TODO
 
-1. auxm 换成最新版本
+1. ~~auxm 换成最新版本~~
 2. sea-orm使用GraphQL
