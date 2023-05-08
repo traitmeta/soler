@@ -1,6 +1,9 @@
-use super::*;
+use axum::{Form, response::{Html, IntoResponse}, Json};
+use hyper::StatusCode;
+use serde::{Deserialize, Serialize};
 
 pub async fn show_form() -> Html<&'static str> {
+    
     Html(
         r#"
         <!doctype html>
@@ -25,12 +28,17 @@ pub async fn show_form() -> Html<&'static str> {
 }
 
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
-pub struct Input {
+pub struct UserInfo {
     name: String,
     email: String,
 }
 
-pub async fn accept_form(Form(input): Form<Input>) {
-    dbg!(&input);
+#[derive(Debug, Serialize)]
+pub struct Response {
+    pub name: String,
+}
+
+// its error, cannot parse param from body
+pub async fn accept_form(Form(input): Form<UserInfo>) -> impl IntoResponse {
+    (StatusCode::OK, Json(Response { name: input.name }))
 }

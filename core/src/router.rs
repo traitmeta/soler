@@ -1,4 +1,4 @@
-use crate::handlers::{common, user};
+use crate::handlers::{common, helth, user};
 use axum::{
     body, middleware,
     routing::{get, post},
@@ -17,20 +17,15 @@ use super::{
 pub async fn route(addr: SocketAddr) {
     // build our application with a route
     let app = Router::new()
-        .route("/", get(user::handler))
-        .route("/user", get(user::root))
+        .route("/", get(helth::home))
+        .route("/info", get(helth::info))
         .route("/user/create", post(user::create_user))
-        .route("/anyhow", get(err::handler))
-        .route("/foo", post(body_parser::handler))
+        .route("/err", get(err::handler))
         .route("/form", get(form::show_form).post(form::accept_form))
+        .route("/user-info", post(form::accept_form))
         .route("/protected", get(jwt::protected))
         .route("/authorize/bearer", post(jwt::authorize))
         .route("/authorize/api", post(jwt::authorize_api_token))
-        .layer(
-            ServiceBuilder::new()
-                .map_request_body(body::boxed)
-                .layer(middleware::from_fn(body_parser::print_request_body)),
-        )
         .layer(middleware::from_fn(response::print_request_response));
 
     // add a fallback service for handling routes to unknown paths

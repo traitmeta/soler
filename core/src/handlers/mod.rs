@@ -2,6 +2,7 @@ pub mod body_parser;
 pub mod common;
 pub mod err;
 pub mod form;
+pub mod helth;
 pub mod response;
 pub mod user;
 

@@ -1,5 +1,13 @@
 use super::*;
 
+/**
+ * add code in router
+ * .layer(
+      ServiceBuilder::new()
+        .map_request_body(body::boxed)
+        .layer(middleware::from_fn(body_parser::print_request_body)),
+    )
+ */ 
 // middleware that shows how to consume the request body upfront
 pub async fn print_request_body(
     request: Request<BoxBody>,
@@ -27,10 +35,6 @@ async fn buffer_request_body(request: Request<BoxBody>) -> Result<Request<BoxBod
 
 fn do_thing_with_request_body(bytes: Bytes) {
     tracing::debug!(body = ?bytes);
-}
-
-pub async fn handler(BufferRequestBody(body): BufferRequestBody) {
-    tracing::debug!(?body, "handler received body");
 }
 
 // extractor that shows how to consume the request body upfront

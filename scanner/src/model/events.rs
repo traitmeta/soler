@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+// 这里没有考虑tx_index
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Event {
     pub height: u64,
