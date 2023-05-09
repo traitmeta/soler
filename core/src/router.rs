@@ -1,20 +1,17 @@
-use crate::handlers::{common, helth, user};
 use axum::{
-    body, middleware,
+    middleware,
     routing::{get, post},
-    Router,
+    Extension, Router,
 };
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 use tokio::signal;
-use tower::ServiceBuilder;
-use tower_http::ServiceBuilderExt;
 
 use super::{
     auth::jwt,
-    handlers::{body_parser, err, form, response},
+    handlers::{err, form, helth, response, state, user},
 };
 
-pub async fn route(addr: SocketAddr) {
+pub async fn route(addr: SocketAddr, app_state: state::AppState) {
     // build our application with a route
     let app = Router::new()
         .route("/", get(helth::home))
@@ -26,10 +23,11 @@ pub async fn route(addr: SocketAddr) {
         .route("/protected", get(jwt::protected))
         .route("/authorize/bearer", post(jwt::authorize))
         .route("/authorize/api", post(jwt::authorize_api_token))
-        .layer(middleware::from_fn(response::print_request_response));
+        .layer(middleware::from_fn(response::print_request_response))
+        .layer(Extension(Arc::new(app_state)));
 
     // add a fallback service for handling routes to unknown paths
-    let app = app.fallback(common::handler_404);
+    let app = app.fallback(err::handler_404);
 
     // run it
     axum::Server::bind(&addr)

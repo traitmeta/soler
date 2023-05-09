@@ -1,7 +1,7 @@
 use entities::scanner_height::Model;
 use sea_orm::DbConn;
 
-use crate::orm::height::{Query, Mutation};
+use crate::repo::height::{Query, Mutation};
 
 pub async fn current_height(conn: &DbConn, task_name: &str, chain_name: &str) -> Option<u64> {
     let current_model = Query::select_one_by_task_name(&conn, task_name).await.unwrap();

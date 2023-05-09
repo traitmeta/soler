@@ -2,8 +2,7 @@ use axum::{Form, response::{Html, IntoResponse}, Json};
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 
-pub async fn show_form() -> Html<&'static str> {
-    
+pub async fn show_form() -> Html<&'static str> { 
     Html(
         r#"
         <!doctype html>

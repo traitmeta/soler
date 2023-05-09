@@ -1,5 +1,9 @@
 use super::*;
 
+pub async fn handler_404() -> impl IntoResponse {
+    (StatusCode::NOT_FOUND, "nothing to see here")
+}
+
 pub async fn handler() -> Result<(), AppError> {
     try_thing()?;
     Ok(())

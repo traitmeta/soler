@@ -1,4 +1,4 @@
-use super::{common::BaseResponse, *};
+use super::{response::BaseResponse, *};
 
 pub async fn create_user(Json(payload): Json<CreateUser>) -> impl IntoResponse {
     // insert your application logic here

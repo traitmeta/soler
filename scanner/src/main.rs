@@ -1,11 +1,9 @@
+use common::orm::conn::connect_db;
 use scanner::{
     cache::{ContractAddrCache, ScannerContract},
     evms::eth,
-    model::{
-        contract::Query as ContractQuery,
-        height::Mutation,
-    },
-    orm::conn::connect_db, handler::block::current_height,
+    handler::block::current_height,
+    repo::{contract::Query as ContractQuery, height::Mutation},
 };
 use sea_orm::DbConn;
 use tracing::instrument;
@@ -36,8 +34,8 @@ async fn main() -> web3::Result<()> {
         .unwrap();
 
     let mut height = 0;
-    if let Some(db_height) = current_height(&conn,"eth:5","eth").await{
-        height =  db_height+ 1;
+    if let Some(db_height) = current_height(&conn, "eth:5", "eth").await {
+        height = db_height + 1;
     }
 
     let contract_addr_cache = update_contract_cache(&conn).await;
@@ -68,7 +66,6 @@ async fn main() -> web3::Result<()> {
 
     Ok(())
 }
-
 
 async fn update_contract_cache(conn: &DbConn) -> ContractAddrCache {
     let mut contract_addr_cache = ContractAddrCache::new();

@@ -1,4 +1,5 @@
-use core::router;
+use common::orm::conn::connect_db;
+use core::{handlers::state, router};
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -14,5 +15,10 @@ async fn main() {
     // run it
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::debug!("listening on {}", addr);
-    router::route(addr).await
+
+    let conn = connect_db("mysql://root:meta@localhost/rust_test".to_owned())
+        .await
+        .unwrap();
+
+    router::route(addr, state::AppState { conn }).await
 }

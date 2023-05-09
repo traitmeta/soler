@@ -2,7 +2,7 @@ mod prepare;
 
 use entities::scanner_height;
 use prepare::prepare_mock_db;
-use scanner::model::height::{Mutation, Query};
+use scanner::repo::height::{Mutation, Query};
 
 #[tokio::test]
 async fn main() {

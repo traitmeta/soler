@@ -1,5 +1,22 @@
 use super::*;
 
+#[derive(Serialize)]
+pub struct BaseResponse<T> {
+    pub code: u64,
+    pub message: String,
+    pub data: T,
+}
+
+impl<T> BaseResponse<T> {
+    pub fn success(data: T) -> Self {
+        BaseResponse {
+            code: 200,
+            message: "OK".to_owned(),
+            data,
+        }
+    }
+}
+
 pub async fn print_request_response(
     req: Request<Body>,
     next: Next<Body>,

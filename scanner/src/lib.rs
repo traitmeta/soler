@@ -1,6 +1,6 @@
 pub mod evms;
 pub mod model;
-pub mod orm;
+pub mod repo;
 pub mod cache;
 pub mod handler;
 pub mod sui;
