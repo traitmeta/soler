@@ -1,14 +1,14 @@
 [workspace]
 members = [
-  "common",
+  "entities",
   "chain",
+  "config",
   "core",
   "learn",
   "meta/kafka",
   "meta/rpc",
-  "mq",
-  "scanner",
   "migration",
-  "entities",
-  "config",
+  "mq",
+  "repo",
+  "scanner",
 ]

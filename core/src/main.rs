@@ -1,4 +1,4 @@
-use common::orm::conn::connect_db;
+use repo::orm::conn::connect_db;
 use core::{handlers::state, router};
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

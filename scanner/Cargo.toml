@@ -6,7 +6,7 @@ version = "0.1.0"
 [dependencies]
 entities = { path = "../entities" }
 migration = { path = "../migration" }
-common = { path = "../common" }
+repo = { path = "../repo" }
 
 
 anyhow = { version = "1" }

@@ -1,9 +1,11 @@
-use common::orm::conn::connect_db;
+use repo::{
+    dal::{contract::Query as ContractQuery, height::Mutation},
+    orm::conn::connect_db,
+};
 use scanner::{
     cache::{ContractAddrCache, ScannerContract},
     evms::eth,
     handler::block::current_height,
-    repo::{contract::Query as ContractQuery, height::Mutation},
 };
 use sea_orm::DbConn;
 use tracing::instrument;

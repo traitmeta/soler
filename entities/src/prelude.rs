@@ -2,3 +2,4 @@
 
 pub use super::scanner_contract::Entity as ScannerContract;
 pub use super::scanner_height::Entity as ScannerHeight;
+pub use super::user::Entity as User;
