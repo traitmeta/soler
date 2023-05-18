@@ -26,6 +26,8 @@ tower-http = { version = "0.4.0", features = ["map-request-body", "util"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 validator = { version = "0.16.0", features = ["derive"] }
+twitter-v2 = "0.1.8"
+time = "0.3.21"
 
 [dependencies.sea-orm]
 features = ["sqlx-mysql", "runtime-tokio-native-tls", "macros", "debug-print"]

@@ -14,5 +14,8 @@
             "password": "meta",
             "group": "local"
         }
+    ],
+    "rust-analyzer.linkedProjects": [
+        "./core/Cargo.toml"
     ]
 }
