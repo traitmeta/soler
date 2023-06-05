@@ -91,7 +91,7 @@ impl ChainCli {
         rs.data
     }
 
-    async fn get_tx_detail(&self, digest: TransactionDigest) -> SuiTransactionBlockResponse {
+    pub async fn get_tx_detail(&self, digest: TransactionDigest) -> SuiTransactionBlockResponse {
         let response: SuiTransactionBlockResponse = self
             .cli
             .read_api()

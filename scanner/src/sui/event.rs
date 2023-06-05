@@ -1,6 +1,6 @@
 use sui_json_rpc_types::SuiEvent;
 
-use crate::{model::events::Event, sui::event};
+use crate::{model::events::Event};
 
 use super::chain::ChainCli;
 

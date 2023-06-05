@@ -1,25 +1,16 @@
+use ethers_core::{k256::ecdsa::SigningKey, rand::thread_rng, utils::keccak256};
 use std::io::Read;
 
-// 使用EVM的签名
-use anyhow::Result; //导入包
-
-use ethers_core::{
-    k256::ecdsa::{self, SigningKey},
-    rand::thread_rng,
-    utils::keccak256,
-};
 use ethers_signers::{to_eip155_v, LocalWallet, Signer, Wallet};
 
-fn get_wallet_from_key_file() -> Wallet<SigningKey> {
+pub fn get_wallet_from_key_file() -> Wallet<SigningKey> {
     let dir = "./keystore/key"; //keystore的钱包路径
-    let wallet = Wallet::<SigningKey>::decrypt_keystore(&dir, "123456").unwrap(); //参数2是钱包密码
-    wallet
+    Wallet::<SigningKey>::decrypt_keystore(dir, "123456").unwrap()
 }
 
-fn random_wallet() -> Wallet<SigningKey> {
+pub fn random_wallet() -> Wallet<SigningKey> {
     let wallet = LocalWallet::new(&mut thread_rng());
-    let wallet = wallet.with_chain_id(1u64);
-    wallet
+    wallet.with_chain_id(1u64)
 }
 
 pub fn sign_msg(wallet: Wallet<SigningKey>) {

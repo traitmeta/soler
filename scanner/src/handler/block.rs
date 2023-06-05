@@ -1,10 +1,12 @@
 use entities::scanner_height::Model;
 use sea_orm::DbConn;
 
-use crate::repo::height::{Query, Mutation};
+use crate::repo::height::{Mutation, Query};
 
 pub async fn current_height(conn: &DbConn, task_name: &str, chain_name: &str) -> Option<u64> {
-    let current_model = Query::select_one_by_task_name(&conn, task_name).await.unwrap();
+    let current_model = Query::select_one_by_task_name(conn, task_name)
+        .await
+        .unwrap();
     match current_model {
         Some(current) => return Some(current.height),
         None => {
@@ -17,9 +19,9 @@ pub async fn current_height(conn: &DbConn, task_name: &str, chain_name: &str) ->
                 created_at: None,
                 updated_at: None,
             };
-            let result = Mutation::create_scanner_height(&conn, insert_data)
+            let result = Mutation::create_scanner_height(conn, insert_data)
                 .await
-                .expect(format!("insert {} to scanner height table err", task_name).as_str());
+                .unwrap_or_else(|_| panic!("insert {} to scanner height table err", task_name));
             tracing::debug!("insert {} return :{:?}", task_name, result);
         }
     }

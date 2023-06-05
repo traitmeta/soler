@@ -1,4 +1,3 @@
-use std::io::Read;
 use web3::{
     transports::Http,
     types::{BlockId, BlockNumber, Log, H256, U64},
