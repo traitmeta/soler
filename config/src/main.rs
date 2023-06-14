@@ -1,6 +1,7 @@
 use anyhow::Result;
+
 use clap::Parser;
-use config::base::BaseConfig;
+use config::{base::BaseConfig, Args};
 use config::Config;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -25,17 +26,6 @@ const GIT_REVISION: &str = {
     }
 };
 const VERSION: &str = const_str::concat!(env!("CARGO_PKG_VERSION"), "-", GIT_REVISION);
-
-#[derive(Parser)]
-#[clap(rename_all = "kebab-case")]
-#[clap(name = env!("CARGO_BIN_NAME"))]
-#[clap(version = VERSION)]
-struct Args {
-    #[clap(long)]
-    pub config_path: PathBuf,
-    // #[clap(long, help = "Specify address to listen on")]
-    // listen_address: Option<Multiaddr>,
-}
 
 // cargo run --package config  -- --config-path "example.yaml"
 #[tokio::main]

@@ -1,17 +1,17 @@
+use anyhow::Context;
+use clap::Parser;
+use serde::{de::DeserializeOwned, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
 };
-
-use anyhow::Context;
-use serde::{de::DeserializeOwned, Serialize};
 use tracing::trace;
 
 pub mod base;
-pub mod db;
-pub mod redis;
-pub mod kafka;
 pub mod chain;
+pub mod db;
+pub mod kafka;
+pub mod redis;
 pub mod whitelist;
 
 pub trait Config
@@ -81,4 +81,11 @@ impl<C> std::ops::DerefMut for PersistedConfig<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
+}
+
+#[derive(Parser)]
+#[clap(rename_all = "kebab-case")]
+pub struct Args {
+    #[clap(long)]
+    pub config_path: PathBuf,
 }

@@ -1,13 +1,11 @@
-use jsonrpsee::core::{async_trait, Error};
-use jsonrpsee::proc_macros::rpc;
-use jsonrpsee::types::SubscriptionResult;
-use jsonrpsee::ws_server::SubscriptionSink;
+pub mod example_impl;
 
-pub type ExampleHash = [u8; 32];
-pub type ExampleStorageKey = Vec<u8>;
+use jsonrpsee::core::SubscriptionResult;
+use jsonrpsee::proc_macros::rpc;
+use jsonrpsee::types::ErrorObjectOwned;
 
 #[rpc(server, client, namespace = "state")]
-pub trait Rpc<Hash: Clone, StorageKey>
+pub trait Rpc<Hash, StorageKey>
 where
     Hash: std::fmt::Debug,
 {
@@ -17,32 +15,9 @@ where
         &self,
         storage_key: StorageKey,
         hash: Option<Hash>,
-    ) -> Result<Vec<StorageKey>, Error>;
+    ) -> Result<Vec<StorageKey>, ErrorObjectOwned>;
 
     // Subscription that takes a `StorageKey` as input and produces a `Vec<Hash>`.
     #[subscription(name = "subscribeStorage" => "override", item = Vec<Hash>)]
-    fn subscribe_storage(&self, keys: Option<Vec<StorageKey>>);
-}
-
-pub struct RpcServerImpl;
-
-#[async_trait]
-impl RpcServer<ExampleHash, ExampleStorageKey> for RpcServerImpl {
-    async fn storage_keys(
-        &self,
-        storage_key: ExampleStorageKey,
-        _hash: Option<ExampleHash>,
-    ) -> Result<Vec<ExampleStorageKey>, Error> {
-        Ok(vec![storage_key])
-    }
-
-    // Note that the server's subscription method must return `SubscriptionResult`.
-    fn subscribe_storage(
-        &self,
-        mut sink: SubscriptionSink,
-        _keys: Option<Vec<ExampleStorageKey>>,
-    ) -> SubscriptionResult {
-        let _ = sink.send(&vec![[0; 32]]);
-        Ok(())
-    }
+    async fn subscribe_storage(&self, keys: Option<Vec<StorageKey>>) -> SubscriptionResult;
 }

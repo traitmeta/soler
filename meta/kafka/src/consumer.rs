@@ -1,6 +1,5 @@
-use clap::{Arg, ArgAction, Command};
+use config::kafka::Kafka as KafkaCfg;
 use log::{info, warn};
-
 use rdkafka::client::ClientContext;
 use rdkafka::config::{ClientConfig, RDKafkaLogLevel};
 use rdkafka::consumer::stream_consumer::StreamConsumer;
@@ -8,9 +7,7 @@ use rdkafka::consumer::{CommitMode, Consumer, ConsumerContext, Rebalance};
 use rdkafka::error::KafkaResult;
 use rdkafka::message::{Headers, Message};
 use rdkafka::topic_partition_list::TopicPartitionList;
-use rdkafka::util::get_rdkafka_version;
 
-use kafka::utils::setup_logger;
 
 // A context can be used to change the behavior of producers and consumers by adding callbacks
 // that will be executed by librdkafka.
@@ -36,12 +33,12 @@ impl ConsumerContext for CustomContext {
 // A type alias with your custom consumer can be created for convenience.
 type LoggingConsumer = StreamConsumer<CustomContext>;
 
-async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
+pub async fn consume_and_print(kfk_cfg: &KafkaCfg) {
     let context = CustomContext;
-
+    let group_id = kfk_cfg.group_id.as_ref().expect("kafka group id no value");
     let consumer: LoggingConsumer = ClientConfig::new()
-        .set("group.id", group_id)
-        .set("bootstrap.servers", brokers)
+        .set("group.id", group_id.as_str())
+        .set("bootstrap.servers", kfk_cfg.brokers.as_str())
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
@@ -50,9 +47,9 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
         .set_log_level(RDKafkaLogLevel::Debug)
         .create_with_context(context)
         .expect("Consumer creation failed");
-
+    let topics = kfk_cfg.topics_to_vec();
     consumer
-        .subscribe(&topics.to_vec())
+        .subscribe(&topics)
         .expect("Can't subscribe to specified topics");
 
     loop {
@@ -78,72 +75,4 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
             }
         };
     }
-}
-
-#[tokio::main]
-async fn main() {
-    let matches = Command::new("consumer example")
-        .version(option_env!("CARGO_PKG_VERSION").unwrap_or(""))
-        .about("Simple command line consumer")
-        .arg(
-            Arg::new("brokers")
-                .short('b')
-                .long("brokers")
-                .help("Broker list in kafka format")
-                .action(ArgAction::SetTrue)
-                .default_value("localhost:9092"),
-        )
-        .arg(
-            Arg::new("group-id")
-                .short('g')
-                .long("group-id")
-                .help("Consumer group id")
-                .action(ArgAction::SetTrue)
-                .default_value("example_consumer_group_id"),
-        )
-        .arg(
-            Arg::new("log-conf")
-                .long("log-conf")
-                .help("Configure the logging format (example: 'rdkafka=trace')")
-                .action(ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("topics")
-                .short('t')
-                .long("topics")
-                .help("Topic list")
-                .action(ArgAction::SetTrue)
-                .num_args(0..)
-                .required(true),
-        )
-        .get_matches();
-
-    setup_logger(
-        true,
-        Some(
-            matches
-                .get_one::<String>("log-conf")
-                .expect("read brokers fail from config")
-                .as_str(),
-        ),
-    );
-
-    let (version_n, version_s) = get_rdkafka_version();
-    info!("rd_kafka_version: 0x{:08x}, {}", version_n, version_s);
-
-    let topics = matches
-        .get_many("topics")
-        .unwrap()
-        .copied()
-        .collect::<Vec<&str>>();
-    let brokers = matches
-        .get_one::<String>("brokers")
-        .expect("read brokers fail from config")
-        .as_str();
-    let group_id = matches
-        .get_one::<String>("group-id")
-        .expect("read brokers fail from config")
-        .as_str();
-
-    consume_and_print(brokers, group_id, &topics).await
 }
