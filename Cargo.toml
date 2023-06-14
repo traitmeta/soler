@@ -4,7 +4,6 @@ members = [
   "chain",
   "config",
   "core",
-  "learn",
   "meta/kafka",
   "meta/rpc",
   "migration",
