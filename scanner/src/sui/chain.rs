@@ -5,12 +5,12 @@ use move_core_types::identifier::Identifier;
 use sui_json_rpc_types::SuiEvent;
 use sui_json_rpc_types::{
     EventFilter, SuiTransactionBlockResponse, SuiTransactionBlockResponseOptions,
-    SuiTransactionBlockResponseQuery,
+    SuiTransactionBlockResponseQuery, TransactionFilter,
 };
 use sui_sdk::types::base_types::ObjectID;
 use sui_sdk::types::digests::TransactionDigest;
 use sui_sdk::types::event::EventID;
-use sui_sdk::{types::query::TransactionFilter, SuiClient, SuiClientBuilder};
+use sui_sdk::{SuiClient, SuiClientBuilder};
 
 pub struct ChainCli {
     cli: SuiClient,
