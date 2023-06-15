@@ -22,6 +22,7 @@ pub async fn produce(kfk_cfg: &KafkaCfg) {
             // completed once the result or failure from Kafka is received.
             let delivery_status = producer
                 .send(
+                    // TODO build payload with struct 
                     FutureRecord::to(*topic_name)
                         .payload(&format!("Message {}", i))
                         .key(&format!("Key {}", i))

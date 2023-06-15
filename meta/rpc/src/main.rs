@@ -1,9 +1,10 @@
 use hyper::body::Bytes;
-use jsonrpsee::core::client::ClientT;
+use jsonrpsee::core::client::{ClientT, Subscription};
 use jsonrpsee::http_client::HttpClientBuilder;
 use jsonrpsee::server::ServerBuilder;
 use jsonrpsee::ws_client::WsClientBuilder;
 use jsonrpsee::{rpc_params, RpcModule};
+use rpc::RpcClient;
 use rpc::{
     example_impl::ExampleHash, example_impl::ExampleStorageKey, example_impl::RpcServerImpl,
     RpcServer,
@@ -25,13 +26,33 @@ async fn main() -> anyhow::Result<()> {
         .try_init()
         .expect("setting default subscriber failed");
 
-    let ws_server_addr = ws_run_server().await?;
+    run_ws().await;
+
+    Ok(())
+}
+
+async fn run_ws() {
+    let ws_server_addr = ws_run_server().await.unwrap();
     let ws_url = format!("ws://{}", ws_server_addr);
-    let ws_client = WsClientBuilder::default().build(&ws_url).await?;
-    let response: String = ws_client.request("say_hello", rpc_params![]).await?;
+    let ws_client = WsClientBuilder::default().build(&ws_url).await.unwrap();
+    let response: String = ws_client.request("say_hello", rpc_params![]).await.unwrap();
     tracing::info!("response: {:?}", response);
 
-    let http_server_addr = http_run_server().await?;
+    let storage_res = ws_client
+        .storage_keys(vec![1, 2, 3, 4], None::<ExampleHash>)
+        .await
+        .unwrap();
+    assert_eq!(storage_res, vec![vec![1, 2, 3, 4]]);
+
+    let mut sub: Subscription<Vec<ExampleHash>> =
+        RpcClient::<ExampleHash, ExampleStorageKey>::subscribe_storage(&ws_client, None)
+            .await
+            .unwrap();
+    assert_eq!(Some(vec![[0; 32]]), sub.next().await.transpose().unwrap());
+}
+
+async fn run_http() {
+    let http_server_addr = http_run_server().await.unwrap();
     let http_url = format!("http://{}", http_server_addr);
     let middleware = tower::ServiceBuilder::new()
 	.layer(
@@ -48,25 +69,11 @@ async fn main() -> anyhow::Result<()> {
 
     let client = HttpClientBuilder::default()
         .set_middleware(middleware)
-        .build(http_url)?;
+        .build(http_url)
+        .unwrap();
     let params = rpc_params![1_u64, 2, 3];
     let response: Result<String, _> = client.request("say_hello", params).await;
     tracing::info!("r: {:?}", response);
-
-    Ok(())
-}
-
-async fn run_my_server() -> anyhow::Result<SocketAddr> {
-    let server = ServerBuilder::default().build("127.0.0.1:0").await?;
-
-    let addr = server.local_addr()?;
-    let handle = server.start(RpcServerImpl.into_rpc())?;
-
-    // In this example we don't care about doing shutdown so let's it run forever.
-    // You may use the `ServerHandle` to shut it down or manage it yourself.
-    tokio::spawn(handle.stopped());
-
-    Ok(addr)
 }
 
 async fn ws_run_server() -> anyhow::Result<SocketAddr> {
@@ -75,6 +82,7 @@ async fn ws_run_server() -> anyhow::Result<SocketAddr> {
         .await?;
     let mut module = RpcModule::new(());
     module.register_method("say_hello", |_, _| "lo")?;
+    module.merge(RpcServerImpl.into_rpc()).unwrap();
 
     let addr = server.local_addr()?;
     let handle = server.start(module)?;
