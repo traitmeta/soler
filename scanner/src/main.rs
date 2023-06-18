@@ -15,6 +15,7 @@ use web3::{
     types::{H160, U256},
     Web3,
 };
+use config::db::DB;
 
 #[tokio::main]
 #[instrument]
@@ -31,9 +32,14 @@ async fn main() -> web3::Result<()> {
 
     list_account_balances(&web3).await?;
 
-    let conn = connect_db("mysql://root:meta@localhost/rust_test".to_owned())
-        .await
-        .unwrap();
+    let db_cfg = DB {
+        url: "localhost:3306".to_string(),
+        schema: "mysql".to_string(),
+        username: "root".to_string(),
+        password: "meta".to_string(),
+        database: "rust_test".to_string(),
+    };
+    let conn = connect_db(db_cfg).await.unwrap();
 
     let mut height = 0;
     if let Some(db_height) = current_height(&conn, "eth:5", "eth").await {

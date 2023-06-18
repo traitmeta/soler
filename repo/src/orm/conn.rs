@@ -1,7 +1,7 @@
-use std::time::Duration;
-
+use config::db::DB;
 use migration::DbErr;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use std::time::Duration;
 use tracing::log;
 
 pub async fn migration(database_url: String) {
@@ -11,8 +11,9 @@ pub async fn migration(database_url: String) {
     Migrator::up(&conn, None).await.unwrap();
 }
 
-pub async fn connect_db(url: String) -> Result<DatabaseConnection, DbErr> {
-    let mut opt = ConnectOptions::new(url);
+pub async fn connect_db(cfg: DB) -> Result<DatabaseConnection, DbErr> {
+    let db_url = cfg.url();
+    let mut opt = ConnectOptions::new(db_url);
     opt.max_connections(100)
         .min_connections(5)
         .connect_timeout(Duration::from_secs(8))
@@ -28,6 +29,7 @@ pub async fn connect_db(url: String) -> Result<DatabaseConnection, DbErr> {
 
 #[cfg(test)]
 pub mod test {
+    use config::db::DB;
     use tokio::runtime::Runtime;
 
     use super::connect_db;
@@ -35,8 +37,15 @@ pub mod test {
     #[test]
     #[ignore]
     fn test_connect_db() {
-        let url = "mysql://root:meta@localhost/rust_test".to_string();
+        let db_cfg = DB {
+            url: "localhost:3306".to_string(),
+            schema: "mysql".to_string(),
+            username: "root".to_string(),
+            password: "meta".to_string(),
+            database: "rust_test".to_string(),
+        };
+
         let runtime = Runtime::new().unwrap();
-        runtime.block_on(connect_db(url)).unwrap();
+        runtime.block_on(connect_db(db_cfg)).unwrap();
     }
 }

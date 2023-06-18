@@ -7,7 +7,7 @@ version = "0.1.0"
 entities = { path = "../entities" }
 migration = { path = "../migration" }
 repo = { path = "../repo" }
-
+config = { path = "../config" }
 
 anyhow = { version = "1" }
 ethers = "2.0.3"

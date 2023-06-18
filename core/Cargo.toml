@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 repo = { path = "../repo" }
 entities = { path = "../entities" }
-
+config = { path = "../config" }
 
 anyhow = "1.0"
 async-trait = "0.1.63"
