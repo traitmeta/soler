@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use futures::StreamExt;
 use move_core_types::identifier::Identifier;
+use serde::de::value::Error;
 use sui_json_rpc_types::SuiEvent;
 use sui_json_rpc_types::{
     EventFilter, SuiTransactionBlockResponse, SuiTransactionBlockResponseOptions,
@@ -81,14 +82,17 @@ impl ChainCli {
         };
 
         // let event_filters = EventFilter::All(vec![package_id_filter, move_module_filter]);
-
-        let rs = self
+        let page = self
             .cli
             .event_api()
             .query_events(move_module_filter, Some(event_id), Some(100), true)
             .await
-            .unwrap();
-        rs.data
+            .ok();
+
+        match page {
+            None => vec![],
+            Some(data) => data.data
+         }
     }
 
     pub async fn get_tx_detail(&self, digest: TransactionDigest) -> SuiTransactionBlockResponse {
