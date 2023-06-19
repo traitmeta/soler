@@ -15,8 +15,11 @@ chains:
   ETH:
     url: https://rpc.ankr.com/eth_goerli
     chain_id: 1
-    chain_name: ETH
+    chain_name: ETH_Goerli
     contracts: [0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85]
+  SUI:
+    url: https://fullnode.testnet.sui.io:443
+    chain_name: SUI_test
 
 whitelist:
   - 0x001

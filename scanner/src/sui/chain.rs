@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use futures::StreamExt;
 use move_core_types::identifier::Identifier;
-use serde::de::value::Error;
 use sui_json_rpc_types::SuiEvent;
 use sui_json_rpc_types::{
     EventFilter, SuiTransactionBlockResponse, SuiTransactionBlockResponseOptions,
@@ -65,34 +64,53 @@ impl ChainCli {
             .await
     }
 
-    // NOT WORK
-    pub async fn get_events(&self, package_id: &str) -> Vec<SuiEvent> {
+    pub async fn get_events_by_packege_and_module(&self, package_id: &str, module_name: &str) -> Vec<SuiEvent> {
         let package_id_obj = ObjectID::from_hex_literal(package_id).unwrap();
         // full node not support package filter
         // let package_id_filter = EventFilter::Package(package_id_obj);
         let move_module_filter = EventFilter::MoveModule {
             package: package_id_obj,
-            module: Identifier::new("NFTMinted").unwrap(),
+            module: Identifier::new(module_name).unwrap(),
+        };
+
+        let page = self
+            .cli
+            .event_api()
+            .query_events(move_module_filter, None, None, true)
+            .await
+            .ok()
+            .unwrap();
+
+        page.data
+    }
+
+    pub async fn get_events(&self, package_id: &str, module_name: &str) -> Vec<SuiEvent> {
+        let package_id_obj = ObjectID::from_hex_literal(package_id).unwrap();
+        // full node not support package filter
+        // let package_id_filter = EventFilter::Package(package_id_obj);
+        let move_module_filter = EventFilter::MoveModule {
+            package: package_id_obj,
+            module: Identifier::new(module_name).unwrap(),
         };
 
         let event_id: EventID = EventID {
-            tx_digest: TransactionDigest::from_str("8NbvGRuCaFmHU9z7hGEtiWkEwkVG8q7jtZAYneA3Vh15")
+            tx_digest: TransactionDigest::from_str("6zHXRuGgxKrVhmSmChwHNFh4eRb9rRBbhcDi6wjfHovj")
                 .unwrap(),
-            event_seq: 2134770,
+            event_seq: 3249988,
         };
 
         // let event_filters = EventFilter::All(vec![package_id_filter, move_module_filter]);
         let page = self
             .cli
             .event_api()
-            .query_events(move_module_filter, Some(event_id), Some(100), true)
+            .query_events(move_module_filter, Some(event_id), Some(10), true)
             .await
             .ok();
 
         match page {
             None => vec![],
-            Some(data) => data.data
-         }
+            Some(data) => data.data,
+        }
     }
 
     pub async fn get_tx_detail(&self, digest: TransactionDigest) -> SuiTransactionBlockResponse {
@@ -158,9 +176,28 @@ mod tests {
             .unwrap();
 
         let cli = rt.block_on(ChainCli::new("https://fullnode.testnet.sui.io:443"));
-        let events: Vec<sui_json_rpc_types::SuiEvent> = rt.block_on(
-            cli.get_events("0xfcb0c2f067d41f0d1da637fe929cfbb5435bf629a059a259c75e60c1ee550f0a"),
-        );
-        assert!(events.is_empty(), "events in giving package id");
+        let events = rt.block_on(cli.get_events(
+            "0x5ea6aafe995ce6506f07335a40942024106a57f6311cb341239abf2c3ac7b82f",
+            "nft",
+        ));
+        // 只有两个EVENT， NFT MINT 没有EVENT
+        assert!(events.len()>0, "events in giving package id");
+    }
+
+    #[test]
+    fn test_get_events_v1() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let cli = rt.block_on(ChainCli::new("https://fullnode.testnet.sui.io:443"));
+        let events = rt.block_on(cli.get_events_by_packege_and_module(
+            "0x4247e72df58552701456293027e75237fe85a214cd050b6e0358dc5047a3fb17",
+            "aggregator_save_result_action",
+        ));
+
+        // 有很多EVENT
+        assert!(events.len()>0, "events in giving package id");
     }
 }
