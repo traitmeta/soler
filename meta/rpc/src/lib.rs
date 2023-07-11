@@ -1,4 +1,4 @@
-pub mod example_impl;
+pub mod server;
 
 use jsonrpsee::core::SubscriptionResult;
 use jsonrpsee::proc_macros::rpc;
