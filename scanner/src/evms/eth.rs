@@ -4,6 +4,11 @@ use web3::{
     Web3,
 };
 
+/*
+    1. event需要分开，下游的接收者只关心某一类event
+    2. event需要按照TRX的维度聚合成一个，下游的接收者关心的事件有上下文依赖
+*/
+
 pub async fn batch_get_tx_logs(
     current_height: u64,
     web3: &Web3<Http>,
@@ -25,8 +30,8 @@ pub async fn batch_get_tx_logs(
     tracing::debug!("txs: {:?}", block_info.transactions);
 
     let mut logs: Vec<Log> = Vec::new();
-    for v in block_info.transactions {
-        if let Some(receipt) = get_tx_logs_by_id(web3, v).await{
+    for trx in block_info.transactions {
+        if let Some(receipt) = get_tx_logs_by_id(web3, trx).await{
             logs.extend(receipt.logs.into_iter());
         }
     }

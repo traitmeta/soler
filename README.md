@@ -15,6 +15,6 @@ this repo include something about rust.
 2. sea-orm使用GraphQL
 3. Auxm使用seaOrm
 4. ~~sui 追踪指定package中的event~~
-5. RPC main拆分成独立的测试代码
+5. ~~RPC main拆分成独立的测试代码~~
 6. kafka producer 通用改造
 7. sui 指定package中的event 分页遍历
