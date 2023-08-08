@@ -32,9 +32,6 @@ pub struct MyLog {
     /// Transaction Index
     #[serde(rename = "transactionIndex")]
     pub transaction_index: Index,
-    /// Log Index in Block
-    #[serde(rename = "logIndex")]
-    pub log_index: Option<U256>,
     // transaction to address
     pub to: H160,
 }
@@ -51,6 +48,9 @@ pub struct LogDetail {
     /// Log Index in Transaction
     #[serde(rename = "transactionLogIndex")]
     pub transaction_log_index: Option<U256>,
+    /// Log Index in Block
+    #[serde(rename = "logIndex")]
+    pub log_index: Option<U256>,
     /// Log Type
     #[serde(rename = "logType")]
     pub log_type: Option<String>,
@@ -75,11 +75,33 @@ pub async fn batch_get_tx_logs(current_height: u64, web3: &Web3<Http>) -> (Optio
     tracing::debug!("timestamp: {}", block_info.timestamp);
     tracing::debug!("txs: {:?}", block_info.transactions);
 
-    let mut logs: Vec<Log> = Vec::new();
+    let mut logs: Vec<MyLog> = Vec::new();
     for trx in block_info.transactions {
         if let Some(receipt) = get_tx_logs_by_id(web3, trx).await {
-            logs.extend(receipt.logs.into_iter());
+            for l in receipt.logs.iter() {
+                let mut log_details: Vec<LogDetail> = Vec::new();
+                let mut my_log: MyLog = MyLog {
+                    log_details,
+                    block_hash: block_info.hash,
+                    block_number: block_info.number,
+                    block_timestamp: block_info.timestamp,
+                    transaction_index: receipt.transaction_index,
+                    to: receipt.to.unwrap(),
+                };
+                let detail = LogDetail {
+                    address: l.address,
+                    topics: l.topics,
+                    data: l.data,
+                    transaction_log_index: l.transaction_log_index,
+                    log_index: l.log_index,
+                    log_type: l.log_type,
+                    removed: l.removed,
+                };
+                log_details.append(detail);
+                logs.append(my_log);
+            }
         }
+        return;
     }
 
     return (Some(block_info.timestamp), Some(logs));
@@ -107,13 +129,12 @@ pub async fn get_tx_logs(current_height: u64, web3: &Web3<Http>) -> Vec<MyLog> {
     for trx in block_info.transactions {
         if let Some(receipt) = get_tx_logs_by_id(web3, trx).await {
             let mut log_details: Vec<LogDetail> = Vec::new();
-            let mut my_log = MyLog {
+            let mut my_log: MyLog = MyLog {
                 log_details,
                 block_hash: block_info.hash,
                 block_number: block_info.number,
                 block_timestamp: block_info.timestamp,
                 transaction_index: receipt.transaction_index,
-                log_index: None,
                 to: receipt.to.unwrap(),
             };
 
@@ -123,6 +144,7 @@ pub async fn get_tx_logs(current_height: u64, web3: &Web3<Http>) -> Vec<MyLog> {
                     topics: l.topics,
                     data: l.data,
                     transaction_log_index: l.transaction_log_index,
+                    log_index: l.log_index,
                     log_type: l.log_type,
                     removed: l.removed,
                 };
