@@ -1,6 +1,6 @@
 use ::entities::user;
 use ::entities::user::Entity as User;
-use sea_orm::*;
+use sea_orm::{DbConn, DbErr, Set,*};
 
 pub struct Query;
 

@@ -21,7 +21,7 @@ pub struct Model {
     pub request_id: Option<String>,
     pub inserted_at: DateTime,
     pub updated_at: DateTime,
-    pub addresses: Option<Vec<Vec<u8>>>,
+    pub addresses: Option<Vec<String>>,
     #[sea_orm(column_type = "Binary(BlobSize::Blob(None))", nullable)]
     pub email: Option<Vec<u8>>,
     #[sea_orm(column_type = "Binary(BlobSize::Blob(None))", nullable)]

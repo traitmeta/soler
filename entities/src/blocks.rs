@@ -22,7 +22,7 @@ pub struct Model {
     pub miner_hash: Vec<u8>,
     #[sea_orm(column_type = "Binary(BlobSize::Blob(None))")]
     pub nonce: Vec<u8>,
-    pub number: i64,
+    pub number: u64,
     #[sea_orm(column_type = "Binary(BlobSize::Blob(None))")]
     pub parent_hash: Vec<u8>,
     pub size: Option<i32>,

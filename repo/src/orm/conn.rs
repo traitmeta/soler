@@ -1,15 +1,15 @@
 use config::db::DB;
-use migration::DbErr;
+use sea_orm::DbErr;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::time::Duration;
 use tracing::log;
 
-pub async fn migration(database_url: String) {
-    use migration::{Migrator, MigratorTrait};
+// pub async fn migration(database_url: String) {
+//     use migration::{Migrator, MigratorTrait};
 
-    let conn = Database::connect(&database_url).await.unwrap();
-    Migrator::up(&conn, None).await.unwrap();
-}
+//     let conn = Database::connect(&database_url).await.unwrap();
+//     Migrator::up(&conn, None).await.unwrap();
+// }
 
 pub async fn connect_db(cfg: DB) -> Result<DatabaseConnection, DbErr> {
     let db_url = cfg.url();
@@ -22,7 +22,7 @@ pub async fn connect_db(cfg: DB) -> Result<DatabaseConnection, DbErr> {
         .max_lifetime(Duration::from_secs(8))
         .sqlx_logging(true)
         .sqlx_logging_level(log::LevelFilter::Info)
-        .set_schema_search_path("public".into()); // Setting default PostgreSQL schema
+        .set_schema_search_path("public"); // Setting default PostgreSQL schema
 
     Database::connect(opt).await
 }

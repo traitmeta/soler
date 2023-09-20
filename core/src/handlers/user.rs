@@ -44,7 +44,7 @@ pub async fn create_user(
     Extension(state): Extension<Arc<AppState>>,
     Json(payload): Json<CreateUser>,
 ) -> impl IntoResponse {
-    let conn = get_conn(&state);
+    let conn: sea_orm::DatabaseConnection = get_conn(&state).clone();
 
     // insert your application logic here
     let user_model = user::Model {
@@ -55,7 +55,7 @@ pub async fn create_user(
         created_at: None,
         updated_at: None,
     };
-    let _create_res = UserMutation::create_user(conn, user_model)
+    let _create_res = UserMutation::create_user(&conn, user_model)
         .await
         .map_err(AppError::from);
 
