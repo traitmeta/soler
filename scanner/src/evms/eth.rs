@@ -58,6 +58,56 @@ pub struct LogDetail {
     pub removed: Option<bool>,
 }
 
+pub struct EthCli {
+    web3: Web3<Http>,
+}
+
+impl EthCli {
+    pub fn new(url: &str) -> EthCli {
+        EthCli {
+            web3: Web3::new(Http::new(url)),
+        }
+    }
+    pub async fn get_block_number(&self) -> U64 {
+        let block_number = self.web3.eth().block_number().await.unwrap();
+        block_number
+    }
+    pub async fn get_block(&self, block_number: U64) -> Block {
+        let block = self.web3.eth().block(block_number).await.unwrap();
+        block
+    }
+    pub async fn get_block_by_hash(&self, block_hash: H256) -> Block {
+        let block = self.web3.eth().block_by_hash(block_hash).await.unwrap();
+        block
+    }
+    pub async fn get_transaction_receipt(&self, transaction_hash: H256) -> TransactionReceipt {
+        let receipt = self
+            .web3
+            .eth()
+            .transaction_receipt(transaction_hash)
+            .await
+            .unwrap();
+        receipt
+    }
+    pub async fn get_transaction(&self, transaction_hash: H256) -> Transaction {
+        let transaction = self.web3.eth().transaction(transaction_hash).await.unwrap();
+        transaction
+    }
+    pub async fn get_logs(&self, address: H160, topics: Vec<H256>) -> Vec<MyLog> {
+        let filter = Filter::new();
+        let mut topics: Vec<Option<ValueOrArray<H256>>> = topics
+            .into_iter()
+            .rev()
+            .map(|option| option.map(ValueOrArray))
+            .collect::<Vec<_>>();
+        topics.reverse();
+
+        filter.topics = Some(topics);
+        let logs = self.web3.eth().logs(filter).await.unwrap();
+        logs
+    }
+}
+
 pub async fn batch_get_tx_logs(current_height: u64, web3: &Web3<Http>) -> (Option<U256>, Vec<Log>) {
     let height = web3
         .eth()
@@ -160,11 +210,4 @@ pub async fn get_tx_logs(current_height: u64, web3: &Web3<Http>) -> Vec<MyLog> {
 
 pub async fn get_tx_logs_by_id(web3: &Web3<Http>, hash: H256) -> Option<TransactionReceipt> {
     web3.eth().transaction_receipt(hash).await.unwrap()
-}
-
-pub async fn get_block_info_by_height(web3: &Web3<Http>, height: U64) -> Option<Block<H256>> {
-    web3.eth()
-        .block(BlockId::Number(BlockNumber::Number(height)))
-        .await
-        .expect("get block info err")
 }
