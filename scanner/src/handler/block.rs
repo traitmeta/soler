@@ -1,78 +1,92 @@
 use entities::scanner_height::Model as ScannerBlockModel;
 use entities::{
-    blocks::ActiveModel as BlockModel, logs::ActiveModel as LogModel, transactions::Model as TransactionModel,
+    blocks::Model as BlockModel, logs::Model as LogModel, transactions::Model as TransactionModel,
 };
+use ethers::types::{Block, Log, Transaction, TransactionReceipt, H256};
 use futures::AsyncReadExt;
-use sea_orm::{DbConn,ActiveValue,prelude::Decimal};
+use sea_orm::DatabaseConnection;
+use sea_orm::{prelude::Decimal, ActiveValue, DbConn};
 
 use crate::evms::eth::EthCli;
 use crate::repo::height::{Mutation, Query};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use repo::dal::block::{self, Mutation as BlockMutation, Query as BlockQuery};
 use std::time::Duration;
 use tokio::time::interval;
-
-use chrono::{NaiveDate, NaiveDateTime};
-use web3::types::{Block, BlockNumber};
+use web3::types::{BlockNumber, U64};
 
 use config::{chain::Chain, db::DB};
 
 pub struct EthHandler {
     cli: EthCli,
-    db: DB,
+    conn: DatabaseConnection,
 }
 impl EthHandler {
-    pub fn new(cli: EthCli, db: DB) -> Self {
-        Self { cli, db }
+    pub fn new(cli: EthCli, conn: DatabaseConnection) -> Self {
+        Self { cli, conn }
     }
 
     pub async fn init_block(&self) {
-        // let block_count = self.db.block.count().await.unwrap();
-        let block_count = 0;
-        if block_count == 0 {
-            let latest_block_number = self.cli.get_block_number().await;
-            let latest_block = self.cli.get_block(latest_block_number).await;
-            // TODO use model when dal use active Model
-            let block = BlockModel {
-                difficulty: ActiveValue::Set(Some(Decimal::from_i128_with_scale(
-                    latest_block.difficulty.as_u128() as i128,
-                    0,
-                ))),
-                gas_limit: ActiveValue::Set(Decimal::from_i128_with_scale(
-                    latest_block.gas_limit.as_u128() as i128,
+        if let Some(db_heigest) = BlockQuery::select_latest(&self.conn).await.unwrap() {
+            if db_heigest.number == 0 {
+                let latest_block_number = self.cli.get_block_number().await;
+                let latest_block = self.cli.get_block(latest_block_number).await;
+                let block = self.convert_block_to_model(&latest_block);
+
+                BlockMutation::create_block(&self.conn, block)
+                    .await
+                    .unwrap();
+            };
+        };
+    }
+
+    fn convert_block_to_model(&self, block: &Block<H256>) -> BlockModel {
+        let block = BlockModel {
+            difficulty: Some(Decimal::from_i128_with_scale(
+                block.difficulty.as_u128() as i128,
+                0,
+            )),
+            gas_limit: Decimal::from_i128_with_scale(block.gas_limit.as_u128() as i128, 0),
+            gas_used: Decimal::from_i128_with_scale(block.gas_used.as_u128() as i128, 0),
+            hash: match block.hash {
+                Some(hash) => hash.to_string().into_bytes(),
+                None => vec![],
+            },
+            miner_hash: match block.author {
+                Some(hash) => hash.to_string().into_bytes(),
+                None => vec![],
+            },
+            nonce: match block.nonce {
+                Some(nonce) => nonce.to_string().into_bytes(),
+                None => vec![],
+            },
+            number: match block.number {
+                Some(number) => number.as_u64(),
+                None => 0,
+            },
+            parent_hash: block.parent_hash.to_string().into_bytes(),
+            size: match block.size {
+                Some(size) => Some(size.as_u32() as i32),
+                None => None,
+            },
+            timestamp: NaiveDateTime::from_timestamp_millis(block.timestamp.as_u64() as i64)
+                .unwrap(),
+            base_fee_per_gas: match block.base_fee_per_gas {
+                Some(base_fee_per_gas) => Some(Decimal::from_i128_with_scale(
+                    base_fee_per_gas.as_u128() as i128,
                     0,
                 )),
-                gas_used: ActiveValue::Set(Decimal::from_i128_with_scale(latest_block.gas_used.as_u128() as i128, 0)),
-                hash: ActiveValue::Set(match latest_block.hash{
-                    Some(hash) => hash.to_string().into_bytes(),
-                    None => vec![],
-                }),
-                miner_hash:  ActiveValue::Set(latest_block.author.to_string().into_bytes()),
-                nonce: ActiveValue::Set(match latest_block.nonce{
-                    Some(nonce) => nonce.to_string().into_bytes(),
-                    None => vec![],
-                }),
-                number: ActiveValue::Set(match latest_block.number{
-                    Some(number) => number.as_u64(),
-                    None => 0,
-                }),
-                parent_hash: ActiveValue::Set(latest_block.parent_hash.to_string().into_bytes()),
-                size: ActiveValue::Set(match latest_block.size {
-                    Some(size) => Some(size.as_u32() as i32),
-                    None => None,
-                }),
-                timestamp: ActiveValue::Set(NaiveDateTime::from_timestamp_millis(latest_block.timestamp.as_u64() as i64).unwrap()),
-                base_fee_per_gas: ActiveValue::Set(match latest_block.base_fee_per_gas {
-                    Some(base_fee_per_gas) => Some(Decimal::from_i128_with_scale(
-                        base_fee_per_gas.as_u128() as i128,
-                        0,
-                    )),
-                    None => None,
-                }),
-                ..Default::default()
-            };
+                None => None,
+            },
+            consensus: false,
+            total_difficulty: None,
+            inserted_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+            refetch_needed: None,
+            is_empty: None,
+        };
 
-
-            self.db.block.insert(&block).await.unwrap();
-        }
+        block
     }
 
     // TODO
@@ -82,71 +96,81 @@ impl EthHandler {
             interval.tick().await;
 
             let latest_block_number = self.cli.get_block_number().await;
-            let latest_block = self.db.block.get_latest().await.unwrap();
+            if let Some(latest_block) = BlockQuery::select_latest(&self.conn).await.unwrap() {
+                if latest_block.number > latest_block_number {
+                    tracing::info!(
+                        "latestBlock.LatestBlockHeight: {} greater than latestBlockNumber: {}",
+                        latest_block.number,
+                        latest_block_number
+                    );
+                    continue;
+                }
+                let current_block = self.cli.get_block_with_tx(latest_block.number + 1).await;
 
-            if latest_block.latest_block_height > latest_block_number {
-                log::info!(
-                    "latestBlock.LatestBlockHeight: {} greater than latestBlockNumber: {}",
-                    latest_block.latest_block_height,
-                    latest_block_number
+                tracing::info!(
+                    "get currentBlock blockNumber: {}, blockHash: {}",
+                    current_block.number.unwrap(),
+                    current_block.hash.unwrap()
                 );
-                continue;
+
+                self.handle_block(&current_block).await.unwrap();
             }
-            let current_block = self
-                .cli
-                .get_block_with_tx(latest_block.latest_block_height)
-                .await;
-
-            log::info!(
-                "get currentBlock blockNumber: {}, blockHash: {}",
-                current_block.number.unwrap(),
-                current_block.hash.unwrap()
-            );
-
-            Self::handle_block(&db, &config, &current_block)
-                .await
-                .unwrap();
         }
     }
 
     async fn handle_block(
-        db: &DB,
-        config: &Config,
+        &self,
         block: &Block<Transaction>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let block_model = BlockModel {
-            hash: ActiveValue::Set(match latest_block.hash{
+            hash: match block.hash {
                 Some(hash) => hash.to_string().into_bytes(),
                 None => vec![],
-            }),
-            number: ActiveValue::Set(match latest_block.number{
+            },
+            number: match block.number {
                 Some(number) => number.as_u64(),
                 None => 0,
-            }),
-            parent_hash: ActiveValue::Set(latest_block.parent_hash.to_string().into_bytes()),
-            ..Default::default()
+            },
+            parent_hash: block.parent_hash.to_string().into_bytes(),
+            consensus: todo!(),
+            difficulty: todo!(),
+            gas_limit: todo!(),
+            gas_used: todo!(),
+            miner_hash: todo!(),
+            nonce: todo!(),
+            size: todo!(),
+            timestamp: todo!(),
+            total_difficulty: todo!(),
+            inserted_at: todo!(),
+            updated_at: todo!(),
+            refetch_needed: todo!(),
+            base_fee_per_gas: todo!(),
+            is_empty: todo!(),
         };
+        let recipts = self.cli.get_block_receipt(block_model.number).await;
 
-        let (events, transactions) = Self::handle_transactions(&Self, &block).await?;
-
-        Self::sync_to_db(db, &block_model, &transactions, &events).await?;
+        let transactions = self.handle_transactions(&block, &recipts).await?;
+        let events = Self::handle_block_event(&recipts);
+        self.sync_to_db(&block_model, &transactions, &events)
+            .await?;
 
         Ok(())
     }
 
     async fn sync_to_db(
-        db: &DB,
+        &self,
         block: &BlockModel,
         transactions: &Vec<TransactionModel>,
         events: &Vec<LogModel>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let tx = db.transaction().await?;
+        // TODO use db transaction
+        // let tx = self.conn.transaction().await?;
 
-        db.block.insert(&tx, block).await?;
-        db.transaction.inserts(&tx, transactions).await?;
-        db.event.inserts(&tx, events).await?;
+        // db.block.insert(&tx, block).await?;
+        // db.transaction.inserts(&tx, transactions).await?;
+        // db.event.inserts(&tx, events).await?;
 
-        tx.commit().await?;
+        // tx.commit().await?;
 
         Ok(())
     }
@@ -154,120 +178,168 @@ impl EthHandler {
     async fn handle_transactions(
         &self,
         block: &Block<Transaction>,
-    ) -> Result<(Vec<LogModel>, Vec<TransactionModel>), Box<dyn std::error::Error>> {
-        let mut events = Vec::new();
+        recipts: &Vec<TransactionReceipt>,
+    ) -> Result<Vec<TransactionModel>, Box<dyn std::error::Error>> {
         let mut transactions = Vec::new();
-
         for tx in block.transactions.iter() {
-            let receipt = self.cli.get_transaction_receipt(&tx.hash.unwrap()).await;
-            for log in receipt.logs.iter() {
-                let status = receipt.status.unwrap();
-                let event = Self::handle_transaction_event(log, status);
-                match event {
-                    Ok(e) => events.push(e),
-                    Err(e) => {
-                        log::error!("{:?}", e);
-                    }
+            let mut tx_receipt = None;
+            for receipt in recipts.iter() {
+                if receipt.transaction_hash.eq(&tx.hash) {
+                    tx_receipt = Some(receipt);
                 }
-                events.push(event);
             }
 
-            let transaction =
-                Self::process_transaction(tx, &block.number.unwrap(), receipt.status)?;
+            let transaction = Self::process_transaction(tx, &block.number, &tx_receipt)?;
             transactions.push(transaction);
         }
 
-        Ok((events, transactions))
+        Ok(transactions)
     }
 
     fn process_transaction(
-        tx: &web3::types::Transaction,
-        block_number: &U256,
-        status: U256,
+        tx: &Transaction,
+        block_number: &Option<U64>,
+        receipt: &Option<&TransactionReceipt>,
     ) -> Result<TransactionModel, Box<dyn std::error::Error>> {
-        let from = tx
-            .clone()
-            .from
-            .ok_or_else(|| format!("Failed to read the sender address: {:?}", tx.hash))?;
-
-        log::info!("hand transaction, txHash: {}", tx.hash.unwrap());
+        tracing::info!("hand transaction, txHash: {}", tx.hash);
 
         let mut transaction = TransactionModel {
-            block_number: block_number.as_u64(),
-            tx_hash: tx.hash.unwrap().to_string(),
-            from: from.to_string(),
-            value: tx.value.to_string(),
-            status: status.as_u64(),
-            input_data: hex::encode(&tx.input),
-            ..Default::default()
+            block_number: match block_number {
+                Some(block_number) => Some(block_number.as_u64() as i32),
+                None => None,
+            },
+            hash: tx.hash.to_string().into_bytes(),
+            value: Decimal::from_i128_with_scale(tx.value.as_u128() as i128, 0),
+            status: match receipt {
+                Some(receipt) => match receipt.status {
+                    Some(status) => Some(status.as_u64() as i32),
+                    None => None,
+                },
+                None => None,
+            },
+            cumulative_gas_used: match receipt {
+                Some(r) => Some(Decimal::from_i128_with_scale(
+                    r.cumulative_gas_used.as_u128() as i128,
+                    0,
+                )),
+                None => None,
+            },
+            error: None,
+            gas: Decimal::from_i128_with_scale(tx.gas.as_u128() as i128, 0),
+            gas_price: match tx.gas_price{
+                Some(gas_price) => Some(Decimal::from_i128_with_scale(gas_price.as_u128() as i128, 0)),
+                None => None,
+            },
+            gas_used:match receipt {
+                Some(r) => match r.gas_used{
+                    Some(gas_used) => Some(Decimal::from_i128_with_scale(gas_used.as_u128() as i128, 0)),
+                    None => None,
+                }
+                None => None,
+            },
+            index: match tx.transaction_index{
+                Some(index) => Some(index.as_u64() as i32),
+                None => None,
+            },
+            input: tx.input.to_vec(),
+            nonce: tx.nonce.as_u64() as i32,
+            r: Decimal::from_i128_with_scale(tx.r.as_u128() as i128, 0),
+            s: Decimal::from_i128_with_scale(tx.s.as_u128() as i128, 0),
+            v: Decimal::from_i128_with_scale(tx.v.as_u32() as i128, 0),
+            inserted_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+            block_hash:match  tx.block_hash{
+                Some(hash) => Some(hash.to_string().into_bytes()),
+                None => None,
+            },
+            from_address_hash: tx.from.to_string().into_bytes(),
+            to_address_hash: None,
+            created_contract_address_hash: None,
+            created_contract_code_indexed_at: None,
+            earliest_processing_start: None,
+            old_block_hash: None,
+            revert_reason: None,
+            max_priority_fee_per_gas: match tx.max_priority_fee_per_gas{
+                Some(max_priority_fee_per_gas) => Some(Decimal::from_i128_with_scale(max_priority_fee_per_gas.as_u128() as i128, 0)),
+                None => None,
+            },
+            max_fee_per_gas: match tx.max_fee_per_gas{
+                Some(max_fee_per_gas) => Some(Decimal::from_i128_with_scale(max_fee_per_gas.as_u128() as i128, 0)),
+                None => None,
+            },
+            r#type: match receipt {
+                Some(r) => match r.transaction_type{
+                    Some(transaction_type) => Some(transaction_type.as_u64() as i32),
+                    None => None,
+                },
+                None => None,
+            },
+            has_error_in_internal_txs: None,
         };
 
         if tx.to.is_none() {
-            log::info!(
+            tracing::info!(
                 "Contract creation found, Sender: {}, TxHash: {}",
-                transaction.from,
-                transaction.tx_hash
+                tx.from,
+                tx.hash
             );
-            let to_address = crypto::create_address(&from, tx.nonce).to_string();
-            transaction.contract = Some(to_address);
-        } else {
-            let is_contract = is_contract_address(&tx.to.unwrap()).await?;
-            if is_contract {
-                transaction.contract = tx.to.clone().map(|address| address.to_string());
-            } else {
-                transaction.to = tx.to.clone().map(|address| address.to_string());
-            }
+            let to_address =ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
+            transaction.to_address_hash = Some(to_address.into_bytes());
         }
 
         Ok(transaction)
     }
 
-    fn handle_transaction_event(
-        log: &web3::types::Log,
-        status: U64,
-    ) -> Result<LogModel, Box<dyn std::error::Error>> {
-        log::info!(
-            "ProcessTransactionEvent, address: {}, data: {}",
-            log.address,
-            hex::encode(&log.data)
-        );
+    fn handle_block_event(receipts: &Vec<TransactionReceipt>) -> Vec<LogModel> {
+        let mut events = Vec::new();
+        for receipt in receipts.iter() {
+            for log in receipt.logs.iter() {
+                let mut event = LogModel {
+                    data: log.data.to_vec(),
+                    index: match log.log_index {
+                        Some(index) => index.as_u64() as i32,
+                        None => 0,
+                    },
+                    r#type: log.log_type.clone(),
+                    first_topic: None,
+                    second_topic: None,
+                    third_topic: None,
+                    fourth_topic: None,
+                    address_hash: Some(log.address.to_string().into_bytes()),
+                    transaction_hash: match log.transaction_hash {
+                        Some(hash) => hash.to_string().into_bytes(),
+                        None => vec![],
+                    },
+                    block_hash: match log.block_hash {
+                        Some(hash) => hash.to_string().into_bytes(),
+                        None => vec![],
+                    },
+                    block_number: match log.block_number {
+                        Some(number) => Some(number.as_u64() as i32),
+                        None => None,
+                    },
+                    inserted_at: Utc::now().naive_utc(),
+                    updated_at: Utc::now().naive_utc(),
+                };
 
-        let mut event = LogModel {
-            data: ActiveValue::Set(log.data.to_string()),
-            index: ActiveValue::Set(log.log_index),
-            r#type: ActiveValue::Set(log.log_type),
-            first_topic: ActiveValue::Set(None),
-            second_topic: ActiveValue::Set(None),
-            third_topic: ActiveValue::Set(None),
-            fourth_topic: ActiveValue::Set(None),
-            address_hash: ActiveValue::Set(log.address.to_string()),
-            transaction_hash: ActiveValue::Set(log.transaction_hash),
-            block_hash: ActiveValue::Set(log.block_hash),
-            block_number: ActiveValue::Set(log.block_number),
-            ..Default::default()
-        };
-        
-
-        for (i, topic) in log.topics.iter().enumerate() {
-            match i {
-                0 => event.first_topic = Some(topic.to_string()),
-                1 => event.second_topic = Some(topic.to_string()),
-                2 => event.third_topic = Some(topic.to_string()),
-                3 => event.fourth_topic = Some(topic.to_string()),
-                _ => (),
+                for (i, topic) in log.topics.iter().enumerate() {
+                    match i {
+                        0 => event.first_topic = Some(topic.to_string()),
+                        1 => event.second_topic = Some(topic.to_string()),
+                        2 => event.third_topic = Some(topic.to_string()),
+                        3 => event.fourth_topic = Some(topic.to_string()),
+                        _ => (),
+                    }
+                }
+                events.push(event);
             }
         }
 
-        Ok(event)
+        events
     }
 
-    async fn is_contract_address(address: &str) -> Result<bool, Box<dyn std::error::Error>> {
-        let addr = address.parse()?;
-        let code = cli.code_at(&addr, None).await?;
-
-        Ok(!code.is_empty())
-    }
 }
+
 pub async fn current_height(conn: &DbConn, task_name: &str, chain_name: &str) -> Option<u64> {
     let current_model = Query::select_one_by_task_name(conn, task_name)
         .await

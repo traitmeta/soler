@@ -1,14 +1,9 @@
-use serde::{Deserialize, Serialize};
-use web3::{
-    transports::Http,
-    types::{
-        Address, Block, BlockId, BlockNumber, Bytes, Filter, FilterBuilder, Index, Log,
-        Transaction, TransactionReceipt, H160, H256, U256, U64,
-    },
-    Web3,
+use ethers::providers::{Middleware, Provider};
+use ethers::types::{
+    Address, Block, BlockId, BlockNumber, Bytes, Transaction, TransactionReceipt, H160, H256, U256,
+    U64,
 };
-
-use crate::{cache::ContractAddrCache, handler::block};
+use serde::{Deserialize, Serialize};
 
 /*
     1. event需要分开，下游的接收者只关心某一类event
@@ -33,7 +28,7 @@ pub struct MyLog {
     pub block_timestamp: U256,
     /// Transaction Index
     #[serde(rename = "transactionIndex")]
-    pub transaction_index: Index,
+    pub transaction_index: U64,
     // transaction to address
     pub to: H160,
 }
@@ -61,38 +56,33 @@ pub struct LogDetail {
 }
 
 pub struct EthCli {
-    web3: Web3<Http>,
+    provider: Provider<ethers::providers::Http>,
 }
 
+// TODO trace fail transaction
 impl EthCli {
-    pub fn new(url: &str) -> EthCli {
-        let transport = Http::new(url).unwrap();
-        EthCli {
-            web3: Web3::new(transport),
-        }
+    pub async fn new(url: &str) -> EthCli {
+        let provider = Provider::try_from(url).unwrap();
+        EthCli { provider }
     }
 
     pub async fn get_block_number(&self) -> u64 {
-        let block_number = self.web3.eth().block_number().await.unwrap();
+        let block_number = self.provider.get_block_number().await.unwrap();
         block_number.as_u64()
     }
     pub async fn get_block(&self, block_number: u64) -> Block<H256> {
-        let block_number = BlockNumber::Number(block_number.into());
         let block = self
-            .web3
-            .eth()
-            .block(web3::types::BlockId::Number(block_number))
+            .provider
+            .get_block(BlockNumber::Number(block_number.into()))
             .await
             .unwrap();
         block.unwrap()
     }
 
     pub async fn get_block_with_tx(&self, block_number: u64) -> Block<Transaction> {
-        let block_number = BlockNumber::Number(block_number.into());
         let block = self
-            .web3
-            .eth()
-            .block_with_txs(web3::types::BlockId::Number(block_number))
+            .provider
+            .get_block_with_txs(BlockNumber::Number(block_number.into()))
             .await
             .unwrap();
         block.unwrap()
@@ -100,56 +90,47 @@ impl EthCli {
 
     pub async fn get_block_by_hash(&self, block_hash: H256) -> Block<H256> {
         let block = self
-            .web3
-            .eth()
-            .block(web3::types::BlockId::Hash(block_hash))
+            .provider
+            .get_block(BlockId::Hash(block_hash))
             .await
             .unwrap();
         block.unwrap()
     }
+
+    pub async fn get_block_receipt(&self, block_number: u64) -> Vec<TransactionReceipt> {
+        let receipts = self
+            .provider
+            .get_block_receipts(BlockNumber::Number(block_number.into()))
+            .await
+            .unwrap();
+        receipts
+    }
+
     pub async fn get_transaction_receipt(
         &self,
         transaction_hash: H256,
     ) -> Option<TransactionReceipt> {
         let receipt = self
-            .web3
-            .eth()
-            .transaction_receipt(transaction_hash)
+            .provider
+            .get_transaction_receipt(transaction_hash)
             .await
             .unwrap();
         receipt
     }
+
     pub async fn get_transaction(&self, transaction_hash: H256) -> Transaction {
         let transaction = self
-            .web3
-            .eth()
-            .transaction(web3::types::TransactionId::Hash(transaction_hash))
+            .provider
+            .get_transaction(transaction_hash)
             .await
             .unwrap();
         transaction.unwrap()
     }
-    pub async fn get_logs(
-        &self,
-        topic1: Option<Vec<H256>>,
-        topic2: Option<Vec<H256>>,
-        topic3: Option<Vec<H256>>,
-        topic4: Option<Vec<H256>>,
-    ) -> Vec<Log> {
-        let filter = FilterBuilder::default()
-            .topics(topic1, topic2, topic3, topic4)
-            .build();
-        let logs = self.web3.eth().logs(filter).await.unwrap();
-        logs
-    }
 
     pub async fn code_at(&self, address: Address, block_number: U64) -> Bytes {
         let code = self
-            .web3
-            .eth()
-            .code(
-                address,
-                Some(web3::types::BlockNumber::Number(block_number)),
-            )
+            .provider
+            .get_code(address, Some(BlockId::Number(block_number.into())))
             .await
             .unwrap();
         code
@@ -160,8 +141,9 @@ impl EthCli {
         block_info: Block<Transaction>,
     ) -> (Option<U256>, Vec<MyLog>) {
         let mut logs: Vec<MyLog> = Vec::new();
-        for trx in block_info.transactions {
-            if let Some(receipt) = self.get_transaction_receipt(trx.hash).await {
+        if let Some(block_number) = block_info.number {
+            let receipts = self.get_block_receipt(block_number.as_u64()).await;
+            for receipt in receipts {
                 let my_log = MyLog {
                     block_hash: block_info.hash.unwrap(),
                     block_number: block_info.number.unwrap(),
