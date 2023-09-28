@@ -1,7 +1,7 @@
 use ethers::providers::{Middleware, Provider};
 use ethers::types::{
-    Address, Block, BlockId, BlockNumber, Bytes, Transaction, TransactionReceipt, H160, H256, U256,
-    U64,
+    Address, Block, BlockId, BlockNumber, Bytes, Trace, Transaction, TransactionReceipt, TxHash,
+    H160, H256, U256, U64,
 };
 use serde::{Deserialize, Serialize};
 
@@ -70,7 +70,8 @@ impl EthCli {
         let block_number = self.provider.get_block_number().await.unwrap();
         block_number.as_u64()
     }
-    pub async fn get_block(&self, block_number: u64) -> Block<H256> {
+
+    pub async fn get_block(&self, block_number: u64) -> Block<TxHash> {
         let block = self
             .provider
             .get_block(BlockNumber::Number(block_number.into()))
@@ -88,7 +89,7 @@ impl EthCli {
         block.unwrap()
     }
 
-    pub async fn get_block_by_hash(&self, block_hash: H256) -> Block<H256> {
+    pub async fn get_block_by_hash(&self, block_hash: H256) -> Block<TxHash> {
         let block = self
             .provider
             .get_block(BlockId::Hash(block_hash))
@@ -134,6 +135,14 @@ impl EthCli {
             .await
             .unwrap();
         code
+    }
+    pub async fn trace_transaction(&self, transaction_hash: H256) -> Vec<Trace> {
+        let trace = self
+            .provider
+            .trace_transaction(transaction_hash)
+            .await
+            .unwrap();
+        trace
     }
 
     pub async fn batch_get_tx_logs(

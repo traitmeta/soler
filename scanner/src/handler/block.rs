@@ -2,20 +2,18 @@ use entities::scanner_height::Model as ScannerBlockModel;
 use entities::{
     blocks::Model as BlockModel, logs::Model as LogModel, transactions::Model as TransactionModel,
 };
-use ethers::types::{Block, Log, Transaction, TransactionReceipt, H256};
-use futures::AsyncReadExt;
-use sea_orm::DatabaseConnection;
-use sea_orm::{prelude::Decimal, ActiveValue, DbConn};
+use ethers::types::{Block, Transaction, TransactionReceipt, TxHash, U64};
+use sea_orm::{prelude::Decimal, DbConn};
+use sea_orm::{DatabaseConnection, TransactionTrait};
 
 use crate::evms::eth::EthCli;
 use crate::repo::height::{Mutation, Query};
-use chrono::{DateTime, NaiveDateTime, Utc};
-use repo::dal::block::{self, Mutation as BlockMutation, Query as BlockQuery};
+use chrono::{NaiveDateTime, Utc};
+use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
+use repo::dal::event::Mutation as EventMutation;
+use repo::dal::transaction::Mutation as TransactionMutation;
 use std::time::Duration;
 use tokio::time::interval;
-use web3::types::{BlockNumber, U64};
-
-use config::{chain::Chain, db::DB};
 
 pub struct EthHandler {
     cli: EthCli,
@@ -33,14 +31,12 @@ impl EthHandler {
                 let latest_block = self.cli.get_block(latest_block_number).await;
                 let block = self.convert_block_to_model(&latest_block);
 
-                BlockMutation::create_block(&self.conn, block)
-                    .await
-                    .unwrap();
+                BlockMutation::create(&self.conn, &block).await.unwrap();
             };
         };
     }
 
-    fn convert_block_to_model(&self, block: &Block<H256>) -> BlockModel {
+    fn convert_block_to_model(&self, block: &Block<TxHash>) -> BlockModel {
         let block = BlockModel {
             difficulty: Some(Decimal::from_i128_with_scale(
                 block.difficulty.as_u128() as i128,
@@ -61,7 +57,7 @@ impl EthHandler {
                 None => vec![],
             },
             number: match block.number {
-                Some(number) => number.as_u64(),
+                Some(number) => number.as_u64() as i64,
                 None => 0,
             },
             parent_hash: block.parent_hash.to_string().into_bytes(),
@@ -78,26 +74,31 @@ impl EthHandler {
                 )),
                 None => None,
             },
-            consensus: false,
-            total_difficulty: None,
+            consensus: true,
+            total_difficulty: match block.total_difficulty {
+                Some(total_difficulty) => Some(Decimal::from_i128_with_scale(
+                    total_difficulty.as_u128() as i128,
+                    0,
+                )),
+                None => None,
+            },
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
-            refetch_needed: None,
-            is_empty: None,
+            refetch_needed: Some(false),
+            is_empty: Some(false),
         };
 
         block
     }
 
-    // TODO
-    pub async fn sync_task(&self, config: Chain) {
+    pub async fn sync_task(&self) {
         let mut interval = interval(Duration::from_secs(1));
         loop {
             interval.tick().await;
 
             let latest_block_number = self.cli.get_block_number().await;
             if let Some(latest_block) = BlockQuery::select_latest(&self.conn).await.unwrap() {
-                if latest_block.number > latest_block_number {
+                if latest_block.number > latest_block_number as i64{
                     tracing::info!(
                         "latestBlock.LatestBlockHeight: {} greater than latestBlockNumber: {}",
                         latest_block.number,
@@ -105,7 +106,7 @@ impl EthHandler {
                     );
                     continue;
                 }
-                let current_block = self.cli.get_block_with_tx(latest_block.number + 1).await;
+                let current_block = self.cli.get_block_with_tx(latest_block.number as u64 + 1).await;
 
                 tracing::info!(
                     "get currentBlock blockNumber: {}, blockHash: {}",
@@ -123,32 +124,56 @@ impl EthHandler {
         block: &Block<Transaction>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let block_model = BlockModel {
+            difficulty: Some(Decimal::from_i128_with_scale(
+                block.difficulty.as_u128() as i128,
+                0,
+            )),
+            gas_limit: Decimal::from_i128_with_scale(block.gas_limit.as_u128() as i128, 0),
+            gas_used: Decimal::from_i128_with_scale(block.gas_used.as_u128() as i128, 0),
             hash: match block.hash {
                 Some(hash) => hash.to_string().into_bytes(),
                 None => vec![],
             },
+            miner_hash: match block.author {
+                Some(hash) => hash.to_string().into_bytes(),
+                None => vec![],
+            },
+            nonce: match block.nonce {
+                Some(nonce) => nonce.to_string().into_bytes(),
+                None => vec![],
+            },
             number: match block.number {
-                Some(number) => number.as_u64(),
+                Some(number) => number.as_u64() as i64,
                 None => 0,
             },
             parent_hash: block.parent_hash.to_string().into_bytes(),
-            consensus: todo!(),
-            difficulty: todo!(),
-            gas_limit: todo!(),
-            gas_used: todo!(),
-            miner_hash: todo!(),
-            nonce: todo!(),
-            size: todo!(),
-            timestamp: todo!(),
-            total_difficulty: todo!(),
-            inserted_at: todo!(),
-            updated_at: todo!(),
-            refetch_needed: todo!(),
-            base_fee_per_gas: todo!(),
-            is_empty: todo!(),
+            size: match block.size {
+                Some(size) => Some(size.as_u32() as i32),
+                None => None,
+            },
+            timestamp: NaiveDateTime::from_timestamp_millis(block.timestamp.as_u64() as i64)
+                .unwrap(),
+            base_fee_per_gas: match block.base_fee_per_gas {
+                Some(base_fee_per_gas) => Some(Decimal::from_i128_with_scale(
+                    base_fee_per_gas.as_u128() as i128,
+                    0,
+                )),
+                None => None,
+            },
+            consensus: true,
+            total_difficulty: match block.total_difficulty {
+                Some(total_difficulty) => Some(Decimal::from_i128_with_scale(
+                    total_difficulty.as_u128() as i128,
+                    0,
+                )),
+                None => None,
+            },
+            inserted_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+            refetch_needed: Some(false),
+            is_empty: Some(block.transactions.len() == 0), // transaction count is zero
         };
-        let recipts = self.cli.get_block_receipt(block_model.number).await;
-
+        let recipts = self.cli.get_block_receipt(block_model.number as u64).await;
         let transactions = self.handle_transactions(&block, &recipts).await?;
         let events = Self::handle_block_event(&recipts);
         self.sync_to_db(&block_model, &transactions, &events)
@@ -163,14 +188,33 @@ impl EthHandler {
         transactions: &Vec<TransactionModel>,
         events: &Vec<LogModel>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // TODO use db transaction
-        // let tx = self.conn.transaction().await?;
+        let txn = self.conn.begin().await?;
 
-        // db.block.insert(&tx, block).await?;
-        // db.transaction.inserts(&tx, transactions).await?;
-        // db.event.inserts(&tx, events).await?;
+        match BlockMutation::create(&txn, &block).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                return Err(Box::new(e));
+            }
+        }
+        
+        match TransactionMutation::create(&txn, transactions).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                return Err(Box::new(e));
+            }
+        }
 
-        // tx.commit().await?;
+        match EventMutation::create(&txn, events).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                return Err(Box::new(e));
+            }
+        }
+
+        txn.commit().await?;
 
         Ok(())
     }
@@ -189,20 +233,25 @@ impl EthHandler {
                 }
             }
 
-            let transaction = Self::process_transaction(tx, &block.number, &tx_receipt)?;
+            let transaction = self
+                .process_transaction(tx, &block.number, &tx_receipt)
+                .await
+                .unwrap();
             transactions.push(transaction);
         }
 
         Ok(transactions)
     }
 
-    fn process_transaction(
+    async fn process_transaction(
+        &self,
         tx: &Transaction,
         block_number: &Option<U64>,
         receipt: &Option<&TransactionReceipt>,
     ) -> Result<TransactionModel, Box<dyn std::error::Error>> {
         tracing::info!("hand transaction, txHash: {}", tx.hash);
 
+        // TODO fulfill transaction err info
         let mut transaction = TransactionModel {
             block_number: match block_number {
                 Some(block_number) => Some(block_number.as_u64() as i32),
@@ -226,18 +275,23 @@ impl EthHandler {
             },
             error: None,
             gas: Decimal::from_i128_with_scale(tx.gas.as_u128() as i128, 0),
-            gas_price: match tx.gas_price{
-                Some(gas_price) => Some(Decimal::from_i128_with_scale(gas_price.as_u128() as i128, 0)),
+            gas_price: match tx.gas_price {
+                Some(gas_price) => Some(Decimal::from_i128_with_scale(
+                    gas_price.as_u128() as i128,
+                    0,
+                )),
                 None => None,
             },
-            gas_used:match receipt {
-                Some(r) => match r.gas_used{
-                    Some(gas_used) => Some(Decimal::from_i128_with_scale(gas_used.as_u128() as i128, 0)),
+            gas_used: match receipt {
+                Some(r) => match r.gas_used {
+                    Some(gas_used) => {
+                        Some(Decimal::from_i128_with_scale(gas_used.as_u128() as i128, 0))
+                    }
                     None => None,
-                }
+                },
                 None => None,
             },
-            index: match tx.transaction_index{
+            index: match tx.transaction_index {
                 Some(index) => Some(index.as_u64() as i32),
                 None => None,
             },
@@ -248,7 +302,7 @@ impl EthHandler {
             v: Decimal::from_i128_with_scale(tx.v.as_u32() as i128, 0),
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
-            block_hash:match  tx.block_hash{
+            block_hash: match tx.block_hash {
                 Some(hash) => Some(hash.to_string().into_bytes()),
                 None => None,
             },
@@ -259,16 +313,22 @@ impl EthHandler {
             earliest_processing_start: None,
             old_block_hash: None,
             revert_reason: None,
-            max_priority_fee_per_gas: match tx.max_priority_fee_per_gas{
-                Some(max_priority_fee_per_gas) => Some(Decimal::from_i128_with_scale(max_priority_fee_per_gas.as_u128() as i128, 0)),
+            max_priority_fee_per_gas: match tx.max_priority_fee_per_gas {
+                Some(max_priority_fee_per_gas) => Some(Decimal::from_i128_with_scale(
+                    max_priority_fee_per_gas.as_u128() as i128,
+                    0,
+                )),
                 None => None,
             },
-            max_fee_per_gas: match tx.max_fee_per_gas{
-                Some(max_fee_per_gas) => Some(Decimal::from_i128_with_scale(max_fee_per_gas.as_u128() as i128, 0)),
+            max_fee_per_gas: match tx.max_fee_per_gas {
+                Some(max_fee_per_gas) => Some(Decimal::from_i128_with_scale(
+                    max_fee_per_gas.as_u128() as i128,
+                    0,
+                )),
                 None => None,
             },
             r#type: match receipt {
-                Some(r) => match r.transaction_type{
+                Some(r) => match r.transaction_type {
                     Some(transaction_type) => Some(transaction_type.as_u64() as i32),
                     None => None,
                 },
@@ -283,8 +343,32 @@ impl EthHandler {
                 tx.from,
                 tx.hash
             );
-            let to_address =ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
+            let to_address = ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
             transaction.to_address_hash = Some(to_address.into_bytes());
+        }
+
+        match receipt {
+            Some(receipt) => match receipt.status {
+                Some(status) => {
+                    if status.as_u64() == 1 {
+                        ()
+                    }
+
+                    let traces = self.cli.trace_transaction(receipt.transaction_hash).await;
+                    for trace in traces.iter() {
+                        transaction.error = match &trace.error {
+                            Some(error) => Some(error.clone()),
+                            None => None,
+                        };
+                        transaction.revert_reason = match &trace.result {
+                            Some(result) => Some(serde_json::to_string(result).unwrap()),
+                            None => None,
+                        }
+                    }
+                }
+                None => (),
+            },
+            None => {}
         }
 
         Ok(transaction)
@@ -337,7 +421,6 @@ impl EthHandler {
 
         events
     }
-
 }
 
 pub async fn current_height(conn: &DbConn, task_name: &str, chain_name: &str) -> Option<u64> {

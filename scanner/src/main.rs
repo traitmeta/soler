@@ -1,3 +1,4 @@
+use ethers::providers::{Provider,Http, Middleware};
 use repo::{
     dal::{contract::Query as ContractQuery, height::Mutation},
     orm::conn::connect_db,
@@ -11,7 +12,6 @@ use sea_orm::DbConn;
 use tracing::instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use web3::{
-    transports::Http,
     types::{H160, U256},
     Web3,
 };
@@ -27,10 +27,9 @@ async fn main() -> web3::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let transport = web3::transports::Http::new("https://rpc.ankr.com/eth_goerli")?;
-    let web3 = web3::Web3::new(transport);
+    let provider = Provider::try_from("https://rpc.ankr.com/eth_goerli").unwrap();
 
-    list_account_balances(&web3).await?;
+    list_account_balances(&provider).await?;
 
     let db_cfg = DB {
         url: "localhost:3306".to_string(),
@@ -49,23 +48,6 @@ async fn main() -> web3::Result<()> {
     let contract_addr_cache = update_contract_cache(&conn).await;
 
     tracing::debug!("start handle height: {}", height);
-    match eth::batch_get_tx_logs(height, &web3).await {
-        (Some(ts), Some(logs)) => {
-            for v in logs {
-                if contract_addr_cache.exist(v.address.to_string()) {
-                    tracing::debug!("catch log at ts: {}, detail : {:?}", ts, v);
-                } else {
-                    tracing::debug!(
-                        "catch log at ts: {}, need not handler, topic : {:?}",
-                        ts,
-                        v.topics[0]
-                    );
-                }
-            }
-        }
-        (_, _) => tracing::debug!("not found need hanlder tx in height: {}", height),
-    }
-
     let res = Mutation::update_height_by_task_name(&conn, "eth:5", height).await;
     match res {
         Err(e) => tracing::debug!("hanlder height {} failed,err:{}", height, e),
@@ -93,16 +75,16 @@ async fn update_contract_cache(conn: &DbConn) -> ContractAddrCache {
     contract_addr_cache
 }
 
-async fn list_account_balances(web3: &Web3<Http>) -> Result<Vec<(H160, U256)>, web3::Error> {
+async fn list_account_balances(web3: &Provider<Http>) -> Result<Vec<(H160, U256)>, web3::Error> {
     println!("Calling accounts.");
-    let mut accounts = web3.eth().accounts().await?;
+    let mut accounts = web3.get_accounts().await.unwrap();
     println!("Accounts: {accounts:?}");
     accounts.push("00a329c0648769a73afac7f9381e08fb43dbea72".parse().unwrap());
 
     println!("Calling balance.");
     let mut res: Vec<(H160, U256)> = Vec::new();
     for account in accounts {
-        let balance = web3.eth().balance(account, None).await?;
+        let balance = web3.get_balance(account, None).await.unwrap();
         println!("Balance of {account:?}: {balance}");
         res.push((account, balance));
     }
