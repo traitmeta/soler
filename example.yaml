@@ -6,12 +6,12 @@ database:
   database: soler
 redis:
 kafka:
-  brokers: 
+  brokers:
     - https://localhost:10066
     - https://localhost:10067
     - https://localhost:10068
   topic: test
-chains: 
+chains:
   ETH:
     url: https://rpc.ankr.com/eth_goerli
     chain_id: 1
