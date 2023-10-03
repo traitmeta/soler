@@ -1,28 +1,34 @@
 mod prepare;
 
-use entities::scanner_height;
+use ::entities::log_receiver_chain::{ActiveModel, Model};
 use prepare::prepare_mock_db;
-use scanner::repo::height::{Mutation, Query};
+use repo::dal::log_receiver_chain::{Mutation, Query};
 
 #[tokio::test]
 async fn main() {
     let db = &prepare_mock_db();
 
     {
-        let post = Query::select_one_by_task_name(db, "eth:5").await.unwrap().unwrap();
+        let post = Query::select_one_by_task_name(db, "eth:5")
+            .await
+            .unwrap()
+            .unwrap();
 
         assert_eq!(post.id, 1);
     }
 
     {
-        let post = Query::select_one_by_task_name(db, "heco:256").await.unwrap().unwrap();
+        let post = Query::select_one_by_task_name(db, "heco:256")
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(post.id, 2)
     }
 
     {
         let post = Mutation::create_scanner_height(
             db,
-            scanner_height::Model {
+            Model {
                 id: 0,
                 task_name: "eth:10".to_owned(),
                 chain_name: "eth".to_owned(),
@@ -36,7 +42,7 @@ async fn main() {
 
         assert_eq!(
             post,
-            scanner_height::ActiveModel {
+            ActiveModel {
                 id: sea_orm::ActiveValue::Unchanged(3),
                 task_name: sea_orm::ActiveValue::Unchanged("eth:10".to_owned()),
                 chain_name: sea_orm::ActiveValue::Unchanged("eth".to_owned()),
@@ -51,7 +57,7 @@ async fn main() {
         let post = Mutation::update_height_by_id(
             db,
             1,
-            scanner_height::Model {
+            Model {
                 id: 1,
                 task_name: "eth:5".to_owned(),
                 chain_name: "eth".to_owned(),
@@ -65,7 +71,7 @@ async fn main() {
 
         assert_eq!(
             post,
-            scanner_height::Model {
+            Model {
                 id: 1,
                 task_name: "eth:5".to_owned(),
                 chain_name: "eth".to_owned(),

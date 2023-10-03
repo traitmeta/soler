@@ -1,5 +1,5 @@
-use ::entities::scanner_height;
-use ::entities::scanner_height::Entity as ScannerHeight;
+use ::entities::log_receiver_chain;
+use ::entities::log_receiver_chain::Entity as ScannerHeight;
 use sea_orm::*;
 
 pub struct Query;
@@ -8,7 +8,7 @@ impl Query {
     pub async fn select_one_by_task_name(
         db: &DbConn,
         task_name: &str,
-    ) -> Result<Option<scanner_height::Model>, DbErr> {
+    ) -> Result<Option<log_receiver_chain::Model>, DbErr> {
         ScannerHeight::find_by_task_name(task_name).one(db).await
     }
 
@@ -17,10 +17,10 @@ impl Query {
         db: &DbConn,
         page: u64,
         scanner_height_per_page: u64,
-    ) -> Result<(Vec<scanner_height::Model>, u64), DbErr> {
+    ) -> Result<(Vec<log_receiver_chain::Model>, u64), DbErr> {
         // Setup paginator
         let paginator = ScannerHeight::find()
-            .order_by_asc(scanner_height::Column::Id)
+            .order_by_asc(log_receiver_chain::Column::Id)
             .paginate(db, scanner_height_per_page);
         let num_pages = paginator.num_pages().await?;
 
@@ -34,9 +34,9 @@ pub struct Mutation;
 impl Mutation {
     pub async fn create_scanner_height(
         db: &DbConn,
-        form_data: scanner_height::Model,
-    ) -> Result<scanner_height::ActiveModel, DbErr> {
-        scanner_height::ActiveModel {
+        form_data: log_receiver_chain::Model,
+    ) -> Result<log_receiver_chain::ActiveModel, DbErr> {
+        log_receiver_chain::ActiveModel {
             task_name: Set(form_data.task_name.to_owned()),
             chain_name: Set(form_data.chain_name.to_owned()),
             height: Set(form_data.height.to_owned()),
@@ -49,15 +49,15 @@ impl Mutation {
     pub async fn update_height_by_id(
         db: &DbConn,
         id: u64,
-        form_data: scanner_height::Model,
-    ) -> Result<scanner_height::Model, DbErr> {
-        let height: scanner_height::ActiveModel = ScannerHeight::find_by_id(id)
+        form_data: log_receiver_chain::Model,
+    ) -> Result<log_receiver_chain::Model, DbErr> {
+        let height: log_receiver_chain::ActiveModel = ScannerHeight::find_by_id(id)
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find post.".to_owned()))
             .map(Into::into)?;
 
-        scanner_height::ActiveModel {
+        log_receiver_chain::ActiveModel {
             id: height.id,
             task_name: Set(form_data.task_name.to_owned()),
             chain_name: Set(form_data.chain_name.to_owned()),
@@ -72,20 +72,20 @@ impl Mutation {
         db: &DbConn,
         task_name: &str,
         height: u64,
-    ) -> Result<scanner_height::Model, DbErr> {
-        ScannerHeight::update(scanner_height::ActiveModel {
+    ) -> Result<log_receiver_chain::Model, DbErr> {
+        ScannerHeight::update(log_receiver_chain::ActiveModel {
             id: Unchanged(1),
             task_name: Unchanged(task_name.to_owned()),
             height: Set(height.to_owned()),
             ..Default::default()
         })
-        .filter(scanner_height::Column::TaskName.eq(task_name))
+        .filter(log_receiver_chain::Column::TaskName.eq(task_name))
         .exec(db)
         .await
     }
 
     pub async fn delete_task(db: &DbConn, id: u64) -> Result<DeleteResult, DbErr> {
-        let post: scanner_height::ActiveModel = ScannerHeight::find_by_id(id)
+        let post: log_receiver_chain::ActiveModel = ScannerHeight::find_by_id(id)
             .one(db)
             .await?
             .ok_or(DbErr::Custom("Cannot find post.".to_owned()))

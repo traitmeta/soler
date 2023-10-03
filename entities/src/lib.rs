@@ -1,7 +1,7 @@
 pub mod prelude;
 
-pub mod scanner_height;
-pub mod scanner_contract;
+pub mod log_receiver_chain;
+pub mod log_receiver_contract;
 pub mod user;
 
 pub mod account_api_keys;

@@ -1,7 +1,4 @@
-use std::string;
-
 use serde::{Deserialize, Serialize};
-use tokio::join;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Kafka {

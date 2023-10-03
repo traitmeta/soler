@@ -1,14 +1,10 @@
 use anyhow::Result;
-
 use clap::Parser;
-use config::{base::BaseConfig, Args};
 use config::Config;
-use std::path::PathBuf;
+use config::{base::BaseConfig, Args};
 use std::time::Duration;
-use tokio::task;
-use tokio::time::sleep;
 use tracing::info;
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 const GIT_REVISION: &str = {
     if let Some(revision) = option_env!("GIT_REVISION") {

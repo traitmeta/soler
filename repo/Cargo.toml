@@ -19,3 +19,7 @@ version = "0.12.2"
 
 [features]
 mock = ["sea-orm/mock"]
+
+[[test]]
+name = "mock"
+required-features = ["mock"]

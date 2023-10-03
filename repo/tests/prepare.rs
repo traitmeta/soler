@@ -1,9 +1,9 @@
-use ::entities::scanner_height;
+use ::entities::log_receiver_chain;
 use sea_orm::*;
 
 #[cfg(feature = "mock")]
 pub fn prepare_mock_db() -> DatabaseConnection {
-    let find_by_task_name_eth_5 = vec![scanner_height::Model {
+    let find_by_task_name_eth_5 = vec![log_receiver_chain::Model {
         id: 1,
         task_name: "eth:5".to_owned(),
         chain_name: "eth".to_owned(),
@@ -12,7 +12,7 @@ pub fn prepare_mock_db() -> DatabaseConnection {
         updated_at: None,
     }];
 
-    let find_by_task_name_heco_256 = vec![scanner_height::Model {
+    let find_by_task_name_heco_256 = vec![log_receiver_chain::Model {
         id: 2,
         task_name: "heco:256".to_owned(),
         chain_name: "heco".to_owned(),
@@ -21,7 +21,7 @@ pub fn prepare_mock_db() -> DatabaseConnection {
         updated_at: None,
     }];
 
-    let create_task_name_eth_10 = vec![scanner_height::Model {
+    let create_task_name_eth_10 = vec![log_receiver_chain::Model {
         id: 3,
         task_name: "eth:10".to_owned(),
         chain_name: "eth".to_owned(),
@@ -30,7 +30,7 @@ pub fn prepare_mock_db() -> DatabaseConnection {
         updated_at: None,
     }];
 
-    let update_task_name_eth_5 = vec![scanner_height::Model {
+    let update_task_name_eth_5 = vec![log_receiver_chain::Model {
         id: 1,
         task_name: "eth:5".to_owned(),
         chain_name: "eth".to_owned(),

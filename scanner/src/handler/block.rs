@@ -1,4 +1,3 @@
-use entities::scanner_height::Model as ScannerBlockModel;
 use entities::{
     blocks::Model as BlockModel, logs::Model as LogModel, transactions::Model as TransactionModel,
 };
@@ -7,7 +6,7 @@ use sea_orm::{prelude::Decimal, DbConn};
 use sea_orm::{DatabaseConnection, TransactionTrait};
 
 use crate::evms::eth::EthCli;
-use crate::repo::height::{Mutation, Query};
+
 use chrono::{NaiveDateTime, Utc};
 use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
 use repo::dal::event::Mutation as EventMutation;
@@ -31,7 +30,7 @@ impl EthHandler {
                 return;
             }
         }
-        
+
         let latest_block_number = self.cli.get_block_number().await;
         let latest_block = self.cli.get_block(latest_block_number).await;
         let block = self.convert_block_to_model(&latest_block);
@@ -427,33 +426,4 @@ impl EthHandler {
 
         events
     }
-}
-
-pub async fn log_scanner_current_height(
-    conn: &DbConn,
-    task_name: &str,
-    chain_name: &str,
-) -> Option<u64> {
-    let current_model = Query::select_one_by_task_name(conn, task_name)
-        .await
-        .unwrap();
-    match current_model {
-        Some(current) => return Some(current.height),
-        None => {
-            tracing::debug!("not found {}", task_name);
-            let insert_data = ScannerBlockModel {
-                id: 0,
-                task_name: task_name.to_owned(),
-                chain_name: chain_name.to_owned(),
-                height: 1,
-                created_at: None,
-                updated_at: None,
-            };
-            let result = Mutation::create_scanner_height(conn, insert_data)
-                .await
-                .unwrap_or_else(|_| panic!("insert {} to scanner height table err", task_name));
-            tracing::debug!("insert {} return :{:?}", task_name, result);
-        }
-    }
-    None
 }
