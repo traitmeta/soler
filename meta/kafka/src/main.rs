@@ -16,7 +16,10 @@ async fn main() {
     let config = BaseConfig::load(&args.config_path).unwrap();
     let kafka_cfg = config.kafka.unwrap();
     info!("Started Kafka endpoint at {:?}", &kafka_cfg);
-    setup_logger(true, Some(kafka_cfg.log_level.as_str()));
+    match &kafka_cfg.log_level{
+        Some(log_level) =>   setup_logger(true, Some(log_level.as_str())),
+        None => (),
+    }
     produce(&kafka_cfg).await;
     consume_and_print(&kafka_cfg).await;
 }

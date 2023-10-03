@@ -38,7 +38,7 @@ pub async fn consume_and_print(kfk_cfg: &KafkaCfg) {
     let group_id = kfk_cfg.group_id.as_ref().expect("kafka group id no value");
     let consumer: LoggingConsumer = ClientConfig::new()
         .set("group.id", group_id.as_str())
-        .set("bootstrap.servers", kfk_cfg.brokers.as_str())
+        .set("bootstrap.servers", kfk_cfg.brokers_to_str())
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
@@ -47,9 +47,9 @@ pub async fn consume_and_print(kfk_cfg: &KafkaCfg) {
         .set_log_level(RDKafkaLogLevel::Debug)
         .create_with_context(context)
         .expect("Consumer creation failed");
-    let topics = kfk_cfg.topics_to_vec();
+    let topics = kfk_cfg.topics.iter().map(String::as_ref).collect::<Vec<&str>>();
     consumer
-        .subscribe(&topics)
+        .subscribe(&topics.to_vec())
         .expect("Can't subscribe to specified topics");
 
     loop {

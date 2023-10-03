@@ -86,6 +86,6 @@ impl<C> std::ops::DerefMut for PersistedConfig<C> {
 #[derive(Parser)]
 #[clap(rename_all = "kebab-case")]
 pub struct Args {
-    #[clap(long)]
+    #[clap(long, default_value = "config.yaml")]
     pub config_path: PathBuf,
 }

@@ -61,7 +61,7 @@ pub struct EthCli {
 
 // TODO trace fail transaction
 impl EthCli {
-    pub async fn new(url: &str) -> EthCli {
+    pub fn new(url: &str) -> EthCli {
         let provider = Provider::try_from(url).unwrap();
         EthCli { provider }
     }

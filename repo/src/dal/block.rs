@@ -36,7 +36,7 @@ impl Query {
 pub struct Mutation;
 
 impl Mutation {
-    pub async fn create<C>(db: &C, form_data: &Model) -> Result<ActiveModel, DbErr>
+    pub async fn create<C>(db: &C, form_data: &Model) -> Result<Model, DbErr>
     where
         C: ConnectionTrait,
     {
@@ -56,9 +56,11 @@ impl Mutation {
             consensus: Set(form_data.consensus),
             refetch_needed: Set(form_data.refetch_needed),
             is_empty: Set(form_data.is_empty),
+            inserted_at: Set(form_data.inserted_at),
+            updated_at: Set(form_data.updated_at),
             ..Default::default()
         }
-        .save(db)
+        .insert(db)
         .await
     }
 }

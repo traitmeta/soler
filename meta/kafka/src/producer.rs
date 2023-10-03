@@ -8,12 +8,11 @@ use config::kafka::Kafka as KafkaCfg;
 
 pub async fn produce(kfk_cfg: &KafkaCfg) {
     let producer: &FutureProducer = &ClientConfig::new()
-        .set("bootstrap.servers", kfk_cfg.brokers.as_str())
+        .set("bootstrap.servers", kfk_cfg.brokers_to_str())
         .set("message.timeout.ms", "5000")
         .create()
         .expect("Producer creation error");
-    let topics = kfk_cfg.topics_to_vec();
-    let topic_name = topics.get(1).unwrap();
+    let topic_name = kfk_cfg.topics.get(0).unwrap();
     // This loop is non blocking: all messages will be sent one after the other, without waiting
     // for the results.
     let futures = (0..5)
@@ -23,7 +22,7 @@ pub async fn produce(kfk_cfg: &KafkaCfg) {
             let delivery_status = producer
                 .send(
                     // TODO build payload with struct 
-                    FutureRecord::to(*topic_name)
+                    FutureRecord::to(topic_name)
                         .payload(&format!("Message {}", i))
                         .key(&format!("Key {}", i))
                         .headers(OwnedHeaders::new().insert(Header {

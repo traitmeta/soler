@@ -19,21 +19,24 @@ pub struct EthHandler {
     cli: EthCli,
     conn: DatabaseConnection,
 }
+
 impl EthHandler {
     pub fn new(cli: EthCli, conn: DatabaseConnection) -> Self {
         Self { cli, conn }
     }
 
     pub async fn init_block(&self) {
-        if let Some(db_heigest) = BlockQuery::select_latest(&self.conn).await.unwrap() {
-            if db_heigest.number == 0 {
-                let latest_block_number = self.cli.get_block_number().await;
-                let latest_block = self.cli.get_block(latest_block_number).await;
-                let block = self.convert_block_to_model(&latest_block);
+        if let Some(block) = BlockQuery::select_latest(&self.conn).await.unwrap() {
+            if block.number != 0 {
+                return;
+            }
+        }
+        
+        let latest_block_number = self.cli.get_block_number().await;
+        let latest_block = self.cli.get_block(latest_block_number).await;
+        let block = self.convert_block_to_model(&latest_block);
 
-                BlockMutation::create(&self.conn, &block).await.unwrap();
-            };
-        };
+        BlockMutation::create(&self.conn, &block).await.unwrap();
     }
 
     fn convert_block_to_model(&self, block: &Block<TxHash>) -> BlockModel {
@@ -98,7 +101,7 @@ impl EthHandler {
 
             let latest_block_number = self.cli.get_block_number().await;
             if let Some(latest_block) = BlockQuery::select_latest(&self.conn).await.unwrap() {
-                if latest_block.number > latest_block_number as i64{
+                if latest_block.number > latest_block_number as i64 {
                     tracing::info!(
                         "latestBlock.LatestBlockHeight: {} greater than latestBlockNumber: {}",
                         latest_block.number,
@@ -106,7 +109,10 @@ impl EthHandler {
                     );
                     continue;
                 }
-                let current_block = self.cli.get_block_with_tx(latest_block.number as u64 + 1).await;
+                let current_block = self
+                    .cli
+                    .get_block_with_tx(latest_block.number as u64 + 1)
+                    .await;
 
                 tracing::info!(
                     "get currentBlock blockNumber: {}, blockHash: {}",
@@ -197,7 +203,7 @@ impl EthHandler {
                 return Err(Box::new(e));
             }
         }
-        
+
         match TransactionMutation::create(&txn, transactions).await {
             Ok(_) => {}
             Err(e) => {
@@ -423,7 +429,11 @@ impl EthHandler {
     }
 }
 
-pub async fn current_height(conn: &DbConn, task_name: &str, chain_name: &str) -> Option<u64> {
+pub async fn log_scanner_current_height(
+    conn: &DbConn,
+    task_name: &str,
+    chain_name: &str,
+) -> Option<u64> {
     let current_model = Query::select_one_by_task_name(conn, task_name)
         .await
         .unwrap();
