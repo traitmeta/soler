@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use repo::dal::log_receiver_contract::Query as ContractQuery;
+use sea_orm::DbConn;
 
 #[derive(Clone)]
 pub struct ScannerContract {
@@ -46,4 +48,22 @@ impl ContractAddrCache {
     pub fn exist(&self, k: String) -> bool {
         self.contact_map.contains_key(&k)
     }
+}
+
+async fn update_contract_cache(conn: &DbConn) -> ContractAddrCache {
+    let mut contract_addr_cache: ContractAddrCache = ContractAddrCache::new();
+    let (contracts, _) = ContractQuery::find_scanner_contract_in_page(conn, 1, 100)
+        .await
+        .unwrap();
+    for v in contracts {
+        let data = ScannerContract {
+            chain_name: v.chain_name,
+            chain_id: v.chain_id,
+            address: v.address,
+            event_sign: v.event_sign,
+        };
+        contract_addr_cache.insert(data.cache_key(), data);
+    }
+
+    contract_addr_cache
 }

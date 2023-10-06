@@ -11,17 +11,13 @@ minting --> minted --> burning --> burned
 -- mint_fail           burn_fail
 */
 
+use crate::evms::eth::{LogDetail, MyLog};
 use std::{collections::HashMap, error::Error};
 
 pub trait EventHandler {
     fn handle(&self) -> Result<(), Box<dyn Error>>;
-    fn handle_log(&self, log: web3::types::Log, block_timestamp: i64)
-        -> Result<(), Box<dyn Error>>;
-    fn handle_insert(
-        &self,
-        log: web3::types::Log,
-        block_timestamp: i64,
-    ) -> Result<(), Box<dyn Error>>;
+    fn handle_log(&self, log: &MyLog) -> Result<Vec<LogDetail>, Box<dyn Error>>;
+    fn handle_insert(&self, log: &LogDetail, block_timestamp: i64) -> Result<(), Box<dyn Error>>;
 }
 
 #[derive(Copy, Clone)]
@@ -102,26 +98,20 @@ impl EventHandler for SBT {
         Ok(())
     }
 
-    fn handle_log(
-        &self,
-        log: web3::types::Log,
-        block_timestamp: i64,
-    ) -> Result<(), Box<dyn Error>> {
-        let contract_addr = log.topics.get(0);
+    fn handle_log(&self, log: &MyLog) -> Result<Vec<LogDetail>, Box<dyn Error>> {
+        let mut pending_handler_log = vec![];
+        let details = &log.log_details;
+        for detail in details.into_iter() {
+            match self.contract_map.get(&detail.topics[0].to_string()) {
+                Some(_exist) => pending_handler_log.push(detail.to_owned()),
+                None => (),
+            };
+        }
 
-        let value = match self.contract_map.get(&log.address.to_string()) {
-            Some(exist) => true,
-            None => return Ok(()),
-        };
-
-        Ok(())
+        Ok(pending_handler_log)
     }
 
-    fn handle_insert(
-        &self,
-        log: web3::types::Log,
-        block_timestamp: i64,
-    ) -> Result<(), Box<dyn Error>> {
+    fn handle_insert(&self, log: &LogDetail, block_timestamp: i64) -> Result<(), Box<dyn Error>> {
         let topic = log.topics.get(0).unwrap();
 
         // TODO 从LOG获取改为从自定义Model获取

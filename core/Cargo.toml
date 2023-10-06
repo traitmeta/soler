@@ -12,7 +12,7 @@ config = { path = "../config" }
 
 anyhow = "1.0"
 async-trait = "0.1.63"
-axum = { version = "0.6.4", features = ["headers"] }
+axum = { version = "0.6.20", features = ["headers"] }
 http-body = "0.4.3"
 hyper = "0.14"
 jsonwebtoken = "8.0"
