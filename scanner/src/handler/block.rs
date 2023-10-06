@@ -1,16 +1,14 @@
+use crate::evms::eth::EthCli;
+use chrono::{NaiveDateTime, Utc};
 use entities::{
     blocks::Model as BlockModel, logs::Model as LogModel, transactions::Model as TransactionModel,
 };
 use ethers::types::{Block, Transaction, TransactionReceipt, TxHash, U64};
-use sea_orm::{prelude::Decimal, DbConn};
-use sea_orm::{DatabaseConnection, TransactionTrait};
-
-use crate::evms::eth::EthCli;
-
-use chrono::{NaiveDateTime, Utc};
 use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
 use repo::dal::event::Mutation as EventMutation;
 use repo::dal::transaction::Mutation as TransactionMutation;
+use sea_orm::prelude::Decimal;
+use sea_orm::{DatabaseConnection, TransactionTrait};
 use std::time::Duration;
 use tokio::time::interval;
 

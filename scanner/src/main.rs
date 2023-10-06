@@ -1,19 +1,14 @@
 use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
 use repo::orm::conn::connect_db;
-use scanner::{
-    evms::eth::EthCli,
-    handler::block::EthHandler,
-};
-
+use scanner::{evms::eth::EthCli, handler::block::EthHandler};
 use tracing::instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
 
 // RUST_LOG=debug cargo run --package scanner
 #[tokio::main]
 #[instrument]
-async fn main() -> web3::Result<()> {
+async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "scanner=debug".into()),
@@ -41,7 +36,7 @@ async fn main() -> web3::Result<()> {
         "end chain sync: {:?}",
         config.chains.get("Goerli").unwrap().chain_name
     );
-    
+
     // let mut height = 0;
     // if let Some(db_height) = log_scanner_current_height(&conn, "eth:5", "eth").await {
     //     height = db_height + 1;
@@ -52,6 +47,4 @@ async fn main() -> web3::Result<()> {
     //     Err(e) => tracing::debug!("hanlder height {} failed,err:{}", height, e),
     //     _ => tracing::debug!("hanlded height: {}", height),
     // }
-
-    Ok(())
 }
