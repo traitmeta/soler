@@ -4,15 +4,19 @@ use ethers::{
     providers::{Http, Provider},
     types::{Address, H160},
 };
-use std::sync::Arc;
+use serde::de;
+use std::{f32::consts::E, sync::Arc};
 
-gpub struct IERC20Call {
+pub struct IERC20Call {
     provider: Provider<Http>,
 }
 
 abigen!(
     IERC20,
     r#"[
+        function name() external view returns (string)
+        function symbol() external view returns (string)
+        function decimals() external view returns (uint8)
         function totalSupply() external view returns (uint256)
         function balanceOf(address account) external view returns (uint256)
         function transfer(address recipient, uint256 amount) external returns (bool)
@@ -23,6 +27,7 @@ abigen!(
         event Approval(address indexed owner, address indexed spender, uint256 value)
     ]"#,
 );
+
 impl IERC20Call {
     pub fn new(rpc_url: &str) -> IERC20Call {
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -52,6 +57,59 @@ impl IERC20Call {
             Ok(balance) => Ok(balance),
             Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
         }
+    }
+
+    pub async fn name(&self, contract_address: &str) -> Result<String, Error> {
+        let client = Arc::new(&self.provider);
+        let address: Address = contract_address.parse().unwrap();
+        let contract = IERC20::new(address, client);
+        match contract.name().call().await {
+            Ok(name) => Ok(name),
+            Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
+        }
+    }
+
+    pub async fn symbol(&self, contract_address: &str) -> Result<String, Error> {
+        let client = Arc::new(&self.provider);
+        let address: Address = contract_address.parse().unwrap();
+        let contract = IERC20::new(address, client);
+        match contract.symbol().call().await {
+            Ok(symbol) => Ok(symbol),
+            Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
+        }
+    }
+
+    pub async fn decimals(&self, contract_address: &str) -> Result<u8, Error> {
+        let client = Arc::new(&self.provider);
+        let address: Address = contract_address.parse().unwrap();
+        let contract = IERC20::new(address, client);
+        match contract.decimals().call().await {
+            Ok(decimals) => Ok(decimals),
+            Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
+        }
+    }
+
+    pub async fn metadata(&self, contract_address: &str) -> Result<(String, String, u8), Error> {
+        let mut name = "".to_string();
+        let mut symbol = "".to_string();
+        let mut decimals = 0;
+
+        match self.name(contract_address).await {
+            Ok(s) => name = s.to_string(),
+            Err(e) => return Err(e),
+        }
+
+        match self.symbol(contract_address).await {
+            Ok(s) => symbol = s.to_string(),
+            Err(e) => return Err(e),
+        }
+
+        match self.decimals(contract_address).await {
+            Ok(s) => decimals = s,
+            Err(e) => return Err(e),
+        }
+
+        Ok((name, symbol, decimals))
     }
 }
 
