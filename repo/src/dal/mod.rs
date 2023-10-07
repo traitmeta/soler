@@ -4,3 +4,4 @@ pub mod user;
 pub mod block;
 pub mod transaction;
 pub mod event;
+pub mod token;
