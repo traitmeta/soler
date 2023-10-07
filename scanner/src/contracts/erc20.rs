@@ -1,11 +1,11 @@
 use anyhow::{anyhow, Error};
 use ethers::{
-    prelude::{abigen, Abigen},
+    prelude::abigen,
     providers::{Http, Provider},
     types::{Address, H160},
 };
-use serde::de;
-use std::{f32::consts::E, sync::Arc};
+
+use std::sync::Arc;
 
 pub struct IERC20Call {
     provider: Provider<Http>,
