@@ -12,6 +12,7 @@ config = { path = "../config" }
 
 tokio = { version = "1.28.0", features = ["full"] }
 tracing = "0.1"
+chrono = "0.4.31"
 
 [dependencies.sea-orm]
 features = ["sqlx-postgres", "runtime-tokio-native-tls", "macros", "debug-print"]
