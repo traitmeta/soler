@@ -1,0 +1,1 @@
+pub(crate) const ERC20: &str = "ERC20";

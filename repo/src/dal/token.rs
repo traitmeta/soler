@@ -35,6 +35,15 @@ impl Query {
         // Fetch paginated posts
         paginator.fetch_page(page - 1).await.map(|p| (p, num_pages))
     }
+
+    pub async fn filter_not_skip_metadata(db: &DbConn, r_type: &str) -> Result<Vec<Model>, DbErr> {
+        Entity::find()
+            .filter(Column::SkipMetadata.ne(Some(true)))
+            .filter(Column::Type.ne(r_type.to_string()))
+            .limit(50)
+            .all(db)
+            .await
+    }
 }
 
 pub struct Mutation;
