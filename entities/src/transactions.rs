@@ -42,9 +42,15 @@ pub struct Model {
     pub from_address_hash: Vec<u8>,
     #[sea_orm(column_type = "Binary(BlobSize::Blob(None))", nullable)]
     pub to_address_hash: Option<Vec<u8>>,
+    // Denormalized `internal_transaction` `created_contract_address_hash` populated only when `to_address_hash` is nil.
     #[sea_orm(column_type = "Binary(BlobSize::Blob(None))", nullable)]
     pub created_contract_address_hash: Option<Vec<u8>>,
+    //  when created `address` code was fetched by `Indexer`
     pub created_contract_code_indexed_at: Option<DateTime>,
+    // If the pending transaction fetcher was alive and received this transaction, we can
+    //  be sure that this transaction did not start processing until after the last time we fetched pending transactions,
+    //  so we annotate that with this field. If it is `nil`, that means we don't have a lower bound for when it started
+    //  processing.
     pub earliest_processing_start: Option<DateTime>,
     #[sea_orm(column_type = "Binary(BlobSize::Blob(None))", nullable)]
     pub old_block_hash: Option<Vec<u8>>,

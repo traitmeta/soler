@@ -310,7 +310,10 @@ impl EthHandler {
                 None => None,
             },
             from_address_hash: tx.from.to_string().into_bytes(),
-            to_address_hash: None,
+            to_address_hash: match tx.to{
+                Some(to) => Some(to.to_string().into_bytes()),
+                None => None,
+            },
             created_contract_address_hash: None,
             created_contract_code_indexed_at: None,
             earliest_processing_start: None,
@@ -340,21 +343,24 @@ impl EthHandler {
             has_error_in_internal_txs: None,
         };
 
-        if tx.to.is_none() {
-            tracing::info!(
-                "Contract creation found, Sender: {}, TxHash: {}",
-                tx.from,
-                tx.hash
-            );
-            let to_address = ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
-            transaction.to_address_hash = Some(to_address.into_bytes());
-        }
+      
 
         match receipt {
             Some(receipt) => match receipt.status {
                 Some(status) => {
                     if status.as_u64() == 1 {
                         ()
+                    }
+
+                    if tx.to.is_none() {
+                        // let to_address = ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
+                        if let Some(contract_address)  = receipt.contract_address{
+                            transaction.created_contract_address_hash = Some(contract_address.to_string().into_bytes());
+                        }
+                        if let Some(to)  = receipt.to{
+                            transaction.created_contract_address_hash = Some(to.to_string().into_bytes());
+                        } 
+                        transaction.created_contract_code_indexed_at = Some(Utc::now().naive_utc())
                     }
 
                     let traces = self.cli.trace_transaction(receipt.transaction_hash).await;
