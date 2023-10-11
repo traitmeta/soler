@@ -1,10 +1,11 @@
+use crate::common::err::ScannerError;
 use crate::evms::eth::EthCli;
+use anyhow::bail;
 use chrono::{NaiveDateTime, Utc};
 use entities::{
     blocks::Model as BlockModel, logs::Model as LogModel, transactions::Model as TransactionModel,
 };
 use ethers::types::{Block, Transaction, TransactionReceipt, TxHash, U64};
-use futures::executor::block_on;
 use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
 use repo::dal::event::Mutation as EventMutation;
 use repo::dal::transaction::Mutation as TransactionMutation;
@@ -124,10 +125,7 @@ impl EthHandler {
         }
     }
 
-    async fn handle_block(
-        &self,
-        block: &Block<Transaction>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn handle_block(&self, block: &Block<Transaction>) -> anyhow::Result<()> {
         let block_model = BlockModel {
             difficulty: Some(Decimal::from_i128_with_scale(
                 block.difficulty.as_u128() as i128,
@@ -187,20 +185,22 @@ impl EthHandler {
         Ok(())
     }
 
-    // TODO add custom error
     async fn sync_to_db(
         &self,
         block: &BlockModel,
         transactions: &Vec<TransactionModel>,
         events: &Vec<LogModel>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let txn = self.conn.begin().await?;
-    
+
         match BlockMutation::create(&txn, &block).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
-                return Err(Box::new(e));
+                bail!(ScannerError::Create {
+                    src: "create block".to_string(),
+                    err: e
+                });
             }
         }
 
@@ -208,21 +208,26 @@ impl EthHandler {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
-                return Err(Box::new(e));
+                bail!(ScannerError::Create {
+                    src: "create transactions".to_string(),
+                    err: e
+                });
             }
         }
 
-        if !events.is_empty(){
+        if !events.is_empty() {
             match EventMutation::create(&txn, events).await {
                 Ok(_) => {}
                 Err(e) => {
                     txn.rollback().await?;
-                    return Err(Box::new(e));
+                    bail!(ScannerError::Create {
+                        src: "create events".to_string(),
+                        err: e
+                    });
                 }
             }
-    
         }
-      
+
         txn.commit().await?;
 
         Ok(())
@@ -232,7 +237,7 @@ impl EthHandler {
         &self,
         block: &Block<Transaction>,
         recipts: &Vec<TransactionReceipt>,
-    ) -> Result<Vec<TransactionModel>, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<Vec<TransactionModel>> {
         let mut transactions = Vec::new();
         for tx in block.transactions.iter() {
             let mut tx_receipt = None;
@@ -244,8 +249,7 @@ impl EthHandler {
 
             let transaction = self
                 .process_transaction(tx, &block.number, &tx_receipt)
-                .await
-                .unwrap();
+                .await?;
             transactions.push(transaction);
         }
 
@@ -258,18 +262,24 @@ impl EthHandler {
         tx: &Transaction,
         block_number: &Option<U64>,
         receipt: &Option<&TransactionReceipt>,
-    ) -> Result<TransactionModel, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<TransactionModel> {
         tracing::debug!("hand transaction, tx: {:?}", tx);
         tracing::info!("hand transaction, txHash: {}", tx.hash);
 
-        // TODO fulfill transaction err info
+        // TODO fulfill inner transaction err info
         let mut transaction = TransactionModel {
             block_number: match block_number {
                 Some(block_number) => Some(block_number.as_u64() as i32),
                 None => None,
             },
             hash: tx.hash.to_string().into_bytes(),
-            value: Decimal::from_str_exact(tx.value.to_string().as_str()).unwrap(),
+            value: match Decimal::from_str_exact(tx.value.to_string().as_str()) {
+                Ok(dec) => dec,
+                Err(err) => bail!(ScannerError::NewDecimal {
+                    src: "Pocess transaction value".to_string(),
+                    err: err.to_string()
+                }),
+            },
             status: match receipt {
                 Some(receipt) => match receipt.status {
                     Some(status) => Some(status.as_u64() as i32),
@@ -309,8 +319,18 @@ impl EthHandler {
             },
             input: tx.input.to_vec(),
             nonce: tx.nonce.as_u64() as i32,
-            r: BigDecimal::parse_bytes(tx.r.to_string().as_bytes(), 10).unwrap(),
-            s: BigDecimal::parse_bytes(tx.s.to_string().as_bytes(), 10).unwrap(),
+            r: match BigDecimal::parse_bytes(tx.r.to_string().as_bytes(), 10) {
+                Some(d) => d,
+                None => bail!(ScannerError::NewBigDecimal(
+                    "Pocess transaction r".to_string()
+                )),
+            },
+            s: match BigDecimal::parse_bytes(tx.s.to_string().as_bytes(), 10) {
+                Some(d) => d,
+                None => bail!(ScannerError::NewBigDecimal(
+                    "Pocess transaction s".to_string()
+                )),
+            },
             v: Decimal::new(tx.v.as_u32() as i64, 0),
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),

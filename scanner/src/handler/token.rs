@@ -1,7 +1,7 @@
 use repo::dal::token::{Mutation, Query};
 use sea_orm::{prelude::Decimal, DbConn};
 use anyhow::{anyhow, Error};
-use crate::{constants::consts, contracts::erc20::IERC20Call};
+use crate::{common::consts, contracts::erc20::IERC20Call};
 
 pub struct TokenHandler {
     rpc_url: String,
