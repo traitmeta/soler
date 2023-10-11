@@ -1,4 +1,5 @@
 use super::*;
+use thiserror::Error;
 
 pub async fn handler_404() -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "nothing to see here")
@@ -11,6 +12,13 @@ pub async fn handler() -> Result<(), AppError> {
 
 fn try_thing() -> Result<(), anyhow::Error> {
     anyhow::bail!("it failed!")
+}
+
+
+#[derive(Error, Debug)]
+pub enum CoreError {
+    #[error("NotFound From DB!")]
+    NotFound,
 }
 
 // Make our own error that wraps `anyhow::Error`.

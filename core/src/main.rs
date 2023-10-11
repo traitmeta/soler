@@ -1,4 +1,5 @@
-use config::db::DB;
+use clap::Parser;
+use config::{base::BaseConfig, db::DB, Args, Config};
 use core::{handlers::state, router};
 use repo::orm::conn::connect_db;
 use std::net::SocketAddr;
@@ -14,17 +15,15 @@ async fn main() {
         .init();
 
     // run it
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 50060));
     tracing::debug!("listening on {}", addr);
 
-    let db_cfg = DB {
-        url: "localhost:3306".to_string(),
-        schema: "mysql".to_string(),
-        username: "root".to_string(),
-        password: "meta".to_string(),
-        database: "rust_test".to_string(),
-    };
+    let args = Args::parse();
+    let config = BaseConfig::load(&args.config_path).unwrap();
+    let db_cfg = config.database.unwrap();
+    tracing::info!("db config {:?}", db_cfg);
     let conn = connect_db(db_cfg).await.unwrap();
+    tracing::info!("connected db");
 
     router::route(addr, state::AppState { conn }).await
 }

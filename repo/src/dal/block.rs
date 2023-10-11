@@ -12,10 +12,14 @@ impl Query {
             .await
     }
 
-    pub async fn find_by_hash(db: &DbConn, hash: &str) -> Result<Option<Model>, DbErr> {
+    pub async fn find_by_hash(db: &DbConn, hash: Vec<u8>) -> Result<Option<Model>, DbErr> {
         Blocks::find().filter(Column::Hash.eq(hash)).one(db).await
     }
 
+    pub async fn find_by_height(db: &DbConn, height: i64) -> Result<Option<Model>, DbErr> {
+        Blocks::find().filter(Column::Number.eq(height)).one(db).await
+    }
+    
     // If ok, returns (scanner height models, num pages).
     pub async fn find_in_page(
         db: &DbConn,

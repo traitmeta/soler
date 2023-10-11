@@ -8,7 +8,7 @@ use tokio::signal;
 
 use super::{
     auth::jwt,
-    handlers::{err, form, helth, response, state, user},
+    handlers::{block, err, form, helth, response, state, user},
 };
 
 pub async fn route(addr: SocketAddr, app_state: state::AppState) {
@@ -17,6 +17,7 @@ pub async fn route(addr: SocketAddr, app_state: state::AppState) {
         .route("/", get(helth::home))
         .route("/info", get(helth::info))
         .route("/user/create", post(user::create_user))
+        .route("/block/:id", get(block::get_block))
         .route("/user/infos", get(user::get_user_info))
         .route("/err", get(err::handler))
         .route("/form", get(form::show_form).post(form::accept_form))

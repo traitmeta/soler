@@ -48,27 +48,27 @@ impl EthHandler {
             gas_limit: Decimal::from_i128_with_scale(block.gas_limit.as_u128() as i128, 0),
             gas_used: Decimal::from_i128_with_scale(block.gas_used.as_u128() as i128, 0),
             hash: match block.hash {
-                Some(hash) => hash.to_string().into_bytes(),
+                Some(hash) => hash.as_bytes().to_vec(),
                 None => vec![],
             },
             miner_hash: match block.author {
-                Some(hash) => hash.to_string().into_bytes(),
+                Some(hash) => hash.as_bytes().to_vec(),
                 None => vec![],
             },
             nonce: match block.nonce {
-                Some(nonce) => nonce.to_string().into_bytes(),
+                Some(nonce) => nonce.as_bytes().to_vec(),
                 None => vec![],
             },
             number: match block.number {
                 Some(number) => number.as_u64() as i64,
                 None => 0,
             },
-            parent_hash: block.parent_hash.to_string().into_bytes(),
+            parent_hash: block.parent_hash.as_bytes().to_vec(),
             size: match block.size {
                 Some(size) => Some(size.as_u32() as i32),
                 None => None,
             },
-            timestamp: NaiveDateTime::from_timestamp_millis(block.timestamp.as_u64() as i64)
+            timestamp: NaiveDateTime::from_timestamp_opt(block.timestamp.as_u64() as i64, 0)
                 .unwrap(),
             base_fee_per_gas: match block.base_fee_per_gas {
                 Some(base_fee_per_gas) => Some(Decimal::from_i128_with_scale(
@@ -115,9 +115,10 @@ impl EthHandler {
                     .await;
 
                 tracing::info!(
-                    "get currentBlock blockNumber: {}, blockHash: {}",
+                    "get currentBlock blockNumber: {}, blockHash: {:#032x}, hash size: {}",
                     current_block.number.unwrap(),
-                    current_block.hash.unwrap()
+                    current_block.hash.unwrap(),
+                    current_block.hash.unwrap().as_bytes().to_vec().len(),
                 );
 
                 self.handle_block(&current_block).await.unwrap();
@@ -134,27 +135,27 @@ impl EthHandler {
             gas_limit: Decimal::from_i128_with_scale(block.gas_limit.as_u128() as i128, 0),
             gas_used: Decimal::from_i128_with_scale(block.gas_used.as_u128() as i128, 0),
             hash: match block.hash {
-                Some(hash) => hash.to_string().into_bytes(),
+                Some(hash) => hash.as_bytes().to_vec(),
                 None => vec![],
             },
             miner_hash: match block.author {
-                Some(hash) => hash.to_string().into_bytes(),
+                Some(hash) => hash.as_bytes().to_vec(),
                 None => vec![],
             },
             nonce: match block.nonce {
-                Some(nonce) => nonce.to_string().into_bytes(),
+                Some(nonce) => nonce.as_bytes().to_vec(),
                 None => vec![],
             },
             number: match block.number {
                 Some(number) => number.as_u64() as i64,
                 None => 0,
             },
-            parent_hash: block.parent_hash.to_string().into_bytes(),
+            parent_hash: block.parent_hash.as_bytes().to_vec(),
             size: match block.size {
                 Some(size) => Some(size.as_u32() as i32),
                 None => None,
             },
-            timestamp: NaiveDateTime::from_timestamp_millis(block.timestamp.as_u64() as i64)
+            timestamp: NaiveDateTime::from_timestamp_opt(block.timestamp.as_u64() as i64, 0)
                 .unwrap(),
             base_fee_per_gas: match block.base_fee_per_gas {
                 Some(base_fee_per_gas) => Some(Decimal::from_i128_with_scale(
@@ -263,8 +264,8 @@ impl EthHandler {
         block_number: &Option<U64>,
         receipt: &Option<&TransactionReceipt>,
     ) -> anyhow::Result<TransactionModel> {
-        tracing::debug!("hand transaction, tx: {:?}", tx);
-        tracing::info!("hand transaction, txHash: {}", tx.hash);
+        // tracing::debug!("hand transaction, tx: {:?}", tx);
+        tracing::info!("hand transaction, txHash: {:#032x}", tx.hash);
 
         // TODO fulfill inner transaction err info
         let mut transaction = TransactionModel {
@@ -272,7 +273,7 @@ impl EthHandler {
                 Some(block_number) => Some(block_number.as_u64() as i32),
                 None => None,
             },
-            hash: tx.hash.to_string().into_bytes(),
+            hash: tx.hash.as_bytes().to_vec(),
             value: match Decimal::from_str_exact(tx.value.to_string().as_str()) {
                 Ok(dec) => dec,
                 Err(err) => bail!(ScannerError::NewDecimal {
@@ -335,12 +336,12 @@ impl EthHandler {
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
             block_hash: match tx.block_hash {
-                Some(hash) => Some(hash.to_string().into_bytes()),
+                Some(hash) => Some(hash.as_bytes().to_vec()),
                 None => None,
             },
-            from_address_hash: tx.from.to_string().into_bytes(),
+            from_address_hash: tx.from.as_bytes().to_vec(),
             to_address_hash: match tx.to {
-                Some(to) => Some(to.to_string().into_bytes()),
+                Some(to) => Some(to.as_bytes().to_vec()),
                 None => None,
             },
             created_contract_address_hash: None,
@@ -383,11 +384,11 @@ impl EthHandler {
                         // let to_address = ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
                         if let Some(contract_address) = receipt.contract_address {
                             transaction.created_contract_address_hash =
-                                Some(contract_address.to_string().into_bytes());
+                                Some(contract_address.as_bytes().to_vec());
                         }
                         if let Some(to) = receipt.to {
                             transaction.created_contract_address_hash =
-                                Some(to.to_string().into_bytes());
+                                Some(to.as_bytes().to_vec());
                         }
                         transaction.created_contract_code_indexed_at = Some(Utc::now().naive_utc())
                     }
@@ -416,7 +417,7 @@ impl EthHandler {
         let mut events = Vec::new();
         for receipt in receipts.iter() {
             for log in receipt.logs.iter() {
-                tracing::debug!("handle_block_event, log: {:?}", log);
+                // tracing::debug!("handle_block_event, log: {:?}", log);
                 let mut event = LogModel {
                     data: log.data.to_vec(),
                     index: match log.log_index {
@@ -428,13 +429,13 @@ impl EthHandler {
                     second_topic: None,
                     third_topic: None,
                     fourth_topic: None,
-                    address_hash: Some(log.address.to_string().into_bytes()),
+                    address_hash: Some(log.address.as_bytes().to_vec()),
                     transaction_hash: match log.transaction_hash {
-                        Some(hash) => hash.to_string().into_bytes(),
+                        Some(hash) => hash.as_bytes().to_vec(),
                         None => vec![],
                     },
                     block_hash: match log.block_hash {
-                        Some(hash) => hash.to_string().into_bytes(),
+                        Some(hash) => hash.as_bytes().to_vec(),
                         None => vec![],
                     },
                     block_number: match log.block_number {
