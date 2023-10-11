@@ -25,9 +25,9 @@ pub struct Model {
     pub input: Vec<u8>,
     pub nonce: i32,
     #[sea_orm(column_type = "Decimal(Some((100, 0)))")]
-    pub r: Decimal,
+    pub r: BigDecimal,
     #[sea_orm(column_type = "Decimal(Some((100, 0)))")]
-    pub s: Decimal,
+    pub s: BigDecimal,
     pub status: Option<i32>,
     #[sea_orm(column_type = "Decimal(Some((100, 0)))")]
     pub v: Decimal,

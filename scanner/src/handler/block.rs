@@ -4,10 +4,11 @@ use entities::{
     blocks::Model as BlockModel, logs::Model as LogModel, transactions::Model as TransactionModel,
 };
 use ethers::types::{Block, Transaction, TransactionReceipt, TxHash, U64};
+use futures::executor::block_on;
 use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
 use repo::dal::event::Mutation as EventMutation;
 use repo::dal::transaction::Mutation as TransactionMutation;
-use sea_orm::prelude::Decimal;
+use sea_orm::prelude::{BigDecimal, Decimal};
 use sea_orm::{DatabaseConnection, TransactionTrait};
 use std::time::Duration;
 use tokio::time::interval;
@@ -17,6 +18,7 @@ pub struct EthHandler {
     conn: DatabaseConnection,
 }
 
+// TODO handle token transfer
 impl EthHandler {
     pub fn new(cli: EthCli, conn: DatabaseConnection) -> Self {
         Self { cli, conn }
@@ -92,7 +94,7 @@ impl EthHandler {
     }
 
     pub async fn sync_task(&self) {
-        let mut interval = interval(Duration::from_secs(1));
+        let mut interval = interval(Duration::from_secs(3));
         loop {
             interval.tick().await;
 
@@ -185,6 +187,7 @@ impl EthHandler {
         Ok(())
     }
 
+    // TODO add custom error
     async fn sync_to_db(
         &self,
         block: &BlockModel,
@@ -192,7 +195,7 @@ impl EthHandler {
         events: &Vec<LogModel>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let txn = self.conn.begin().await?;
-
+    
         match BlockMutation::create(&txn, &block).await {
             Ok(_) => {}
             Err(e) => {
@@ -209,14 +212,17 @@ impl EthHandler {
             }
         }
 
-        match EventMutation::create(&txn, events).await {
-            Ok(_) => {}
-            Err(e) => {
-                txn.rollback().await?;
-                return Err(Box::new(e));
+        if !events.is_empty(){
+            match EventMutation::create(&txn, events).await {
+                Ok(_) => {}
+                Err(e) => {
+                    txn.rollback().await?;
+                    return Err(Box::new(e));
+                }
             }
+    
         }
-
+      
         txn.commit().await?;
 
         Ok(())
@@ -246,12 +252,14 @@ impl EthHandler {
         Ok(transactions)
     }
 
+    // TODO addresses split from transaction
     async fn process_transaction(
         &self,
         tx: &Transaction,
         block_number: &Option<U64>,
         receipt: &Option<&TransactionReceipt>,
     ) -> Result<TransactionModel, Box<dyn std::error::Error>> {
+        tracing::debug!("hand transaction, tx: {:?}", tx);
         tracing::info!("hand transaction, txHash: {}", tx.hash);
 
         // TODO fulfill transaction err info
@@ -261,7 +269,7 @@ impl EthHandler {
                 None => None,
             },
             hash: tx.hash.to_string().into_bytes(),
-            value: Decimal::from_i128_with_scale(tx.value.as_u128() as i128, 0),
+            value: Decimal::from_str_exact(tx.value.to_string().as_str()).unwrap(),
             status: match receipt {
                 Some(receipt) => match receipt.status {
                     Some(status) => Some(status.as_u64() as i32),
@@ -271,25 +279,26 @@ impl EthHandler {
             },
             cumulative_gas_used: match receipt {
                 Some(r) => Some(Decimal::from_i128_with_scale(
-                    r.cumulative_gas_used.as_u128() as i128,
+                    r.cumulative_gas_used.as_usize() as i128,
                     0,
                 )),
                 None => None,
             },
             error: None,
-            gas: Decimal::from_i128_with_scale(tx.gas.as_u128() as i128, 0),
+            gas: Decimal::from_i128_with_scale(tx.gas.as_usize() as i128, 0),
             gas_price: match tx.gas_price {
                 Some(gas_price) => Some(Decimal::from_i128_with_scale(
-                    gas_price.as_u128() as i128,
+                    gas_price.as_usize() as i128,
                     0,
                 )),
                 None => None,
             },
             gas_used: match receipt {
                 Some(r) => match r.gas_used {
-                    Some(gas_used) => {
-                        Some(Decimal::from_i128_with_scale(gas_used.as_u128() as i128, 0))
-                    }
+                    Some(gas_used) => Some(Decimal::from_i128_with_scale(
+                        gas_used.as_usize() as i128,
+                        0,
+                    )),
                     None => None,
                 },
                 None => None,
@@ -300,9 +309,9 @@ impl EthHandler {
             },
             input: tx.input.to_vec(),
             nonce: tx.nonce.as_u64() as i32,
-            r: Decimal::from_i128_with_scale(tx.r.as_u128() as i128, 0),
-            s: Decimal::from_i128_with_scale(tx.s.as_u128() as i128, 0),
-            v: Decimal::from_i128_with_scale(tx.v.as_u32() as i128, 0),
+            r: BigDecimal::parse_bytes(tx.r.to_string().as_bytes(), 10).unwrap(),
+            s: BigDecimal::parse_bytes(tx.s.to_string().as_bytes(), 10).unwrap(),
+            v: Decimal::new(tx.v.as_u32() as i64, 0),
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
             block_hash: match tx.block_hash {
@@ -310,7 +319,7 @@ impl EthHandler {
                 None => None,
             },
             from_address_hash: tx.from.to_string().into_bytes(),
-            to_address_hash: match tx.to{
+            to_address_hash: match tx.to {
                 Some(to) => Some(to.to_string().into_bytes()),
                 None => None,
             },
@@ -321,14 +330,14 @@ impl EthHandler {
             revert_reason: None,
             max_priority_fee_per_gas: match tx.max_priority_fee_per_gas {
                 Some(max_priority_fee_per_gas) => Some(Decimal::from_i128_with_scale(
-                    max_priority_fee_per_gas.as_u128() as i128,
+                    max_priority_fee_per_gas.as_usize() as i128,
                     0,
                 )),
                 None => None,
             },
             max_fee_per_gas: match tx.max_fee_per_gas {
                 Some(max_fee_per_gas) => Some(Decimal::from_i128_with_scale(
-                    max_fee_per_gas.as_u128() as i128,
+                    max_fee_per_gas.as_usize() as i128,
                     0,
                 )),
                 None => None,
@@ -343,8 +352,6 @@ impl EthHandler {
             has_error_in_internal_txs: None,
         };
 
-      
-
         match receipt {
             Some(receipt) => match receipt.status {
                 Some(status) => {
@@ -354,12 +361,14 @@ impl EthHandler {
 
                     if tx.to.is_none() {
                         // let to_address = ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
-                        if let Some(contract_address)  = receipt.contract_address{
-                            transaction.created_contract_address_hash = Some(contract_address.to_string().into_bytes());
+                        if let Some(contract_address) = receipt.contract_address {
+                            transaction.created_contract_address_hash =
+                                Some(contract_address.to_string().into_bytes());
                         }
-                        if let Some(to)  = receipt.to{
-                            transaction.created_contract_address_hash = Some(to.to_string().into_bytes());
-                        } 
+                        if let Some(to) = receipt.to {
+                            transaction.created_contract_address_hash =
+                                Some(to.to_string().into_bytes());
+                        }
                         transaction.created_contract_code_indexed_at = Some(Utc::now().naive_utc())
                     }
 
@@ -387,6 +396,7 @@ impl EthHandler {
         let mut events = Vec::new();
         for receipt in receipts.iter() {
             for log in receipt.logs.iter() {
+                tracing::debug!("handle_block_event, log: {:?}", log);
                 let mut event = LogModel {
                     data: log.data.to_vec(),
                     index: match log.log_index {

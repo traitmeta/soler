@@ -52,6 +52,10 @@ impl Mutation {
             datas.push(data);
         }
 
+        if datas.is_empty(){
+            return Err(DbErr::RecordNotInserted);
+        }
+
         Events::insert_many(datas).exec(db).await
     }
 }
