@@ -4,8 +4,41 @@ use sea_orm::*;
 pub struct Query;
 
 impl Query {
-    pub async fn find_by_hash(db: &DbConn, hash: &str) -> Result<Option<Model>, DbErr> {
+    pub async fn find_by_hash(db: &DbConn, hash: Vec<u8>) -> Result<Option<Model>, DbErr> {
         Entity::find().filter(Column::Hash.eq(hash)).one(db).await
+    }
+
+    pub async fn find_in_page_block(
+        db: &DbConn,
+        block_height: Option<i64>,
+        page: Option<u64>,
+        blocks_per_page: Option<u64>,
+    ) -> Result<(Vec<Model>, u64), DbErr> {
+        // Setup paginator
+        let mut query = Entity::find();
+        if block_height.is_none() {
+            query = query.filter(Column::BlockNumber.eq(block_height));
+        }
+        query = query
+            .order_by(Column::BlockNumber, Order::Desc)
+            .order_by(Column::Index, Order::Desc);
+
+        let per_pages = match blocks_per_page {
+            Some(p) => p,
+            None => 20,
+        };
+
+        let paginator = query.paginate(db, per_pages);
+        let num_pages = paginator.num_pages().await?;
+        let real_page = match page {
+            Some(p) => p,
+            None => 1,
+        };
+        // Fetch paginated posts
+        paginator
+            .fetch_page(real_page - 1)
+            .await
+            .map(|p| (p, num_pages))
     }
 
     // If ok, returns (scanner height models, num pages).

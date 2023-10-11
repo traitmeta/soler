@@ -10,6 +10,7 @@ use hex::FromHex;
 use repo::dal::block::Query as DbQuery;
 use std::sync::Arc;
 
+// TODO change vec<u8> to string?
 pub async fn get_block(
     Extension(state): Extension<Arc<AppState>>,
     Path(id): Path<String>,

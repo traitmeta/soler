@@ -9,7 +9,7 @@ use ethers::types::{Block, Transaction, TransactionReceipt, TxHash, U64};
 use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
 use repo::dal::event::Mutation as EventMutation;
 use repo::dal::transaction::Mutation as TransactionMutation;
-use sea_orm::prelude::{BigDecimal, Decimal};
+use sea_orm::prelude::Decimal;
 use sea_orm::{DatabaseConnection, TransactionTrait};
 use std::time::Duration;
 use tokio::time::interval;
@@ -204,15 +204,16 @@ impl EthHandler {
                 });
             }
         }
-
-        match TransactionMutation::create(&txn, transactions).await {
-            Ok(_) => {}
-            Err(e) => {
-                txn.rollback().await?;
-                bail!(ScannerError::Create {
-                    src: "create transactions".to_string(),
-                    err: e
-                });
+        if !events.is_empty() {
+            match TransactionMutation::create(&txn, transactions).await {
+                Ok(_) => {}
+                Err(e) => {
+                    txn.rollback().await?;
+                    bail!(ScannerError::Create {
+                        src: "create transactions".to_string(),
+                        err: e
+                    });
+                }
             }
         }
 
@@ -320,18 +321,8 @@ impl EthHandler {
             },
             input: tx.input.to_vec(),
             nonce: tx.nonce.as_u64() as i32,
-            r: match BigDecimal::parse_bytes(tx.r.to_string().as_bytes(), 10) {
-                Some(d) => d,
-                None => bail!(ScannerError::NewBigDecimal(
-                    "Pocess transaction r".to_string()
-                )),
-            },
-            s: match BigDecimal::parse_bytes(tx.s.to_string().as_bytes(), 10) {
-                Some(d) => d,
-                None => bail!(ScannerError::NewBigDecimal(
-                    "Pocess transaction s".to_string()
-                )),
-            },
+            r: tx.r.to_string().into_bytes(),
+            s: tx.s.to_string().into_bytes(),
             v: Decimal::new(tx.v.as_u32() as i64, 0),
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
@@ -374,39 +365,39 @@ impl EthHandler {
         };
 
         match receipt {
-            Some(receipt) => match receipt.status {
-                Some(status) => {
-                    if status.as_u64() == 1 {
-                        ()
+            Some(receipt) => {
+                if tx.to.is_none() {
+                    // let to_address = ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
+                    if let Some(contract_address) = receipt.contract_address {
+                        transaction.created_contract_address_hash =
+                            Some(contract_address.as_bytes().to_vec());
                     }
-
-                    if tx.to.is_none() {
-                        // let to_address = ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
-                        if let Some(contract_address) = receipt.contract_address {
-                            transaction.created_contract_address_hash =
-                                Some(contract_address.as_bytes().to_vec());
-                        }
-                        if let Some(to) = receipt.to {
-                            transaction.created_contract_address_hash =
-                                Some(to.as_bytes().to_vec());
-                        }
-                        transaction.created_contract_code_indexed_at = Some(Utc::now().naive_utc())
+                    if let Some(to) = receipt.to {
+                        transaction.created_contract_address_hash = Some(to.as_bytes().to_vec());
                     }
-
-                    let traces = self.cli.trace_transaction(receipt.transaction_hash).await;
-                    for trace in traces.iter() {
-                        transaction.error = match &trace.error {
-                            Some(error) => Some(error.clone()),
-                            None => None,
-                        };
-                        transaction.revert_reason = match &trace.result {
-                            Some(result) => Some(serde_json::to_string(result).unwrap()),
-                            None => None,
-                        }
-                    }
+                    transaction.created_contract_code_indexed_at = Some(Utc::now().naive_utc())
                 }
-                None => (),
-            },
+
+                match receipt.status {
+                    Some(status) => {
+                        if status.is_zero() {
+                            // This is inner transaction
+                            let traces = self.cli.trace_transaction(receipt.transaction_hash).await;
+                            for trace in traces.iter() {
+                                transaction.error = match &trace.error {
+                                    Some(error) => Some(error.clone()),
+                                    None => None,
+                                };
+                                transaction.revert_reason = match &trace.result {
+                                    Some(result) => Some(serde_json::to_string(result).unwrap()),
+                                    None => None,
+                                }
+                            }
+                        }
+                    }
+                    None => (),
+                }
+            }
             None => {}
         }
 

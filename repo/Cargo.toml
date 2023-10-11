@@ -20,7 +20,6 @@ features = [
     "runtime-tokio-native-tls",
     "macros",
     "debug-print",
-    "with-bigdecimal",
 ]
 version = "0.12.2"
 

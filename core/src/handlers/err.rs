@@ -14,11 +14,12 @@ fn try_thing() -> Result<(), anyhow::Error> {
     anyhow::bail!("it failed!")
 }
 
-
 #[derive(Error, Debug)]
 pub enum CoreError {
     #[error("NotFound From DB!")]
     NotFound,
+    #[error("Param {0} not right!")]
+    Param(String),
 }
 
 // Make our own error that wraps `anyhow::Error`.

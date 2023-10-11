@@ -1,5 +1,5 @@
 use clap::Parser;
-use config::{base::BaseConfig, db::DB, Args, Config};
+use config::{base::BaseConfig, Args, Config};
 use core::{handlers::state, router};
 use repo::orm::conn::connect_db;
 use std::net::SocketAddr;
