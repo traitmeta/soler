@@ -1,7 +1,6 @@
 pub mod block;
 pub mod body_parser;
 pub mod err;
-pub mod form;
 pub mod helth;
 pub mod response;
 pub mod state;

@@ -68,24 +68,3 @@ pub async fn create_user(
     // with a status code of `201 Created`
     (StatusCode::CREATED, Json(BaseResponse::success(res)))
 }
-
-pub async fn get_user_info(
-    Extension(state): Extension<Arc<AppState>>,
-    Query(params): Query<UsersParams>,
-) -> Result<Json<BaseResponse<User>>, AppError> {
-    let conn = get_conn(&state);
-    let user_info = UserQuery::select_one_by_user_name(conn, &params.name)
-        .await
-        .map_err(AppError::from)?;
-    let mut res = User {
-        name: "".to_string(),
-        address: "".to_string(),
-    };
-
-    if let Some(user) = user_info {
-        res.address = user.user_address;
-        res.name = user.user_name;
-    }
-
-    Ok(Json(BaseResponse::success(res)))
-}

@@ -18,7 +18,7 @@ pub async fn get_transaction(
 ) -> Result<Json<BaseResponse<Model>>, AppError> {
     let conn = get_conn(&state);
 
-    if id.len() != 34 || !(id.starts_with("0x") || id.starts_with("0X")) {
+    if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
         return Err(AppError::from(CoreError::Param(id)));
     }
 

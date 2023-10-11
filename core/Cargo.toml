@@ -30,6 +30,7 @@ validator = { version = "0.16.0", features = ["derive"] }
 twitter-v2 = "0.1.8"
 time = "0.3.21"
 hex = '0.4'
+chrono = "0.4.31"
 
 [dependencies.sea-orm]
 features = [
