@@ -1,5 +1,4 @@
 use super::*;
-use time::macros::datetime;
 
 pub fn get_bearer_token(bear_token: &str) -> BearerToken {
     BearerToken::new(bear_token)
@@ -37,6 +36,7 @@ pub async fn get_my_twitter_followers(auth: impl Authorization) -> Option<Vec<tw
 #[cfg(test)]
 mod tests {
     use super::*;
+    use time::macros::datetime;
 
     #[test]
     #[ignore]

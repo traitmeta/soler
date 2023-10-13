@@ -55,7 +55,7 @@ pub async fn get_block(
     Path(id): Path<String>,
 ) -> Result<Json<BaseResponse<BlockResp>>, AppError> {
     let conn = get_conn(&state);
-    let mut block = None;
+    let block;
 
     if id.starts_with("0x") || id.starts_with("0X") {
         let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;

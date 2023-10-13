@@ -90,9 +90,9 @@ impl IERC20Call {
     }
 
     pub async fn metadata(&self, contract_address: &str) -> Result<(String, String, u8), Error> {
-        let mut name = "".to_string();
-        let mut symbol = "".to_string();
-        let mut decimals = 0;
+        let name;
+        let symbol;
+        let decimals;
 
         match self.name(contract_address).await {
             Ok(s) => name = s.to_string(),

@@ -5,9 +5,9 @@ use super::{
     Json,
 };
 use ::entities::user;
-use axum::{extract::Query, response::IntoResponse, Extension};
+use axum::{response::IntoResponse, Extension};
 use hyper::StatusCode;
-use repo::dal::user::{Mutation as UserMutation, Query as UserQuery};
+use repo::dal::user::Mutation as UserMutation;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

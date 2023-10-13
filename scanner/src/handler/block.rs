@@ -18,7 +18,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::interval;
 
-use super::internal_transaction::{self, classify_txs, handler_inner_transaction};
+use super::event::handle_block_event;
+use super::internal_transaction::{classify_txs, handler_inner_transaction};
 
 pub struct EthHandler {
     cli: EthCli,
@@ -198,10 +199,8 @@ impl EthHandler {
             .collect::<HashMap<_, _>>();
 
         let trace_map = classify_txs(traces);
-        let transactions = self
-            .handle_transactions(&block, &recipet_map, &trace_map)
-            .await?;
-        let events = Self::handle_block_event(&recipts);
+        let transactions = Self::handle_transactions(&block, &recipet_map, &trace_map).await?;
+        let events = handle_block_event(&recipts);
         let inner_tx = handler_inner_transaction(traces);
         self.sync_to_db(&block_model, &transactions, &events, &inner_tx)
             .await?;
@@ -273,7 +272,6 @@ impl EthHandler {
     }
 
     async fn handle_transactions(
-        &self,
         block: &Block<Transaction>,
         recipt_map: &HashMap<H256, TransactionReceipt>,
         trace_map: &HashMap<H256, Vec<(Trace, i32)>>,
@@ -290,9 +288,8 @@ impl EthHandler {
                 None => None,
             };
 
-            let transaction = self
-                .process_transaction(tx, &block.number, &recipt, &traces)
-                .await?;
+            let transaction =
+                Self::process_transaction(tx, &block.number, &recipt, &traces).await?;
             transactions.push(transaction);
         }
 
@@ -301,7 +298,6 @@ impl EthHandler {
 
     // TODO addresses split from transaction
     async fn process_transaction(
-        &self,
         tx: &Transaction,
         block_number: &Option<U64>,
         receipt: &Option<TransactionReceipt>,
@@ -459,54 +455,5 @@ impl EthHandler {
         }
 
         Ok(transaction)
-    }
-
-    fn handle_block_event(receipts: &Vec<TransactionReceipt>) -> Vec<LogModel> {
-        let mut events = Vec::new();
-        for receipt in receipts.iter() {
-            for log in receipt.logs.iter() {
-                // tracing::debug!("handle_block_event, log: {:?}", log);
-                let mut event = LogModel {
-                    data: log.data.to_vec(),
-                    index: match log.log_index {
-                        Some(index) => index.as_u64() as i32,
-                        None => 0,
-                    },
-                    r#type: log.log_type.clone(),
-                    first_topic: None,
-                    second_topic: None,
-                    third_topic: None,
-                    fourth_topic: None,
-                    address_hash: Some(log.address.as_bytes().to_vec()),
-                    transaction_hash: match log.transaction_hash {
-                        Some(hash) => hash.as_bytes().to_vec(),
-                        None => vec![],
-                    },
-                    block_hash: match log.block_hash {
-                        Some(hash) => hash.as_bytes().to_vec(),
-                        None => vec![],
-                    },
-                    block_number: match log.block_number {
-                        Some(number) => Some(number.as_u64() as i32),
-                        None => None,
-                    },
-                    inserted_at: Utc::now().naive_utc(),
-                    updated_at: Utc::now().naive_utc(),
-                };
-
-                for (i, topic) in log.topics.iter().enumerate() {
-                    match i {
-                        0 => event.first_topic = Some(topic.to_string()),
-                        1 => event.second_topic = Some(topic.to_string()),
-                        2 => event.third_topic = Some(topic.to_string()),
-                        3 => event.fourth_topic = Some(topic.to_string()),
-                        _ => (),
-                    }
-                }
-                events.push(event);
-            }
-        }
-
-        events
     }
 }
