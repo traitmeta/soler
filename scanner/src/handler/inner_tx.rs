@@ -1,15 +1,14 @@
-
-use std::{str::FromStr, collections::HashMap};
 use chrono::Utc;
 use entities::internal_transactions::Model;
-use ethers::types::{Trace, ActionType, Action, CallType};
+use ethers::types::{Action, ActionType, CallType, Res, Trace};
 use sea_orm::prelude::Decimal;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::{collections::HashMap, str::FromStr};
 
 use crate::model;
 
-/* 
+/*
 * `block_number` - the `t:Explorer.Chain.Block.t/0` `number` that the `transaction` is collated into.
 * `call_type` - the type of call.  `nil` when `type` is not `:call`.
 * `created_contract_code` - the code of the contract that was created when `type` is `:create`.
@@ -36,17 +35,21 @@ use crate::model;
 * `pending_block` - `nil` if `block` has all its internal transactions fetched
 */
 
+pub fn handler_inner_transaction(traces: Vec<Trace>) -> Vec<Model> {
+    let classified_trace = classify_txs(traces);
+    process_inner_transaction(classified_trace)
+}
 
-fn classify_txs(internal_transactions: Vec<Trace>) -> HashMap<String, Vec<(Trace,i32)>> {
-    let mut tx_map:HashMap<String, Vec<(Trace,i32)>> = HashMap::new();
-    for i in 0..internal_transactions.len(){
-        let tx = internal_transactions[i];
-        if let Some(hash) = tx.transaction_hash{
+fn classify_txs(internal_transactions: Vec<Trace>) -> HashMap<String, Vec<(Trace, i32)>> {
+    let mut tx_map: HashMap<String, Vec<(Trace, i32)>> = HashMap::new();
+    for i in 0..internal_transactions.len() {
+        let tx = &internal_transactions[i];
+        if let Some(hash) = tx.transaction_hash {
             match tx_map.get_mut(&hash.to_string()) {
-               Some(mut map) => map.push((tx,i as i32)),
-               None =>                 {
-                tx_map.insert(hash.to_string(), vec![(tx,i as i32)]);
-            },
+                Some(map) => map.push((tx.clone(), i as i32)),
+                None => {
+                    tx_map.insert(hash.to_string(), vec![(tx.clone(), i as i32)]);
+                }
             }
         }
     }
@@ -54,14 +57,12 @@ fn classify_txs(internal_transactions: Vec<Trace>) -> HashMap<String, Vec<(Trace
     tx_map
 }
 
-
-
-fn internal_transactions_to_raw(traces: HashMap<String, Vec<(Trace,i32)>>) -> Vec<Model> {
+fn process_inner_transaction(traces: HashMap<String, Vec<(Trace, i32)>>) -> Vec<Model> {
     let mut res = vec![];
 
-    for (&key, &val) in traces.iter(){
-        for idx in 0..val.len(){
-            let model = internal_transaction_to_raw(&val[idx],idx as i32);
+    for (key, val) in traces.iter() {
+        for idx in 0..val.len() {
+            let model = internal_transaction_to_model(&val[idx], idx as i32);
             res.push(model);
         }
     }
@@ -69,34 +70,34 @@ fn internal_transactions_to_raw(traces: HashMap<String, Vec<(Trace,i32)>>) -> Ve
     res
 }
 
-fn internal_transaction_to_raw(transaction: &(Trace,i32), idx :i32) -> Model {
+fn internal_transaction_to_model(transaction: &(Trace, i32), idx: i32) -> Model {
     let (trace, block_idx) = transaction;
-    let model = Model {
+    let mut model = Model {
         call_type: None,
         created_contract_code: None,
-        error: None,
+        error: trace.error.clone(),
         gas: None,
         gas_used: None,
-        index: idx ,
+        index: idx,
         init: None,
         input: None,
         output: None,
-        trace_address: trace.trace_address.iter().map(|&f | f as i32 ).collect(),
-        r#type:  "".to_string(),
+        trace_address: trace.trace_address.iter().map(|&f| f as i32).collect(),
+        r#type: "".to_string(),
         value: Decimal::ZERO,
         inserted_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
         created_contract_address_hash: None,
         from_address_hash: None,
         to_address_hash: None,
-        transaction_hash: match trace.transaction_hash{
-            Some(hash)=> hash.as_bytes().to_vec(),
-            None=> Vec::new(),
+        transaction_hash: match trace.transaction_hash {
+            Some(hash) => hash.as_bytes().to_vec(),
+            None => Vec::new(),
         },
         block_number: Some(trace.block_number as i32),
-        transaction_index: match trace.transaction_position{
-            Some(position)=> Some(position as i32),
-            None=> None,
+        transaction_index: match trace.transaction_position {
+            Some(position) => Some(position as i32),
+            None => None,
         },
         block_hash: trace.block_hash.as_bytes().to_vec(),
         block_index: *block_idx,
@@ -104,141 +105,91 @@ fn internal_transaction_to_raw(transaction: &(Trace,i32), idx :i32) -> Model {
 
     match trace.action_type {
         ActionType::Call => {
-                model.r#type= "call".to_string();
+            model.r#type = "call".to_string();
 
-            match trace.action{
-                Action::Call(call) =>{
+            match &trace.action {
+                Action::Call(call) => {
                     let call_typ = serde_json::to_string(&call.call_type).unwrap();
-                    model.call_type= Some(call_typ);
-                    model.from_address_hash= Some(call.from.as_bytes().to_vec());
-                    model.to_address_hash= Some(call.to.as_bytes().to_vec());
-                    model.gas = Some(Decimal::from_i128_with_scale(call.gas.as_usize() as i128, 0));
+                    model.call_type = Some(call_typ);
+                    model.from_address_hash = Some(call.from.as_bytes().to_vec());
+                    model.to_address_hash = Some(call.to.as_bytes().to_vec());
+                    model.gas = Some(Decimal::from_i128_with_scale(
+                        call.gas.as_usize() as i128,
+                        0,
+                    ));
                     model.input = Some(call.input.to_vec());
-                },
-                _ => ()
+                }
+                _ => (),
             };
 
-            match trace.error {
-                Some(error) => model.error = Some(error),
-                None => model.output = match trace.result{
-                    Some(result) => match result{
-                        Res::Call(res) => res.
+            match &trace.error {
+                Some(_) => (),
+                None => {
+                    model.output = match &trace.result {
+                        Some(result) => match result {
+                            Res::Call(res) => {
+                                Some(serde_json::to_string(&res).unwrap().into_bytes())
+                            }
+                            _ => None,
+                        },
+                        None => None,
                     }
                 }
-            }
+            };
+
+            model
         }
-        InternalTransactionType::Create | InternalTransactionType::Create2 => {
-            let InternalTransaction::Create {
-                from_address_hash,
-                gas,
-                init,
-                trace_address,
-                value,
-            } = transaction;
+        ActionType::Create => {
+            model.r#type = "create".to_string();
 
-            let action = Action {
-                from: from_address_hash.clone(),
-                gas: gas.clone(),
-                init: init.clone(),
-                value: value.clone(),
+            match &trace.action {
+                Action::Create(call) => {
+                    model.from_address_hash = Some(call.from.as_bytes().to_vec());
+                    model.value = Decimal::from_i128_with_scale(call.value.as_usize() as i128, 0);
+                    model.gas = Some(Decimal::from_i128_with_scale(
+                        call.gas.as_usize() as i128,
+                        0,
+                    ));
+                    model.init = Some(call.init.to_vec());
+                }
+                _ => (),
             };
 
-            let raw_transaction = RawTransaction {
-                type: transaction.type.to_string(),
-                action: Action::to_raw(action),
-                trace_address: trace_address.clone(),
+            match &trace.error {
+                Some(_) => (),
+                None => {
+                    model.output = match &trace.result {
+                        Some(result) => match result {
+                            Res::Create(res) => {
+                                Some(serde_json::to_string(&res).unwrap().into_bytes())
+                            }
+                            _ => None,
+                        },
+                        None => None,
+                    }
+                }
             };
 
-            raw_transaction.put_raw_create_error_or_result(transaction)
+            model
         }
-        InternalTransactionType::SelfDestruct => {
-            let InternalTransaction::SelfDestruct {
-                to_address_hash,
-                from_address_hash,
-                trace_address,
-                value,
-            } = transaction;
 
-            let action = Action {
-                address: from_address_hash.clone(),
-                balance: value.clone(),
-                refund_address: to_address_hash.clone(),
+        ActionType::Suicide => {
+            model.r#type = "suicide".to_string();
+
+            match &trace.action {
+                Action::Suicide(call) => {
+                    model.from_address_hash = Some(call.address.as_bytes().to_vec());
+                    model.to_address_hash = Some(call.refund_address.as_bytes().to_vec());
+                    model.value = Decimal::from_i128_with_scale(call.balance.as_usize() as i128, 0);
+                }
+                _ => (),
             };
 
-            let raw_transaction = RawTransaction {
-                type: "suicide".to_string(),
-                action: Action::to_raw(action),
-                trace_address: trace_address.clone(),
-            };
-
-            raw_transaction
+            model
         }
+        ActionType::Reward => model,
     }
 }
-
-fn add_subtraces(traces: Vec<RawTransaction>) -> Vec<RawTransaction> {
-    traces
-        .iter()
-        .map(|trace| {
-            let subtraces = count_subtraces(trace, &traces);
-            trace.put("subtraces", subtraces)
-        })
-        .collect()
-}
-
-fn count_subtraces(trace: &RawTransaction, traces: &Vec<RawTransaction>) -> usize {
-    traces
-        .iter()
-        .filter(|t| direct_descendant(&trace.trace_address, &t.trace_address))
-        .count()
-}
-
-fn direct_descendant(trace_address1: &[u8], trace_address2: &[u8]) -> bool {
-    if trace_address1.is_empty() && !trace_address2.is_empty() {
-        return true;
-    }
-
-    if trace_address1.len() > trace_address2.len() {
-        return false;
-    }
-
-    if trace_address1[0] == trace_address2[0] {
-        direct_descendant(&trace_address1[1..], &trace_address2[1..])
-    } else {
-        false
-    }
-}
-
-fn put_raw_call_error_or_result(model: &mut Model, trace: &Trace) -> RawTransaction {
-    match trace.error {
-        Some(error) => model.error = Some(error),
-        None => model.result = Some()
-            "result",
-            Result::to_raw(Result {
-                gas_used: transaction.gas_used,
-                output: transaction.output.clone(),
-            }),
-        ),
-    }
-}
-
-fn put_raw_create_error_or_result(raw: RawTransaction, transaction: &InternalTransaction) -> RawTransaction {
-    match transaction.error {
-        Some(error) => raw.put("error", error),
-        None => raw.put(
-            "result",
-            Result::to_raw(Result {
-                gas_used: transaction.gas_used,
-                code: transaction.created_contract_code.clone(),
-                address: transaction.created_contract_address_hash.clone(),
-            }),
-        ),
-    }
-}
-
-
-
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TxCallType {
@@ -251,7 +202,6 @@ pub enum TxCallType {
     #[serde(rename = "staticcall")]
     StaticCall,
 }
-
 
 impl FromStr for TxCallType {
     type Err = String;
@@ -314,5 +264,3 @@ impl fmt::Display for InternalTransactionType {
         write!(f, "{}", s)
     }
 }
-
-
