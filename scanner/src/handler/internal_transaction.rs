@@ -1,15 +1,12 @@
 use chrono::Utc;
 use entities::internal_transactions::Model;
-use ethers::types::{Action, ActionType, CallType, Res, Trace};
+use ethers::types::{Action, ActionType, Res, Trace, H256};
 use sea_orm::prelude::Decimal;
-use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::{collections::HashMap, str::FromStr};
 
-use crate::model;
-
 /*
-* `block_number` - the `t:Explorer.Chain.Block.t/0` `number` that the `transaction` is collated into.
+* `block_number` - the `Blocks` `number` that the `transaction` is collated into.
 * `call_type` - the type of call.  `nil` when `type` is not `:call`.
 * `created_contract_code` - the code of the contract that was created when `type` is `:create`.
 * `error` - error message when `:call` or `:create` `type` errors
@@ -26,7 +23,7 @@ use crate::model;
 * `trace_address` - list of traces
 * `transaction` - transaction in which this internal transaction occurred
 * `transaction_hash` - foreign key for `transaction`
-* `transaction_index` - the `t:Explorer.Chain.Transaction.t/0` `index` of `transaction` in `block_number`.
+* `transaction_index` - the `Transactions` `index` of `transaction` in `block_number`.
 * `type` - type of internal transaction
 * `value` - value of transferred from `from_address` to `to_address`
 * `block` - block in which this internal transaction occurred
@@ -35,20 +32,20 @@ use crate::model;
 * `pending_block` - `nil` if `block` has all its internal transactions fetched
 */
 
-pub fn handler_inner_transaction(traces: Vec<Trace>) -> Vec<Model> {
+pub fn handler_inner_transaction(traces: &Vec<Trace>) -> Vec<Model> {
     let classified_trace = classify_txs(traces);
     process_inner_transaction(classified_trace)
 }
 
-fn classify_txs(internal_transactions: Vec<Trace>) -> HashMap<String, Vec<(Trace, i32)>> {
-    let mut tx_map: HashMap<String, Vec<(Trace, i32)>> = HashMap::new();
+pub fn classify_txs(internal_transactions: &Vec<Trace>) -> HashMap<H256, Vec<(Trace, i32)>> {
+    let mut tx_map: HashMap<H256, Vec<(Trace, i32)>> = HashMap::new();
     for i in 0..internal_transactions.len() {
         let tx = &internal_transactions[i];
         if let Some(hash) = tx.transaction_hash {
-            match tx_map.get_mut(&hash.to_string()) {
+            match tx_map.get_mut(&hash) {
                 Some(map) => map.push((tx.clone(), i as i32)),
                 None => {
-                    tx_map.insert(hash.to_string(), vec![(tx.clone(), i as i32)]);
+                    tx_map.insert(hash, vec![(tx.clone(), i as i32)]);
                 }
             }
         }
@@ -57,10 +54,9 @@ fn classify_txs(internal_transactions: Vec<Trace>) -> HashMap<String, Vec<(Trace
     tx_map
 }
 
-fn process_inner_transaction(traces: HashMap<String, Vec<(Trace, i32)>>) -> Vec<Model> {
+fn process_inner_transaction(traces: HashMap<H256, Vec<(Trace, i32)>>) -> Vec<Model> {
     let mut res = vec![];
-
-    for (key, val) in traces.iter() {
+    for (_key, val) in traces.iter() {
         for idx in 0..val.len() {
             let model = internal_transaction_to_model(&val[idx], idx as i32);
             res.push(model);
@@ -124,17 +120,19 @@ fn internal_transaction_to_model(transaction: &(Trace, i32), idx: i32) -> Model 
 
             match &trace.error {
                 Some(_) => (),
-                None => {
-                    model.output = match &trace.result {
-                        Some(result) => match result {
-                            Res::Call(res) => {
-                                Some(serde_json::to_string(&res).unwrap().into_bytes())
-                            }
-                            _ => None,
-                        },
-                        None => None,
-                    }
-                }
+                None => match &trace.result {
+                    Some(result) => match result {
+                        Res::Call(res) => {
+                            model.gas_used = Some(Decimal::from_i128_with_scale(
+                                res.gas_used.as_usize() as i128,
+                                0,
+                            ));
+                            model.output = Some(serde_json::to_string(&res).unwrap().into_bytes())
+                        }
+                        _ => (),
+                    },
+                    None => (),
+                },
             };
 
             model
@@ -157,17 +155,21 @@ fn internal_transaction_to_model(transaction: &(Trace, i32), idx: i32) -> Model 
 
             match &trace.error {
                 Some(_) => (),
-                None => {
-                    model.output = match &trace.result {
-                        Some(result) => match result {
-                            Res::Create(res) => {
-                                Some(serde_json::to_string(&res).unwrap().into_bytes())
-                            }
-                            _ => None,
-                        },
-                        None => None,
-                    }
-                }
+                None => match &trace.result {
+                    Some(result) => match result {
+                        Res::Create(res) => {
+                            model.created_contract_code = Some(res.code.to_vec());
+                            model.created_contract_address_hash =
+                                Some(res.address.as_bytes().to_vec());
+                            model.gas_used = Some(Decimal::from_i128_with_scale(
+                                res.gas_used.as_usize() as i128,
+                                0,
+                            ));
+                        }
+                        _ => (),
+                    },
+                    None => (),
+                },
             };
 
             model
@@ -187,49 +189,16 @@ fn internal_transaction_to_model(transaction: &(Trace, i32), idx: i32) -> Model 
 
             model
         }
-        ActionType::Reward => model,
-    }
-}
+        ActionType::Reward => {
+            model.r#type = "reward".to_string();
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum TxCallType {
-    #[serde(rename = "call")]
-    Call,
-    #[serde(rename = "callcode")]
-    CallCode,
-    #[serde(rename = "delegatecall")]
-    DelegateCall,
-    #[serde(rename = "staticcall")]
-    StaticCall,
-}
-
-impl FromStr for TxCallType {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "call" => Ok(TxCallType::Call),
-            "callcode" => Ok(TxCallType::CallCode),
-            "delegatecall" => Ok(TxCallType::DelegateCall),
-            "staticcall" => Ok(TxCallType::StaticCall),
-            _ => Err(format!("Unknown CallType: {}", s)),
-        }
-    }
-}
-
-impl ToString for TxCallType {
-    fn to_string(&self) -> String {
-        match self {
-            TxCallType::Call => "call".to_string(),
-            TxCallType::CallCode => "callcode".to_string(),
-            TxCallType::DelegateCall => "delegatecall".to_string(),
-            TxCallType::StaticCall => "staticcall".to_string(),
+            model
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
-enum InternalTransactionType {
+enum InternalActionType {
     Call,
     Create,
     Create2,
@@ -237,29 +206,29 @@ enum InternalTransactionType {
     SelfDestruct,
 }
 
-impl FromStr for InternalTransactionType {
+impl FromStr for InternalActionType {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "call" => Ok(InternalTransactionType::Call),
-            "create" => Ok(InternalTransactionType::Create),
-            "create2" => Ok(InternalTransactionType::Create2),
-            "reward" => Ok(InternalTransactionType::Reward),
-            "selfdestruct" => Ok(InternalTransactionType::SelfDestruct),
+            "call" => Ok(InternalActionType::Call),
+            "create" => Ok(InternalActionType::Create),
+            "create2" => Ok(InternalActionType::Create2),
+            "reward" => Ok(InternalActionType::Reward),
+            "selfdestruct" => Ok(InternalActionType::SelfDestruct),
             _ => Err(()),
         }
     }
 }
 
-impl fmt::Display for InternalTransactionType {
+impl fmt::Display for InternalActionType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match self {
-            InternalTransactionType::Call => "call",
-            InternalTransactionType::Create => "create",
-            InternalTransactionType::Create2 => "create2",
-            InternalTransactionType::Reward => "reward",
-            InternalTransactionType::SelfDestruct => "selfdestruct",
+            InternalActionType::Call => "call",
+            InternalActionType::Create => "create",
+            InternalActionType::Create2 => "create2",
+            InternalActionType::Reward => "reward",
+            InternalActionType::SelfDestruct => "selfdestruct",
         };
         write!(f, "{}", s)
     }

@@ -3,16 +3,22 @@ use crate::evms::eth::EthCli;
 use anyhow::bail;
 use chrono::{NaiveDateTime, Utc};
 use entities::{
-    blocks::Model as BlockModel, logs::Model as LogModel, transactions::Model as TransactionModel,
+    blocks::Model as BlockModel, internal_transactions::Model as InnerTransactionModel,
+    logs::Model as LogModel, transactions::Model as TransactionModel,
 };
-use ethers::types::{Block, Transaction, TransactionReceipt, TxHash, U64};
+use ethers::types::{Block, Trace, Transaction, TransactionReceipt, TxHash, H256, U64};
 use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
 use repo::dal::event::Mutation as EventMutation;
+use repo::dal::internal_transaction::Mutation as InnerTransactionMutation;
 use repo::dal::transaction::Mutation as TransactionMutation;
+
 use sea_orm::prelude::Decimal;
 use sea_orm::{DatabaseConnection, TransactionTrait};
+use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::interval;
+
+use super::internal_transaction::{self, classify_txs, handler_inner_transaction};
 
 pub struct EthHandler {
     cli: EthCli,
@@ -121,12 +127,20 @@ impl EthHandler {
                     current_block.hash.unwrap().as_bytes().to_vec().len(),
                 );
 
-                self.handle_block(&current_block).await.unwrap();
+                let block_traces = self.cli.trace_block(latest_block.number as u64 + 1).await;
+
+                self.handle_block(&current_block, &block_traces)
+                    .await
+                    .unwrap();
             }
         }
     }
 
-    async fn handle_block(&self, block: &Block<Transaction>) -> anyhow::Result<()> {
+    async fn handle_block(
+        &self,
+        block: &Block<Transaction>,
+        traces: &Vec<Trace>,
+    ) -> anyhow::Result<()> {
         let block_model = BlockModel {
             difficulty: Some(Decimal::from_i128_with_scale(
                 block.difficulty.as_u128() as i128,
@@ -178,9 +192,18 @@ impl EthHandler {
             is_empty: Some(block.transactions.len() == 0), // transaction count is zero
         };
         let recipts = self.cli.get_block_receipt(block_model.number as u64).await;
-        let transactions = self.handle_transactions(&block, &recipts).await?;
+        let recipet_map = recipts
+            .iter()
+            .map(|r| (r.transaction_hash, r.clone()))
+            .collect::<HashMap<_, _>>();
+
+        let trace_map = classify_txs(traces);
+        let transactions = self
+            .handle_transactions(&block, &recipet_map, &trace_map)
+            .await?;
         let events = Self::handle_block_event(&recipts);
-        self.sync_to_db(&block_model, &transactions, &events)
+        let inner_tx = handler_inner_transaction(traces);
+        self.sync_to_db(&block_model, &transactions, &events, &inner_tx)
             .await?;
 
         Ok(())
@@ -191,6 +214,7 @@ impl EthHandler {
         block: &BlockModel,
         transactions: &Vec<TransactionModel>,
         events: &Vec<LogModel>,
+        inner_tx: &Vec<InnerTransactionModel>,
     ) -> anyhow::Result<()> {
         let txn = self.conn.begin().await?;
 
@@ -229,6 +253,19 @@ impl EthHandler {
                 }
             }
         }
+        // TODO TEST
+        if !inner_tx.is_empty() {
+            match InnerTransactionMutation::create(&txn, inner_tx).await {
+                Ok(_) => {}
+                Err(e) => {
+                    txn.rollback().await?;
+                    bail!(ScannerError::Create {
+                        src: "create internal transactions".to_string(),
+                        err: e
+                    });
+                }
+            }
+        }
 
         txn.commit().await?;
 
@@ -238,19 +275,23 @@ impl EthHandler {
     async fn handle_transactions(
         &self,
         block: &Block<Transaction>,
-        recipts: &Vec<TransactionReceipt>,
+        recipt_map: &HashMap<H256, TransactionReceipt>,
+        trace_map: &HashMap<H256, Vec<(Trace, i32)>>,
     ) -> anyhow::Result<Vec<TransactionModel>> {
         let mut transactions = Vec::new();
         for tx in block.transactions.iter() {
-            let mut tx_receipt = None;
-            for receipt in recipts.iter() {
-                if receipt.transaction_hash.eq(&tx.hash) {
-                    tx_receipt = Some(receipt);
-                }
-            }
+            let recipt = match recipt_map.get(&tx.hash) {
+                Some(r) => Some(r.clone()),
+                None => None,
+            };
+
+            let traces = match trace_map.get(&tx.hash) {
+                Some(r) => Some(r.clone()),
+                None => None,
+            };
 
             let transaction = self
-                .process_transaction(tx, &block.number, &tx_receipt)
+                .process_transaction(tx, &block.number, &recipt, &traces)
                 .await?;
             transactions.push(transaction);
         }
@@ -263,7 +304,8 @@ impl EthHandler {
         &self,
         tx: &Transaction,
         block_number: &Option<U64>,
-        receipt: &Option<&TransactionReceipt>,
+        receipt: &Option<TransactionReceipt>,
+        traces: &Option<Vec<(Trace, i32)>>,
     ) -> anyhow::Result<TransactionModel> {
         // tracing::debug!("hand transaction, tx: {:?}", tx);
         tracing::info!("hand transaction, txHash: {:#032x}", tx.hash);
@@ -382,17 +424,32 @@ impl EthHandler {
                     Some(status) => {
                         if status.is_zero() {
                             // This is inner transaction
-                            let traces = self.cli.trace_transaction(receipt.transaction_hash).await;
-                            for trace in traces.iter() {
-                                transaction.error = match &trace.error {
-                                    Some(error) => Some(error.clone()),
-                                    None => None,
-                                };
-                                transaction.revert_reason = match &trace.result {
-                                    Some(result) => Some(serde_json::to_string(result).unwrap()),
-                                    None => None,
+                            if let Some(trace_list) = traces {
+                                for (trace, _) in trace_list.iter() {
+                                    transaction.error = match &trace.error {
+                                        Some(error) => Some(error.clone()),
+                                        None => None,
+                                    };
+
+                                    transaction.revert_reason = match &trace.result {
+                                        Some(result) => {
+                                            Some(serde_json::to_string(result).unwrap())
+                                        }
+                                        None => None,
+                                    }
                                 }
                             }
+                            // let traces = self.cli.trace_transaction(receipt.transaction_hash).await;
+                            // for trace in traces.iter() {
+                            //     transaction.error = match &trace.error {
+                            //         Some(error) => Some(error.clone()),
+                            //         None => None,
+                            //     };
+                            //     transaction.revert_reason = match &trace.result {
+                            //         Some(result) => Some(serde_json::to_string(result).unwrap()),
+                            //         None => None,
+                            //     }
+                            // }
                         }
                     }
                     None => (),
