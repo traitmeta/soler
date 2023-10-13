@@ -136,6 +136,7 @@ impl EthCli {
             .unwrap();
         code
     }
+
     pub async fn trace_transaction(&self, transaction_hash: H256) -> Vec<Trace> {
         let trace = self
             .provider
@@ -145,6 +146,15 @@ impl EthCli {
         trace
     }
 
+    pub async fn trace_block(&self, number: u64) -> Vec<Trace> {
+        let trace = self
+            .provider
+            .trace_block(BlockNumber::Number(number.into()))
+            .await
+            .unwrap();
+        trace
+    }
+   
     pub async fn batch_get_tx_logs(
         &self,
         block_info: Block<Transaction>,
