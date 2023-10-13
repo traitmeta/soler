@@ -22,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
         .expect("setting default subscriber failed");
 
     test_with_run_ws().await;
+    test_with_run_http().await;
 
     Ok(())
 }

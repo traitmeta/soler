@@ -1,6 +1,3 @@
-use ::entities::log_receiver_chain;
-use sea_orm::*;
-
 #[cfg(feature = "mock")]
 pub fn prepare_mock_db() -> DatabaseConnection {
     let find_by_task_name_eth_5 = vec![log_receiver_chain::Model {
