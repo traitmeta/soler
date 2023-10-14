@@ -91,10 +91,7 @@ fn internal_transaction_to_model(transaction: &(Trace, i32), idx: i32) -> Model 
             None => Vec::new(),
         },
         block_number: Some(trace.block_number as i32),
-        transaction_index: match trace.transaction_position {
-            Some(position) => Some(position as i32),
-            None => None,
-        },
+        transaction_index: trace.transaction_position.map(|pos| pos as i32),
         block_hash: trace.block_hash.as_bytes().to_vec(),
         block_index: *block_idx,
     };
