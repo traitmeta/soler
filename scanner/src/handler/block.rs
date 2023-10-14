@@ -199,7 +199,7 @@ impl EthHandler {
             .collect::<HashMap<_, _>>();
 
         let trace_map = classify_txs(traces);
-        let transactions = Self::handle_transactions(&block, &recipet_map, &trace_map).await?;
+        let transactions = Self::handle_transactions(&block, recipet_map, trace_map).await?;
         let events = handle_block_event(&recipts);
         let inner_tx = handler_inner_transaction(traces);
         self.sync_to_db(&block_model, &transactions, &events, &inner_tx)
@@ -273,8 +273,8 @@ impl EthHandler {
 
     async fn handle_transactions(
         block: &Block<Transaction>,
-        recipt_map: &HashMap<H256, TransactionReceipt>,
-        trace_map: &HashMap<H256, Vec<(Trace, i32)>>,
+        recipt_map: HashMap<H256, TransactionReceipt>,
+        trace_map: HashMap<H256, Vec<(Trace, i32)>>,
     ) -> anyhow::Result<Vec<TransactionModel>> {
         let mut transactions = Vec::new();
         for tx in block.transactions.iter() {
@@ -288,8 +288,7 @@ impl EthHandler {
                 None => None,
             };
 
-            let transaction =
-                Self::process_transaction(tx, &block.number, &recipt, &traces).await?;
+            let transaction = Self::process_transaction(tx, &block.number, recipt, traces).await?;
             transactions.push(transaction);
         }
 
@@ -300,8 +299,8 @@ impl EthHandler {
     async fn process_transaction(
         tx: &Transaction,
         block_number: &Option<U64>,
-        receipt: &Option<TransactionReceipt>,
-        traces: &Option<Vec<(Trace, i32)>>,
+        receipt: Option<TransactionReceipt>,
+        traces: Option<Vec<(Trace, i32)>>,
     ) -> anyhow::Result<TransactionModel> {
         // tracing::debug!("hand transaction, tx: {:?}", tx);
         tracing::info!("hand transaction, txHash: {:#032x}", tx.hash);
@@ -320,14 +319,14 @@ impl EthHandler {
                     err: err.to_string()
                 }),
             },
-            status: match receipt {
+            status: match &receipt {
                 Some(receipt) => match receipt.status {
                     Some(status) => Some(status.as_u64() as i32),
                     None => None,
                 },
                 None => None,
             },
-            cumulative_gas_used: match receipt {
+            cumulative_gas_used: match &receipt {
                 Some(r) => Some(Decimal::from_i128_with_scale(
                     r.cumulative_gas_used.as_usize() as i128,
                     0,
@@ -343,7 +342,7 @@ impl EthHandler {
                 )),
                 None => None,
             },
-            gas_used: match receipt {
+            gas_used: match &receipt {
                 Some(r) => match r.gas_used {
                     Some(gas_used) => Some(Decimal::from_i128_with_scale(
                         gas_used.as_usize() as i128,
@@ -392,7 +391,7 @@ impl EthHandler {
                 )),
                 None => None,
             },
-            r#type: match receipt {
+            r#type: match &receipt {
                 Some(r) => match r.transaction_type {
                     Some(transaction_type) => Some(transaction_type.as_u64() as i32),
                     None => None,
@@ -402,7 +401,7 @@ impl EthHandler {
             has_error_in_internal_txs: None,
         };
 
-        match receipt {
+        match &receipt {
             Some(receipt) => {
                 if tx.to.is_none() {
                     // let to_address = ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
