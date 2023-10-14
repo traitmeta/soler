@@ -278,16 +278,8 @@ impl EthHandler {
     ) -> anyhow::Result<Vec<TransactionModel>> {
         let mut transactions = Vec::new();
         for tx in block.transactions.iter() {
-            let recipt = match recipt_map.get(&tx.hash) {
-                Some(r) => Some(r.clone()),
-                None => None,
-            };
-
-            let traces = match trace_map.get(&tx.hash) {
-                Some(r) => Some(r.clone()),
-                None => None,
-            };
-
+            let recipt = recipt_map.get(&tx.hash).map(|r| r.clone());
+            let traces = trace_map.get(&tx.hash).map(|r| r.clone());
             let transaction = Self::process_transaction(tx, &block.number, recipt, traces).await?;
             transactions.push(transaction);
         }
@@ -307,10 +299,7 @@ impl EthHandler {
 
         // TODO fulfill inner transaction err info
         let mut transaction = TransactionModel {
-            block_number: match block_number {
-                Some(block_number) => Some(block_number.as_u64() as i32),
-                None => None,
-            },
+            block_number: block_number.map(|number| number.as_u64() as i32),
             hash: tx.hash.as_bytes().to_vec(),
             value: match Decimal::from_str_exact(tx.value.to_string().as_str()) {
                 Ok(dec) => dec,
@@ -319,43 +308,23 @@ impl EthHandler {
                     err: err.to_string()
                 }),
             },
-            status: match &receipt {
-                Some(receipt) => match receipt.status {
-                    Some(status) => Some(status.as_u64() as i32),
-                    None => None,
-                },
-                None => None,
-            },
-            cumulative_gas_used: match &receipt {
-                Some(r) => Some(Decimal::from_i128_with_scale(
-                    r.cumulative_gas_used.as_usize() as i128,
-                    0,
-                )),
-                None => None,
-            },
+            status: receipt
+                .as_ref()
+                .map(|r| r.status)
+                .and_then(|status| status.map(|s| s.as_u64() as i32)),
+            cumulative_gas_used: receipt
+                .as_ref()
+                .map(|r| r.cumulative_gas_used)
+                .map(|c| Decimal::from_i128_with_scale(c.as_usize() as i128, 0)),
             error: None,
             gas: Decimal::from_i128_with_scale(tx.gas.as_usize() as i128, 0),
-            gas_price: match tx.gas_price {
-                Some(gas_price) => Some(Decimal::from_i128_with_scale(
-                    gas_price.as_usize() as i128,
-                    0,
-                )),
-                None => None,
-            },
-            gas_used: match &receipt {
-                Some(r) => match r.gas_used {
-                    Some(gas_used) => Some(Decimal::from_i128_with_scale(
-                        gas_used.as_usize() as i128,
-                        0,
-                    )),
-                    None => None,
-                },
-                None => None,
-            },
-            index: match tx.transaction_index {
-                Some(index) => Some(index.as_u64() as i32),
-                None => None,
-            },
+            gas_price: tx
+                .gas_price
+                .map(|price| Decimal::from_i128_with_scale(price.as_usize() as i128, 0)),
+            gas_used: receipt.as_ref().map(|r| r.gas_used).and_then(|gas_used| {
+                gas_used.map(|used| Decimal::from_i128_with_scale(used.as_usize() as i128, 0))
+            }),
+            index: tx.transaction_index.map(|index| index.as_u64() as i32),
             input: tx.input.to_vec(),
             nonce: tx.nonce.as_u64() as i32,
             r: tx.r.to_string().into_bytes(),
@@ -363,41 +332,27 @@ impl EthHandler {
             v: Decimal::new(tx.v.as_u32() as i64, 0),
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
-            block_hash: match tx.block_hash {
-                Some(hash) => Some(hash.as_bytes().to_vec()),
-                None => None,
-            },
+            block_hash: tx.block_hash.map(|hash| hash.as_bytes().to_vec()),
             from_address_hash: tx.from.as_bytes().to_vec(),
-            to_address_hash: match tx.to {
-                Some(to) => Some(to.as_bytes().to_vec()),
-                None => None,
-            },
+            to_address_hash: tx.to.map(|to| to.as_bytes().to_vec()),
             created_contract_address_hash: None,
             created_contract_code_indexed_at: None,
             earliest_processing_start: None,
             old_block_hash: None,
             revert_reason: None,
-            max_priority_fee_per_gas: match tx.max_priority_fee_per_gas {
-                Some(max_priority_fee_per_gas) => Some(Decimal::from_i128_with_scale(
-                    max_priority_fee_per_gas.as_usize() as i128,
-                    0,
-                )),
-                None => None,
-            },
-            max_fee_per_gas: match tx.max_fee_per_gas {
-                Some(max_fee_per_gas) => Some(Decimal::from_i128_with_scale(
-                    max_fee_per_gas.as_usize() as i128,
-                    0,
-                )),
-                None => None,
-            },
-            r#type: match &receipt {
-                Some(r) => match r.transaction_type {
-                    Some(transaction_type) => Some(transaction_type.as_u64() as i32),
-                    None => None,
-                },
-                None => None,
-            },
+            max_priority_fee_per_gas: tx
+                .max_priority_fee_per_gas
+                .map(|fee| Decimal::from_i128_with_scale(fee.as_usize() as i128, 0)),
+
+            max_fee_per_gas: tx
+                .max_fee_per_gas
+                .map(|fee| Decimal::from_i128_with_scale(fee.as_usize() as i128, 0)),
+
+            r#type: receipt
+                .as_ref()
+                .map(|r| r.transaction_type)
+                .and_then(|op_t| op_t.map(|t| t.as_u64() as i32)),
+
             has_error_in_internal_txs: None,
         };
 
@@ -421,30 +376,14 @@ impl EthHandler {
                             // This is inner transaction
                             if let Some(trace_list) = traces {
                                 for (trace, _) in trace_list.iter() {
-                                    transaction.error = match &trace.error {
-                                        Some(error) => Some(error.clone()),
-                                        None => None,
-                                    };
-
-                                    transaction.revert_reason = match &trace.result {
-                                        Some(result) => {
-                                            Some(serde_json::to_string(result).unwrap())
-                                        }
-                                        None => None,
-                                    }
+                                    transaction.error = trace.error.clone().map(|e| e.to_string());
+                                    transaction.revert_reason =
+                                        trace.result.clone().map(|result| {
+                                            serde_json::to_string(&result)
+                                                .unwrap_or(String::from("Error serializing value"))
+                                        });
                                 }
                             }
-                            // let traces = self.cli.trace_transaction(receipt.transaction_hash).await;
-                            // for trace in traces.iter() {
-                            //     transaction.error = match &trace.error {
-                            //         Some(error) => Some(error.clone()),
-                            //         None => None,
-                            //     };
-                            //     transaction.revert_reason = match &trace.result {
-                            //         Some(result) => Some(serde_json::to_string(result).unwrap()),
-                            //         None => None,
-                            //     }
-                            // }
                         }
                     }
                     None => (),
