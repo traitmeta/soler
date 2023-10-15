@@ -16,14 +16,14 @@ async fn main() {
 
     // run it
     let addr = SocketAddr::from(([0, 0, 0, 0], 50060));
-    tracing::debug!("listening on {}", addr);
+    tracing::debug!(target = "listening on", addr = ?addr);
 
     let args = Args::parse();
     let config = BaseConfig::load(&args.config_path).unwrap();
     let db_cfg = config.database.unwrap();
-    tracing::info!("db config {:?}", db_cfg);
+    tracing::info!(target = "db config", cfg = ?db_cfg);
     let conn = connect_db(db_cfg).await.unwrap();
-    tracing::info!("connected db");
+    tracing::info!(traget = "connected db");
 
     router::route(addr, state::AppState { conn }).await
 }

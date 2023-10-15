@@ -2,19 +2,24 @@
 
 # soler
 
-this repo include something about rust.
+The explorer for block;
 
-## 生成Entity
+## 生成 Entity
 
 1. 首先需要有数据库表
 2. 然后使用命令`sea-orm-cli generate entity -u $DATABASE_URL -o entities/src`
 
-## TODO
+## Config file
 
-1. ~~auxm 换成最新版本~~
-2. sea-orm使用GraphQL
-3. Auxm使用seaOrm
-4. ~~sui 追踪指定package中的event~~
-5. ~~RPC main拆分成独立的测试代码~~
-6. kafka producer 通用改造
-7. sui 指定package中的event 分页遍历
+1. DB use PostgreSQL
+2. API use AUXM
+
+## Project dir
+
+1. `scanner` is indexer for block info
+2. `entities` is table of DB model and use sea-orm
+3. `repo` is dal for upsert and query db
+4. `core` is api with auxm
+5. `config` is common configuration
+
+
