@@ -23,5 +23,3 @@ homepage = "https://github.com/traitmeta/soler"
 repository = "https://github.com/traitmeta/soler"
 exclude = [".github/"]
 
-[workspace.dependencies]
-soler-entities = { path = "./entities" }
