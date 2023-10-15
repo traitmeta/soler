@@ -3,7 +3,7 @@ use config::{base::BaseConfig, Args, Config};
 use core::{handlers::state, router};
 use repo::orm::conn::connect_db;
 use std::net::SocketAddr;
-use tracing::{info, instrument};
+use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]

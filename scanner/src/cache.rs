@@ -50,6 +50,7 @@ impl ContractAddrCache {
     }
 }
 
+#[allow(dead_code)]
 async fn update_contract_cache(conn: &DbConn) -> ContractAddrCache {
     let mut contract_addr_cache: ContractAddrCache = ContractAddrCache::new();
     let (contracts, _) = ContractQuery::find_scanner_contract_in_page(conn, 1, 100)

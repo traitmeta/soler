@@ -90,24 +90,20 @@ impl IERC20Call {
     }
 
     pub async fn metadata(&self, contract_address: &str) -> Result<(String, String, u8), Error> {
-        let name;
-        let symbol;
-        let decimals;
-
-        match self.name(contract_address).await {
-            Ok(s) => name = s.to_string(),
+        let name = match self.name(contract_address).await {
+            Ok(s) => s.to_string(),
             Err(e) => return Err(e),
-        }
+        };
 
-        match self.symbol(contract_address).await {
-            Ok(s) => symbol = s.to_string(),
+        let symbol = match self.symbol(contract_address).await {
+            Ok(s) => s.to_string(),
             Err(e) => return Err(e),
-        }
+        };
 
-        match self.decimals(contract_address).await {
-            Ok(s) => decimals = s,
+        let decimals = match self.decimals(contract_address).await {
+            Ok(s) => s,
             Err(e) => return Err(e),
-        }
+        };
 
         Ok((name, symbol, decimals))
     }

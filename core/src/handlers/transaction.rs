@@ -28,10 +28,8 @@ pub async fn get_transaction(
         .map_err(AppError::from)?;
 
     match res {
-        Some(res) => return Ok(Json(BaseResponse::success(res))),
-        None => {
-            return Err(AppError::from(CoreError::NotFound));
-        }
+        Some(res) => Ok(Json(BaseResponse::success(res))),
+        None => Err(AppError::from(CoreError::NotFound)),
     }
 }
 

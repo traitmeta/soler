@@ -2,7 +2,7 @@ use chrono::Utc;
 use entities::logs::Model as LogModel;
 use ethers::types::TransactionReceipt;
 
-pub fn handle_block_event(receipts: &Vec<TransactionReceipt>) -> Vec<LogModel> {
+pub fn handle_block_event(receipts: &[TransactionReceipt]) -> Vec<LogModel> {
     let mut events = Vec::new();
     for receipt in receipts.iter() {
         for log in receipt.logs.iter() {
@@ -27,10 +27,7 @@ pub fn handle_block_event(receipts: &Vec<TransactionReceipt>) -> Vec<LogModel> {
                     Some(hash) => hash.as_bytes().to_vec(),
                     None => vec![],
                 },
-                block_number: match log.block_number {
-                    Some(number) => Some(number.as_u64() as i32),
-                    None => None,
-                },
+                block_number: log.block_number.map(|number| number.as_u64() as i32),
                 inserted_at: Utc::now().naive_utc(),
                 updated_at: Utc::now().naive_utc(),
             };

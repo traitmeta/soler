@@ -65,7 +65,6 @@ impl Mutation {
             is_empty: Set(form_data.is_empty),
             inserted_at: Set(form_data.inserted_at),
             updated_at: Set(form_data.updated_at),
-            ..Default::default()
         }
         .insert(db)
         .await

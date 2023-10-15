@@ -23,17 +23,10 @@ impl Query {
             .order_by(Column::BlockNumber, Order::Desc)
             .order_by(Column::Index, Order::Desc);
 
-        let per_pages = match blocks_per_page {
-            Some(p) => p,
-            None => 20,
-        };
-
+        let per_pages = blocks_per_page.unwrap_or(20);
         let paginator = query.paginate(db, per_pages);
         let num_pages = paginator.num_pages().await?;
-        let real_page = match page {
-            Some(p) => p,
-            None => 1,
-        };
+        let real_page = page.unwrap_or(1);
         // Fetch paginated posts
         paginator
             .fetch_page(real_page - 1)
@@ -61,10 +54,7 @@ impl Query {
 pub struct Mutation;
 
 impl Mutation {
-    pub async fn create<C>(
-        db: &C,
-        form_datas: &Vec<Model>,
-    ) -> Result<InsertResult<ActiveModel>, DbErr>
+    pub async fn create<C>(db: &C, form_datas: &[Model]) -> Result<InsertResult<ActiveModel>, DbErr>
     where
         C: ConnectionTrait,
     {
@@ -102,7 +92,6 @@ impl Mutation {
                 has_error_in_internal_txs: Set(form_data.has_error_in_internal_txs),
                 inserted_at: Set(form_data.inserted_at),
                 updated_at: Set(form_data.updated_at),
-                ..Default::default()
             };
             batch.push(data);
         }

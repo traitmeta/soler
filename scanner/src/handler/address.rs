@@ -11,8 +11,8 @@ pub fn process_block_addresses(
 ) -> Vec<AddressModel> {
     let mut block_addresses = HashMap::new();
     for tx in block.transactions.iter() {
-        let recipt = recipt_map.get(&tx.hash).map(|r| r.clone());
-        let traces = trace_map.get(&tx.hash).map(|r| r.clone());
+        let recipt = recipt_map.get(&tx.hash);
+        let traces = trace_map.get(&tx.hash);
         let addresses = process_addresses(tx, recipt, traces);
         for addr in addresses.into_iter() {
             if !block_addresses.contains_key(&addr.hash) {
@@ -25,8 +25,8 @@ pub fn process_block_addresses(
 
 pub fn process_addresses(
     tx: &Transaction,
-    receipt: Option<TransactionReceipt>,
-    traces: Option<Vec<(Trace, i32)>>,
+    receipt: Option<&TransactionReceipt>,
+    traces: Option<&Vec<(Trace, i32)>>,
 ) -> Vec<AddressModel> {
     tracing::info!("hand addresses, txHash: {:#032x}", tx.hash);
     let mut addresses = vec![];
@@ -91,7 +91,7 @@ pub fn process_addresses(
     addresses
 }
 
-fn get_contract_address_from_receipt(receipt: Option<TransactionReceipt>) -> Option<Vec<u8>> {
+fn get_contract_address_from_receipt(receipt: Option<&TransactionReceipt>) -> Option<Vec<u8>> {
     match receipt {
         Some(receipt) => {
             if let Some(contract_address) = receipt.contract_address {
@@ -107,15 +107,13 @@ fn get_contract_address_from_receipt(receipt: Option<TransactionReceipt>) -> Opt
     None
 }
 
-fn get_contract_code_from_trace(traces: Option<Vec<(Trace, i32)>>) -> Option<String> {
+fn get_contract_code_from_trace(traces: Option<&Vec<(Trace, i32)>>) -> Option<String> {
     if let Some(traces) = traces {
         for (trace, _) in traces.iter() {
             if trace.action_type == ActionType::Create {
                 match &trace.result {
-                    Some(result) => match result {
-                        Res::Create(res) => Some(res.code.to_vec()),
-                        _ => None,
-                    },
+                    Some(Res::Create(res)) => Some(res.code.to_vec()),
+                    Some(_) => None,
                     None => None,
                 };
             }

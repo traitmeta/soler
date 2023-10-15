@@ -32,15 +32,14 @@ use std::{collections::HashMap, str::FromStr};
 * `pending_block` - `nil` if `block` has all its internal transactions fetched
 */
 
-pub fn handler_inner_transaction(traces: &Vec<Trace>) -> Vec<Model> {
+pub fn handler_inner_transaction(traces: &[Trace]) -> Vec<Model> {
     let classified_trace = classify_txs(traces);
     process_inner_transaction(classified_trace)
 }
 
-pub fn classify_txs(internal_transactions: &Vec<Trace>) -> HashMap<H256, Vec<(Trace, i32)>> {
+pub fn classify_txs(internal_transactions: &[Trace]) -> HashMap<H256, Vec<(Trace, i32)>> {
     let mut tx_map: HashMap<H256, Vec<(Trace, i32)>> = HashMap::new();
-    for i in 0..internal_transactions.len() {
-        let tx = &internal_transactions[i];
+    for (i, tx) in internal_transactions.iter().enumerate() {
         if let Some(hash) = tx.transaction_hash {
             match tx_map.get_mut(&hash) {
                 Some(map) => map.push((tx.clone(), i as i32)),
@@ -57,8 +56,8 @@ pub fn classify_txs(internal_transactions: &Vec<Trace>) -> HashMap<H256, Vec<(Tr
 fn process_inner_transaction(traces: HashMap<H256, Vec<(Trace, i32)>>) -> Vec<Model> {
     let mut res = vec![];
     for (_key, val) in traces.iter() {
-        for idx in 0..val.len() {
-            let model = internal_transaction_to_model(&val[idx], idx as i32);
+        for (idx, item) in val.iter().enumerate() {
+            let model = internal_transaction_to_model(item, idx as i32);
             res.push(model);
         }
     }
@@ -100,34 +99,29 @@ fn internal_transaction_to_model(transaction: &(Trace, i32), idx: i32) -> Model 
         ActionType::Call => {
             model.r#type = "call".to_string();
 
-            match &trace.action {
-                Action::Call(call) => {
-                    let call_typ = serde_json::to_string(&call.call_type).unwrap();
-                    model.call_type = Some(call_typ);
-                    model.from_address_hash = Some(call.from.as_bytes().to_vec());
-                    model.to_address_hash = Some(call.to.as_bytes().to_vec());
-                    model.gas = Some(Decimal::from_i128_with_scale(
-                        call.gas.as_usize() as i128,
-                        0,
-                    ));
-                    model.input = Some(call.input.to_vec());
-                }
-                _ => (),
+            if let Action::Call(call) = &trace.action {
+                let call_typ = serde_json::to_string(&call.call_type).unwrap();
+                model.call_type = Some(call_typ);
+                model.from_address_hash = Some(call.from.as_bytes().to_vec());
+                model.to_address_hash = Some(call.to.as_bytes().to_vec());
+                model.gas = Some(Decimal::from_i128_with_scale(
+                    call.gas.as_usize() as i128,
+                    0,
+                ));
+                model.input = Some(call.input.to_vec());
             };
 
             match &trace.error {
                 Some(_) => (),
                 None => match &trace.result {
-                    Some(result) => match result {
-                        Res::Call(res) => {
-                            model.gas_used = Some(Decimal::from_i128_with_scale(
-                                res.gas_used.as_usize() as i128,
-                                0,
-                            ));
-                            model.output = Some(serde_json::to_string(&res).unwrap().into_bytes())
-                        }
-                        _ => (),
-                    },
+                    Some(Res::Call(res)) => {
+                        model.gas_used = Some(Decimal::from_i128_with_scale(
+                            res.gas_used.as_usize() as i128,
+                            0,
+                        ));
+                        model.output = Some(serde_json::to_string(&res).unwrap().into_bytes())
+                    }
+                    Some(_) => (),
                     None => (),
                 },
             };
@@ -137,34 +131,28 @@ fn internal_transaction_to_model(transaction: &(Trace, i32), idx: i32) -> Model 
         ActionType::Create => {
             model.r#type = "create".to_string();
 
-            match &trace.action {
-                Action::Create(call) => {
-                    model.from_address_hash = Some(call.from.as_bytes().to_vec());
-                    model.value = Decimal::from_i128_with_scale(call.value.as_usize() as i128, 0);
-                    model.gas = Some(Decimal::from_i128_with_scale(
-                        call.gas.as_usize() as i128,
-                        0,
-                    ));
-                    model.init = Some(call.init.to_vec());
-                }
-                _ => (),
+            if let Action::Create(call) = &trace.action {
+                model.from_address_hash = Some(call.from.as_bytes().to_vec());
+                model.value = Decimal::from_i128_with_scale(call.value.as_usize() as i128, 0);
+                model.gas = Some(Decimal::from_i128_with_scale(
+                    call.gas.as_usize() as i128,
+                    0,
+                ));
+                model.init = Some(call.init.to_vec());
             };
 
             match &trace.error {
                 Some(_) => (),
                 None => match &trace.result {
-                    Some(result) => match result {
-                        Res::Create(res) => {
-                            model.created_contract_code = Some(res.code.to_vec());
-                            model.created_contract_address_hash =
-                                Some(res.address.as_bytes().to_vec());
-                            model.gas_used = Some(Decimal::from_i128_with_scale(
-                                res.gas_used.as_usize() as i128,
-                                0,
-                            ));
-                        }
-                        _ => (),
-                    },
+                    Some(Res::Create(res)) => {
+                        model.created_contract_code = Some(res.code.to_vec());
+                        model.created_contract_address_hash = Some(res.address.as_bytes().to_vec());
+                        model.gas_used = Some(Decimal::from_i128_with_scale(
+                            res.gas_used.as_usize() as i128,
+                            0,
+                        ));
+                    }
+                    Some(_) => (),
                     None => (),
                 },
             };
@@ -175,13 +163,10 @@ fn internal_transaction_to_model(transaction: &(Trace, i32), idx: i32) -> Model 
         ActionType::Suicide => {
             model.r#type = "suicide".to_string();
 
-            match &trace.action {
-                Action::Suicide(call) => {
-                    model.from_address_hash = Some(call.address.as_bytes().to_vec());
-                    model.to_address_hash = Some(call.refund_address.as_bytes().to_vec());
-                    model.value = Decimal::from_i128_with_scale(call.balance.as_usize() as i128, 0);
-                }
-                _ => (),
+            if let Action::Suicide(call) = &trace.action {
+                model.from_address_hash = Some(call.address.as_bytes().to_vec());
+                model.to_address_hash = Some(call.refund_address.as_bytes().to_vec());
+                model.value = Decimal::from_i128_with_scale(call.balance.as_usize() as i128, 0);
             };
 
             model

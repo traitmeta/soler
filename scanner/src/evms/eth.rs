@@ -99,24 +99,20 @@ impl EthCli {
     }
 
     pub async fn get_block_receipt(&self, block_number: u64) -> Vec<TransactionReceipt> {
-        let receipts = self
-            .provider
+        self.provider
             .get_block_receipts(BlockNumber::Number(block_number.into()))
             .await
-            .unwrap();
-        receipts
+            .unwrap()
     }
 
     pub async fn get_transaction_receipt(
         &self,
         transaction_hash: H256,
     ) -> Option<TransactionReceipt> {
-        let receipt = self
-            .provider
+        self.provider
             .get_transaction_receipt(transaction_hash)
             .await
-            .unwrap();
-        receipt
+            .unwrap()
     }
 
     pub async fn get_transaction(&self, transaction_hash: H256) -> Transaction {
@@ -129,42 +125,34 @@ impl EthCli {
     }
 
     pub async fn code_at(&self, address: Address, block_number: U64) -> Bytes {
-        let code = self
-            .provider
+        self.provider
             .get_code(address, Some(BlockId::Number(block_number.into())))
             .await
-            .unwrap();
-        code
+            .unwrap()
     }
 
     pub async fn trace_transaction(&self, transaction_hash: H256) -> Vec<Trace> {
-        let trace = self
-            .provider
+        self.provider
             .trace_transaction(transaction_hash)
             .await
-            .unwrap();
-        trace
+            .unwrap()
     }
 
     pub async fn trace_block(&self, number: u64) -> Vec<Trace> {
-        let trace = self
-            .provider
+        self.provider
             .trace_block(BlockNumber::Number(number.into()))
             .await
-            .unwrap();
-        trace
+            .unwrap()
     }
 
     pub async fn trace_replay_block_transactions(&self, number: u64) -> Vec<BlockTrace> {
-        let trace = self
-            .provider
+        self.provider
             .trace_replay_block_transactions(
                 BlockNumber::Number(number.into()),
                 vec![TraceType::Trace],
             )
             .await
-            .unwrap();
-        trace
+            .unwrap()
     }
 
     pub async fn batch_get_tx_logs(
@@ -201,6 +189,6 @@ impl EthCli {
             }
         }
 
-        return (Some(block_info.timestamp), logs);
+        (Some(block_info.timestamp), logs)
     }
 }

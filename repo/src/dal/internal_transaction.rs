@@ -15,10 +15,7 @@ impl Query {
 pub struct Mutation;
 
 impl Mutation {
-    pub async fn create<C>(
-        db: &C,
-        form_datas: &Vec<Model>,
-    ) -> Result<InsertResult<ActiveModel>, DbErr>
+    pub async fn create<C>(db: &C, form_datas: &[Model]) -> Result<InsertResult<ActiveModel>, DbErr>
     where
         C: ConnectionTrait,
     {

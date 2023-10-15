@@ -71,27 +71,16 @@ impl EthHandler {
                 None => 0,
             },
             parent_hash: block.parent_hash.as_bytes().to_vec(),
-            size: match block.size {
-                Some(size) => Some(size.as_u32() as i32),
-                None => None,
-            },
+            size: block.size.map(|size| size.as_u32() as i32),
             timestamp: NaiveDateTime::from_timestamp_opt(block.timestamp.as_u64() as i64, 0)
                 .unwrap(),
-            base_fee_per_gas: match block.base_fee_per_gas {
-                Some(base_fee_per_gas) => Some(Decimal::from_i128_with_scale(
-                    base_fee_per_gas.as_u128() as i128,
-                    0,
-                )),
-                None => None,
-            },
+            base_fee_per_gas: block.base_fee_per_gas.map(|base_fee_per_gas| {
+                Decimal::from_i128_with_scale(base_fee_per_gas.as_u128() as i128, 0)
+            }),
             consensus: true,
-            total_difficulty: match block.total_difficulty {
-                Some(total_difficulty) => Some(Decimal::from_i128_with_scale(
-                    total_difficulty.as_u128() as i128,
-                    0,
-                )),
-                None => None,
-            },
+            total_difficulty: block.total_difficulty.map(|total_difficulty| {
+                Decimal::from_i128_with_scale(total_difficulty.as_u128() as i128, 0)
+            }),
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
             refetch_needed: Some(false),
@@ -140,7 +129,7 @@ impl EthHandler {
     async fn handle_block(
         &self,
         block: &Block<Transaction>,
-        traces: &Vec<Trace>,
+        traces: &[Trace],
     ) -> anyhow::Result<()> {
         let block_model = BlockModel {
             difficulty: Some(Decimal::from_i128_with_scale(
@@ -166,31 +155,20 @@ impl EthHandler {
                 None => 0,
             },
             parent_hash: block.parent_hash.as_bytes().to_vec(),
-            size: match block.size {
-                Some(size) => Some(size.as_u32() as i32),
-                None => None,
-            },
+            size: block.size.map(|size| size.as_u32() as i32),
             timestamp: NaiveDateTime::from_timestamp_opt(block.timestamp.as_u64() as i64, 0)
                 .unwrap(),
-            base_fee_per_gas: match block.base_fee_per_gas {
-                Some(base_fee_per_gas) => Some(Decimal::from_i128_with_scale(
-                    base_fee_per_gas.as_u128() as i128,
-                    0,
-                )),
-                None => None,
-            },
+            base_fee_per_gas: block.base_fee_per_gas.map(|base_fee_per_gas| {
+                Decimal::from_i128_with_scale(base_fee_per_gas.as_u128() as i128, 0)
+            }),
             consensus: true,
-            total_difficulty: match block.total_difficulty {
-                Some(total_difficulty) => Some(Decimal::from_i128_with_scale(
-                    total_difficulty.as_u128() as i128,
-                    0,
-                )),
-                None => None,
-            },
+            total_difficulty: block.total_difficulty.map(|total_difficulty| {
+                Decimal::from_i128_with_scale(total_difficulty.as_u128() as i128, 0)
+            }),
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
             refetch_needed: Some(false),
-            is_empty: Some(block.transactions.len() == 0), // transaction count is zero
+            is_empty: Some(block.transactions.is_empty()), // transaction count is zero
         };
         let recipts = self.cli.get_block_receipt(block_model.number as u64).await;
         let recipet_map = recipts
@@ -199,7 +177,7 @@ impl EthHandler {
             .collect::<HashMap<_, _>>();
 
         let trace_map = classify_txs(traces);
-        let transactions = Self::handle_transactions(&block, recipet_map, trace_map).await?;
+        let transactions = Self::handle_transactions(block, recipet_map, trace_map).await?;
         let events = handle_block_event(&recipts);
         let inner_tx = handler_inner_transaction(traces);
         self.sync_to_db(&block_model, &transactions, &events, &inner_tx)
@@ -211,13 +189,13 @@ impl EthHandler {
     async fn sync_to_db(
         &self,
         block: &BlockModel,
-        transactions: &Vec<TransactionModel>,
-        events: &Vec<LogModel>,
-        inner_tx: &Vec<InnerTransactionModel>,
+        transactions: &[TransactionModel],
+        events: &[LogModel],
+        inner_tx: &[InnerTransactionModel],
     ) -> anyhow::Result<()> {
         let txn = self.conn.begin().await?;
 
-        match BlockMutation::create(&txn, &block).await {
+        match BlockMutation::create(&txn, block).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
@@ -278,8 +256,8 @@ impl EthHandler {
     ) -> anyhow::Result<Vec<TransactionModel>> {
         let mut transactions = Vec::new();
         for tx in block.transactions.iter() {
-            let recipt = recipt_map.get(&tx.hash).map(|r| r.clone());
-            let traces = trace_map.get(&tx.hash).map(|r| r.clone());
+            let recipt = recipt_map.get(&tx.hash);
+            let traces = trace_map.get(&tx.hash);
             let transaction = Self::process_transaction(tx, &block.number, recipt, traces).await?;
             transactions.push(transaction);
         }
@@ -290,8 +268,8 @@ impl EthHandler {
     async fn process_transaction(
         tx: &Transaction,
         block_number: &Option<U64>,
-        receipt: Option<TransactionReceipt>,
-        traces: Option<Vec<(Trace, i32)>>,
+        receipt: Option<&TransactionReceipt>,
+        traces: Option<&Vec<(Trace, i32)>>,
     ) -> anyhow::Result<TransactionModel> {
         // tracing::debug!("hand transaction, tx: {:?}", tx);
         tracing::info!("hand transaction, txHash: {:#032x}", tx.hash);
@@ -369,23 +347,19 @@ impl EthHandler {
                     transaction.created_contract_code_indexed_at = Some(Utc::now().naive_utc())
                 }
 
-                match receipt.status {
-                    Some(status) => {
-                        if status.is_zero() {
-                            // This is inner transaction
-                            if let Some(trace_list) = traces {
-                                for (trace, _) in trace_list.iter() {
-                                    transaction.error = trace.error.clone().map(|e| e.to_string());
-                                    transaction.revert_reason =
-                                        trace.result.clone().map(|result| {
-                                            serde_json::to_string(&result)
-                                                .unwrap_or(String::from("Error serializing value"))
-                                        });
-                                }
+                if let Some(status) = receipt.status {
+                    if status.is_zero() {
+                        // This is inner transaction
+                        if let Some(trace_list) = traces {
+                            for (trace, _) in trace_list.iter() {
+                                transaction.error = trace.error.clone().map(|e| e.to_string());
+                                transaction.revert_reason = trace.result.clone().map(|result| {
+                                    serde_json::to_string(&result)
+                                        .unwrap_or(String::from("Error serializing value"))
+                                });
                             }
                         }
                     }
-                    None => (),
                 }
             }
             None => {}

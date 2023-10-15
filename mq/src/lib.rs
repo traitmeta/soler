@@ -1,5 +1,6 @@
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 
+#[allow(dead_code)]
 fn consume_msg(consumer: &mut Consumer) {
     loop {
         for ms in consumer.poll().unwrap().iter() {
@@ -12,6 +13,7 @@ fn consume_msg(consumer: &mut Consumer) {
     }
 }
 
+#[allow(dead_code)]
 fn consume_one_msg(consumer: &mut Consumer) {
     for ms in consumer.poll().unwrap().iter() {
         for m in ms.messages() {
@@ -22,16 +24,15 @@ fn consume_one_msg(consumer: &mut Consumer) {
     consumer.commit_consumed().unwrap();
 }
 
+#[allow(dead_code)]
 fn new_consumer() -> Consumer {
-    let consumer = Consumer::from_hosts(vec!["localhost:9092".to_owned()])
+    Consumer::from_hosts(vec!["localhost:9092".to_owned()])
         .with_topic_partitions("nft-indexer-event".to_owned(), &[0])
         .with_fallback_offset(FetchOffset::Earliest)
         .with_group("test-index".to_owned())
         .with_offset_storage(GroupOffsetStorage::Kafka)
         .create()
-        .unwrap();
-
-    consumer
+        .unwrap()
 }
 
 #[cfg(test)]

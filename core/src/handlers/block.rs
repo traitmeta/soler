@@ -55,24 +55,20 @@ pub async fn get_block(
     Path(id): Path<String>,
 ) -> Result<Json<BaseResponse<BlockResp>>, AppError> {
     let conn = get_conn(&state);
-    let block;
-
-    if id.starts_with("0x") || id.starts_with("0X") {
+    let block = if id.starts_with("0x") || id.starts_with("0X") {
         let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
-        block = DbQuery::find_by_hash(conn, hash)
+        DbQuery::find_by_hash(conn, hash)
             .await
-            .map_err(AppError::from)?;
+            .map_err(AppError::from)?
     } else {
         let height: i64 = id.parse().map_err(AppError::from)?;
-        block = DbQuery::find_by_height(conn, height)
+        DbQuery::find_by_height(conn, height)
             .await
-            .map_err(AppError::from)?;
-    }
+            .map_err(AppError::from)?
+    };
 
     match block {
-        Some(block) => return Ok(Json(BaseResponse::success(conv_model_to_resp(block)))),
-        None => {
-            return Err(AppError::from(CoreError::NotFound));
-        }
+        Some(block) => Ok(Json(BaseResponse::success(conv_model_to_resp(block)))),
+        None => Err(AppError::from(CoreError::NotFound)),
     }
 }

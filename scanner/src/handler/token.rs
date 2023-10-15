@@ -32,7 +32,7 @@ impl TokenHandler {
                 }
                 Ok(())
             }
-            Err(e) => return Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string())),
+            Err(e) => Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string())),
         }
     }
 }
