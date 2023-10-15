@@ -1,12 +1,33 @@
+use std::collections::HashMap;
+
 use chrono::Utc;
 use entities::addresses::Model as AddressModel;
-use ethers::types::{ActionType, Res, Trace, Transaction, TransactionReceipt};
+use ethers::types::{ActionType, Block, Res, Trace, Transaction, TransactionReceipt, H256};
+
+pub fn process_block_addresses(
+    block: &Block<Transaction>,
+    recipt_map: HashMap<H256, TransactionReceipt>,
+    trace_map: HashMap<H256, Vec<(Trace, i32)>>,
+) -> Vec<AddressModel> {
+    let mut block_addresses = HashMap::new();
+    for tx in block.transactions.iter() {
+        let recipt = recipt_map.get(&tx.hash).map(|r| r.clone());
+        let traces = trace_map.get(&tx.hash).map(|r| r.clone());
+        let addresses = process_addresses(tx, recipt, traces);
+        for addr in addresses.into_iter() {
+            if !block_addresses.contains_key(&addr.hash) {
+                block_addresses.insert(addr.hash.clone(), addr);
+            }
+        }
+    }
+    block_addresses.into_values().collect()
+}
 
 pub fn process_addresses(
     tx: &Transaction,
     receipt: Option<TransactionReceipt>,
     traces: Option<Vec<(Trace, i32)>>,
-) -> anyhow::Result<Vec<AddressModel>> {
+) -> Vec<AddressModel> {
     tracing::info!("hand addresses, txHash: {:#032x}", tx.hash);
     let mut addresses = vec![];
     let from_address = AddressModel {
@@ -67,7 +88,7 @@ pub fn process_addresses(
         }
     }
 
-    Ok(addresses)
+    addresses
 }
 
 fn get_contract_address_from_receipt(receipt: Option<TransactionReceipt>) -> Option<Vec<u8>> {

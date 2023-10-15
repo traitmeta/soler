@@ -287,7 +287,6 @@ impl EthHandler {
         Ok(transactions)
     }
 
-    // TODO addresses split from transaction
     async fn process_transaction(
         tx: &Transaction,
         block_number: &Option<U64>,
