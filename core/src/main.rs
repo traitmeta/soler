@@ -3,7 +3,8 @@ use config::{base::BaseConfig, Args, Config};
 use core::{handlers::state, router};
 use repo::orm::conn::connect_db;
 use std::net::SocketAddr;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing::{info, instrument};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
@@ -11,19 +12,19 @@ async fn main() {
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "core=debug".into()),
         ))
-        .with(tracing_subscriber::fmt::layer())
+        .with(fmt::layer())
         .init();
 
-    // run it
     let addr = SocketAddr::from(([0, 0, 0, 0], 50060));
-    tracing::debug!(target = "listening on", addr = ?addr);
+    info!(message = "listening", addr = ?addr);
 
     let args = Args::parse();
     let config = BaseConfig::load(&args.config_path).unwrap();
     let db_cfg = config.database.unwrap();
-    tracing::info!(target = "db config", cfg = ?db_cfg);
+    info!(message = "db config", cfg = ?db_cfg);
+
     let conn = connect_db(db_cfg).await.unwrap();
-    tracing::info!(traget = "connected db");
+    info!(message = "connected db");
 
     router::route(addr, state::AppState { conn }).await
 }
