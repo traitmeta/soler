@@ -16,6 +16,6 @@
         }
     ],
     "rust-analyzer.linkedProjects": [
-        "./core/Cargo.toml"
+        "./app/Cargo.toml"
     ]
 }

@@ -1,6 +1,6 @@
 use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
-use core::{handlers::state, router};
+use app::{handlers::state, router};
 use repo::orm::conn::connect_db;
 use std::net::SocketAddr;
 use tracing::{info, instrument};
@@ -11,7 +11,7 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "core=debug".into()),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "app=debug".into()),
         ))
         .with(fmt::layer())
         .init();

@@ -1,8 +1,8 @@
 [workspace]
 members = [
+  "app",
   "chain",
   "config",
-  "core",
   "entities",
   "meta/kafka",
   "meta/rpc",
@@ -22,4 +22,3 @@ license = "MIT OR Apache-2.0"
 homepage = "https://github.com/traitmeta/soler"
 repository = "https://github.com/traitmeta/soler"
 exclude = [".github/"]
-

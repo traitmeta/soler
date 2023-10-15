@@ -20,16 +20,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'core'",
+            "name": "Debug executable 'app'",
             "env": { "JWT_SECRET":"secret"},
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=core",
-                    "--package=core"
+                    "--bin=app",
+                    "--package=app"
                 ],
                 "filter": {
-                    "name": "core",
+                    "name": "app",
                     "kind": "bin"
                 },
             },
@@ -58,16 +58,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'core'",
+            "name": "Debug unit tests in library 'app'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=core"
+                    "--package=app"
                 ],
                 "filter": {
-                    "name": "core",
+                    "name": "app",
                     "kind": "lib"
                 }
             },
