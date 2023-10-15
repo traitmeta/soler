@@ -1,7 +1,7 @@
 use ethers::providers::{Middleware, Provider};
 use ethers::types::{
-    Address, Block, BlockId, BlockNumber, Bytes, Trace, Transaction, TransactionReceipt, TxHash,
-    H160, H256, U256, U64,
+    Address, Block, BlockId, BlockNumber, BlockTrace, Bytes, Trace, TraceType, Transaction,
+    TransactionReceipt, TxHash, H160, H256, U256, U64,
 };
 use serde::{Deserialize, Serialize};
 
@@ -136,10 +136,32 @@ impl EthCli {
             .unwrap();
         code
     }
+
     pub async fn trace_transaction(&self, transaction_hash: H256) -> Vec<Trace> {
         let trace = self
             .provider
             .trace_transaction(transaction_hash)
+            .await
+            .unwrap();
+        trace
+    }
+
+    pub async fn trace_block(&self, number: u64) -> Vec<Trace> {
+        let trace = self
+            .provider
+            .trace_block(BlockNumber::Number(number.into()))
+            .await
+            .unwrap();
+        trace
+    }
+
+    pub async fn trace_replay_block_transactions(&self, number: u64) -> Vec<BlockTrace> {
+        let trace = self
+            .provider
+            .trace_replay_block_transactions(
+                BlockNumber::Number(number.into()),
+                vec![TraceType::Trace],
+            )
             .await
             .unwrap();
         trace

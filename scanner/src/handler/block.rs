@@ -3,16 +3,23 @@ use crate::evms::eth::EthCli;
 use anyhow::bail;
 use chrono::{NaiveDateTime, Utc};
 use entities::{
-    blocks::Model as BlockModel, logs::Model as LogModel, transactions::Model as TransactionModel,
+    blocks::Model as BlockModel, internal_transactions::Model as InnerTransactionModel,
+    logs::Model as LogModel, transactions::Model as TransactionModel,
 };
-use ethers::types::{Block, Transaction, TransactionReceipt, TxHash, U64};
+use ethers::types::{Block, Trace, Transaction, TransactionReceipt, TxHash, H256, U64};
 use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
 use repo::dal::event::Mutation as EventMutation;
+use repo::dal::internal_transaction::Mutation as InnerTransactionMutation;
 use repo::dal::transaction::Mutation as TransactionMutation;
+
 use sea_orm::prelude::Decimal;
 use sea_orm::{DatabaseConnection, TransactionTrait};
+use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::interval;
+
+use super::event::handle_block_event;
+use super::internal_transaction::{classify_txs, handler_inner_transaction};
 
 pub struct EthHandler {
     cli: EthCli,
@@ -121,12 +128,20 @@ impl EthHandler {
                     current_block.hash.unwrap().as_bytes().to_vec().len(),
                 );
 
-                self.handle_block(&current_block).await.unwrap();
+                let block_traces = self.cli.trace_block(latest_block.number as u64 + 1).await;
+
+                self.handle_block(&current_block, &block_traces)
+                    .await
+                    .unwrap();
             }
         }
     }
 
-    async fn handle_block(&self, block: &Block<Transaction>) -> anyhow::Result<()> {
+    async fn handle_block(
+        &self,
+        block: &Block<Transaction>,
+        traces: &Vec<Trace>,
+    ) -> anyhow::Result<()> {
         let block_model = BlockModel {
             difficulty: Some(Decimal::from_i128_with_scale(
                 block.difficulty.as_u128() as i128,
@@ -178,9 +193,16 @@ impl EthHandler {
             is_empty: Some(block.transactions.len() == 0), // transaction count is zero
         };
         let recipts = self.cli.get_block_receipt(block_model.number as u64).await;
-        let transactions = self.handle_transactions(&block, &recipts).await?;
-        let events = Self::handle_block_event(&recipts);
-        self.sync_to_db(&block_model, &transactions, &events)
+        let recipet_map = recipts
+            .iter()
+            .map(|r| (r.transaction_hash, r.clone()))
+            .collect::<HashMap<_, _>>();
+
+        let trace_map = classify_txs(traces);
+        let transactions = Self::handle_transactions(&block, recipet_map, trace_map).await?;
+        let events = handle_block_event(&recipts);
+        let inner_tx = handler_inner_transaction(traces);
+        self.sync_to_db(&block_model, &transactions, &events, &inner_tx)
             .await?;
 
         Ok(())
@@ -191,6 +213,7 @@ impl EthHandler {
         block: &BlockModel,
         transactions: &Vec<TransactionModel>,
         events: &Vec<LogModel>,
+        inner_tx: &Vec<InnerTransactionModel>,
     ) -> anyhow::Result<()> {
         let txn = self.conn.begin().await?;
 
@@ -229,6 +252,19 @@ impl EthHandler {
                 }
             }
         }
+        // TODO TEST
+        if !inner_tx.is_empty() {
+            match InnerTransactionMutation::create(&txn, inner_tx).await {
+                Ok(_) => {}
+                Err(e) => {
+                    txn.rollback().await?;
+                    bail!(ScannerError::Create {
+                        src: "create internal transactions".to_string(),
+                        err: e
+                    });
+                }
+            }
+        }
 
         txn.commit().await?;
 
@@ -236,22 +272,15 @@ impl EthHandler {
     }
 
     async fn handle_transactions(
-        &self,
         block: &Block<Transaction>,
-        recipts: &Vec<TransactionReceipt>,
+        recipt_map: HashMap<H256, TransactionReceipt>,
+        trace_map: HashMap<H256, Vec<(Trace, i32)>>,
     ) -> anyhow::Result<Vec<TransactionModel>> {
         let mut transactions = Vec::new();
         for tx in block.transactions.iter() {
-            let mut tx_receipt = None;
-            for receipt in recipts.iter() {
-                if receipt.transaction_hash.eq(&tx.hash) {
-                    tx_receipt = Some(receipt);
-                }
-            }
-
-            let transaction = self
-                .process_transaction(tx, &block.number, &tx_receipt)
-                .await?;
+            let recipt = recipt_map.get(&tx.hash).map(|r| r.clone());
+            let traces = trace_map.get(&tx.hash).map(|r| r.clone());
+            let transaction = Self::process_transaction(tx, &block.number, recipt, traces).await?;
             transactions.push(transaction);
         }
 
@@ -260,20 +289,17 @@ impl EthHandler {
 
     // TODO addresses split from transaction
     async fn process_transaction(
-        &self,
         tx: &Transaction,
         block_number: &Option<U64>,
-        receipt: &Option<&TransactionReceipt>,
+        receipt: Option<TransactionReceipt>,
+        traces: Option<Vec<(Trace, i32)>>,
     ) -> anyhow::Result<TransactionModel> {
         // tracing::debug!("hand transaction, tx: {:?}", tx);
         tracing::info!("hand transaction, txHash: {:#032x}", tx.hash);
 
         // TODO fulfill inner transaction err info
         let mut transaction = TransactionModel {
-            block_number: match block_number {
-                Some(block_number) => Some(block_number.as_u64() as i32),
-                None => None,
-            },
+            block_number: block_number.map(|number| number.as_u64() as i32),
             hash: tx.hash.as_bytes().to_vec(),
             value: match Decimal::from_str_exact(tx.value.to_string().as_str()) {
                 Ok(dec) => dec,
@@ -282,43 +308,23 @@ impl EthHandler {
                     err: err.to_string()
                 }),
             },
-            status: match receipt {
-                Some(receipt) => match receipt.status {
-                    Some(status) => Some(status.as_u64() as i32),
-                    None => None,
-                },
-                None => None,
-            },
-            cumulative_gas_used: match receipt {
-                Some(r) => Some(Decimal::from_i128_with_scale(
-                    r.cumulative_gas_used.as_usize() as i128,
-                    0,
-                )),
-                None => None,
-            },
+            status: receipt
+                .as_ref()
+                .map(|r| r.status)
+                .and_then(|status| status.map(|s| s.as_u64() as i32)),
+            cumulative_gas_used: receipt
+                .as_ref()
+                .map(|r| r.cumulative_gas_used)
+                .map(|c| Decimal::from_i128_with_scale(c.as_usize() as i128, 0)),
             error: None,
             gas: Decimal::from_i128_with_scale(tx.gas.as_usize() as i128, 0),
-            gas_price: match tx.gas_price {
-                Some(gas_price) => Some(Decimal::from_i128_with_scale(
-                    gas_price.as_usize() as i128,
-                    0,
-                )),
-                None => None,
-            },
-            gas_used: match receipt {
-                Some(r) => match r.gas_used {
-                    Some(gas_used) => Some(Decimal::from_i128_with_scale(
-                        gas_used.as_usize() as i128,
-                        0,
-                    )),
-                    None => None,
-                },
-                None => None,
-            },
-            index: match tx.transaction_index {
-                Some(index) => Some(index.as_u64() as i32),
-                None => None,
-            },
+            gas_price: tx
+                .gas_price
+                .map(|price| Decimal::from_i128_with_scale(price.as_usize() as i128, 0)),
+            gas_used: receipt.as_ref().map(|r| r.gas_used).and_then(|gas_used| {
+                gas_used.map(|used| Decimal::from_i128_with_scale(used.as_usize() as i128, 0))
+            }),
+            index: tx.transaction_index.map(|index| index.as_u64() as i32),
             input: tx.input.to_vec(),
             nonce: tx.nonce.as_u64() as i32,
             r: tx.r.to_string().into_bytes(),
@@ -326,45 +332,31 @@ impl EthHandler {
             v: Decimal::new(tx.v.as_u32() as i64, 0),
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
-            block_hash: match tx.block_hash {
-                Some(hash) => Some(hash.as_bytes().to_vec()),
-                None => None,
-            },
+            block_hash: tx.block_hash.map(|hash| hash.as_bytes().to_vec()),
             from_address_hash: tx.from.as_bytes().to_vec(),
-            to_address_hash: match tx.to {
-                Some(to) => Some(to.as_bytes().to_vec()),
-                None => None,
-            },
+            to_address_hash: tx.to.map(|to| to.as_bytes().to_vec()),
             created_contract_address_hash: None,
             created_contract_code_indexed_at: None,
             earliest_processing_start: None,
             old_block_hash: None,
             revert_reason: None,
-            max_priority_fee_per_gas: match tx.max_priority_fee_per_gas {
-                Some(max_priority_fee_per_gas) => Some(Decimal::from_i128_with_scale(
-                    max_priority_fee_per_gas.as_usize() as i128,
-                    0,
-                )),
-                None => None,
-            },
-            max_fee_per_gas: match tx.max_fee_per_gas {
-                Some(max_fee_per_gas) => Some(Decimal::from_i128_with_scale(
-                    max_fee_per_gas.as_usize() as i128,
-                    0,
-                )),
-                None => None,
-            },
-            r#type: match receipt {
-                Some(r) => match r.transaction_type {
-                    Some(transaction_type) => Some(transaction_type.as_u64() as i32),
-                    None => None,
-                },
-                None => None,
-            },
+            max_priority_fee_per_gas: tx
+                .max_priority_fee_per_gas
+                .map(|fee| Decimal::from_i128_with_scale(fee.as_usize() as i128, 0)),
+
+            max_fee_per_gas: tx
+                .max_fee_per_gas
+                .map(|fee| Decimal::from_i128_with_scale(fee.as_usize() as i128, 0)),
+
+            r#type: receipt
+                .as_ref()
+                .map(|r| r.transaction_type)
+                .and_then(|op_t| op_t.map(|t| t.as_u64() as i32)),
+
             has_error_in_internal_txs: None,
         };
 
-        match receipt {
+        match &receipt {
             Some(receipt) => {
                 if tx.to.is_none() {
                     // let to_address = ethers::utils::get_contract_address(tx.from, tx.nonce).to_string();
@@ -382,15 +374,14 @@ impl EthHandler {
                     Some(status) => {
                         if status.is_zero() {
                             // This is inner transaction
-                            let traces = self.cli.trace_transaction(receipt.transaction_hash).await;
-                            for trace in traces.iter() {
-                                transaction.error = match &trace.error {
-                                    Some(error) => Some(error.clone()),
-                                    None => None,
-                                };
-                                transaction.revert_reason = match &trace.result {
-                                    Some(result) => Some(serde_json::to_string(result).unwrap()),
-                                    None => None,
+                            if let Some(trace_list) = traces {
+                                for (trace, _) in trace_list.iter() {
+                                    transaction.error = trace.error.clone().map(|e| e.to_string());
+                                    transaction.revert_reason =
+                                        trace.result.clone().map(|result| {
+                                            serde_json::to_string(&result)
+                                                .unwrap_or(String::from("Error serializing value"))
+                                        });
                                 }
                             }
                         }
@@ -402,54 +393,5 @@ impl EthHandler {
         }
 
         Ok(transaction)
-    }
-
-    fn handle_block_event(receipts: &Vec<TransactionReceipt>) -> Vec<LogModel> {
-        let mut events = Vec::new();
-        for receipt in receipts.iter() {
-            for log in receipt.logs.iter() {
-                // tracing::debug!("handle_block_event, log: {:?}", log);
-                let mut event = LogModel {
-                    data: log.data.to_vec(),
-                    index: match log.log_index {
-                        Some(index) => index.as_u64() as i32,
-                        None => 0,
-                    },
-                    r#type: log.log_type.clone(),
-                    first_topic: None,
-                    second_topic: None,
-                    third_topic: None,
-                    fourth_topic: None,
-                    address_hash: Some(log.address.as_bytes().to_vec()),
-                    transaction_hash: match log.transaction_hash {
-                        Some(hash) => hash.as_bytes().to_vec(),
-                        None => vec![],
-                    },
-                    block_hash: match log.block_hash {
-                        Some(hash) => hash.as_bytes().to_vec(),
-                        None => vec![],
-                    },
-                    block_number: match log.block_number {
-                        Some(number) => Some(number.as_u64() as i32),
-                        None => None,
-                    },
-                    inserted_at: Utc::now().naive_utc(),
-                    updated_at: Utc::now().naive_utc(),
-                };
-
-                for (i, topic) in log.topics.iter().enumerate() {
-                    match i {
-                        0 => event.first_topic = Some(topic.to_string()),
-                        1 => event.second_topic = Some(topic.to_string()),
-                        2 => event.third_topic = Some(topic.to_string()),
-                        3 => event.fourth_topic = Some(topic.to_string()),
-                        _ => (),
-                    }
-                }
-                events.push(event);
-            }
-        }
-
-        events
     }
 }

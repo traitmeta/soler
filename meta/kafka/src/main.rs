@@ -1,11 +1,11 @@
 use clap::Parser;
 use config::Args;
-use config::{base::BaseConfig, kafka::Kafka as KafkaCfg, Config};
-use kafka::utils::setup_logger;
+use config::{base::BaseConfig, Config};
 use kafka::consumer::consume_and_print;
 use kafka::producer::produce;
-use rdkafka::util::get_rdkafka_version;
+use kafka::utils::setup_logger;
 use log::info;
+use rdkafka::util::get_rdkafka_version;
 
 #[tokio::main]
 async fn main() {
@@ -16,8 +16,8 @@ async fn main() {
     let config = BaseConfig::load(&args.config_path).unwrap();
     let kafka_cfg = config.kafka.unwrap();
     info!("Started Kafka endpoint at {:?}", &kafka_cfg);
-    match &kafka_cfg.log_level{
-        Some(log_level) =>   setup_logger(true, Some(log_level.as_str())),
+    match &kafka_cfg.log_level {
+        Some(log_level) => setup_logger(true, Some(log_level.as_str())),
         None => (),
     }
     produce(&kafka_cfg).await;

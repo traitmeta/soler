@@ -1,4 +1,4 @@
-use super::{err::AppError, *};
+use super::*;
 
 #[derive(Serialize)]
 pub struct BaseResponse<T> {

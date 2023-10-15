@@ -14,6 +14,6 @@ use axum::{
     http::{Request, StatusCode},
     middleware::Next,
     response::{Html, IntoResponse, Response},
-    Form, Json,
+    Json,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
