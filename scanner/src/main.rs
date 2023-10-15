@@ -32,7 +32,7 @@ async fn main() {
     let eth_handler = EthHandler::new(eth_cli, conn);
     eth_handler.init_block().await;
     eth_handler.sync_task().await;
-    
+
     tracing::debug!(
         "end chain sync: {:?}",
         config.chains.get("Goerli").unwrap().chain_name

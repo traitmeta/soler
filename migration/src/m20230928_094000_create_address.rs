@@ -17,7 +17,7 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Addresses::FetchedCoinBalance).decimal_len(100,0))
+                    .col(ColumnDef::new(Addresses::FetchedCoinBalance).decimal_len(100, 0))
                     .col(ColumnDef::new(Addresses::FetchedCoinBalanceBlockNumber).big_integer())
                     .col(ColumnDef::new(Addresses::ContractCode).binary().null())
                     .to_owned(),
@@ -31,7 +31,6 @@ impl MigrationTrait for Migration {
             .await
     }
 }
-
 
 #[derive(DeriveIden)]
 enum Addresses {

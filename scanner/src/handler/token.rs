@@ -1,7 +1,7 @@
+use crate::{common::consts, contracts::erc20::IERC20Call};
+use anyhow::{anyhow, Error};
 use repo::dal::token::{Mutation, Query};
 use sea_orm::{prelude::Decimal, DbConn};
-use anyhow::{anyhow, Error};
-use crate::{common::consts, contracts::erc20::IERC20Call};
 
 pub struct TokenHandler {
     rpc_url: String,
@@ -31,8 +31,8 @@ impl TokenHandler {
                     }
                 }
                 Ok(())
-            },
-            Err(e) =>  return Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string())),
+            }
+            Err(e) => return Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string())),
         }
     }
 }

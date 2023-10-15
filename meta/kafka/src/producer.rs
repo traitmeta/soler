@@ -1,10 +1,10 @@
-use std::time::Duration;
 use log::info;
+use std::time::Duration;
 
+use config::kafka::Kafka as KafkaCfg;
 use rdkafka::config::ClientConfig;
 use rdkafka::message::{Header, OwnedHeaders};
 use rdkafka::producer::{FutureProducer, FutureRecord};
-use config::kafka::Kafka as KafkaCfg;
 
 pub async fn produce(kfk_cfg: &KafkaCfg) {
     let producer: &FutureProducer = &ClientConfig::new()
@@ -21,7 +21,7 @@ pub async fn produce(kfk_cfg: &KafkaCfg) {
             // completed once the result or failure from Kafka is received.
             let delivery_status = producer
                 .send(
-                    // TODO build payload with struct 
+                    // TODO build payload with struct
                     FutureRecord::to(topic_name)
                         .payload(&format!("Message {}", i))
                         .key(&format!("Key {}", i))

@@ -8,7 +8,6 @@ use rdkafka::error::KafkaResult;
 use rdkafka::message::{Headers, Message};
 use rdkafka::topic_partition_list::TopicPartitionList;
 
-
 // A context can be used to change the behavior of producers and consumers by adding callbacks
 // that will be executed by librdkafka.
 // This particular context sets up custom callbacks to log rebalancing events.
@@ -47,7 +46,11 @@ pub async fn consume_and_print(kfk_cfg: &KafkaCfg) {
         .set_log_level(RDKafkaLogLevel::Debug)
         .create_with_context(context)
         .expect("Consumer creation failed");
-    let topics = kfk_cfg.topics.iter().map(String::as_ref).collect::<Vec<&str>>();
+    let topics = kfk_cfg
+        .topics
+        .iter()
+        .map(String::as_ref)
+        .collect::<Vec<&str>>();
     consumer
         .subscribe(&topics.to_vec())
         .expect("Can't subscribe to specified topics");

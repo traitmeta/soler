@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use repo::dal::log_receiver_contract::Query as ContractQuery;
 use sea_orm::DbConn;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct ScannerContract {

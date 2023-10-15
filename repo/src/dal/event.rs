@@ -5,7 +5,10 @@ pub struct Query;
 
 impl Query {
     pub async fn find_by_hash(db: &DbConn, hash: &str) -> Result<Option<Model>, DbErr> {
-        Events::find().filter(Column::AddressHash.eq(hash)).one(db).await
+        Events::find()
+            .filter(Column::AddressHash.eq(hash))
+            .one(db)
+            .await
     }
 
     // If ok, returns (scanner height models, num pages).
@@ -28,7 +31,10 @@ impl Query {
 pub struct Mutation;
 
 impl Mutation {
-    pub async fn create<C>(db: &C, form_datas: &Vec<Model>) -> Result<InsertResult<ActiveModel>, DbErr>
+    pub async fn create<C>(
+        db: &C,
+        form_datas: &Vec<Model>,
+    ) -> Result<InsertResult<ActiveModel>, DbErr>
     where
         C: ConnectionTrait,
     {
@@ -52,7 +58,7 @@ impl Mutation {
             datas.push(data);
         }
 
-        if datas.is_empty(){
+        if datas.is_empty() {
             return Err(DbErr::RecordNotInserted);
         }
 

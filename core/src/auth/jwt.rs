@@ -103,11 +103,11 @@ where
                     )
                     .map_err(|_| AuthError::InvalidToken)?;
                     return Ok(token_data.claims);
-                } 
+                }
             }
             Err(e) => {
                 return Err(e);
-            },
+            }
         };
 
         // Extract the token from the authorization header

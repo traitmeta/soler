@@ -10,9 +10,7 @@ impl Query {
         chain_id: u32,
         address: &str,
     ) -> Result<Option<log_receiver_contract::Model>, DbErr> {
-        ScannerContract::find_one(address, chain_id)
-            .one(db)
-            .await
+        ScannerContract::find_one(address, chain_id).one(db).await
     }
 
     // If ok, returns (post models, num pages).

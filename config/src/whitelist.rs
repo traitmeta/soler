@@ -5,6 +5,4 @@ pub struct Addr {
     pub address: String,
 }
 
-impl Addr {
-    
-}
+impl Addr {}

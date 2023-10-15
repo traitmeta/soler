@@ -1,6 +1,6 @@
 use ::entities::user;
 use ::entities::user::Entity as User;
-use sea_orm::{DbConn, DbErr, Set,*};
+use sea_orm::{DbConn, DbErr, Set, *};
 
 pub struct Query;
 
@@ -41,7 +41,7 @@ impl Mutation {
             .ok_or(DbErr::Custom("Cannot find post.".to_owned()))
             .map(Into::into)?;
 
-            user::ActiveModel {
+        user::ActiveModel {
             id: user_info.id,
             user_name: Set(form_data.user_name.to_owned()),
             user_address: Set(form_data.user_address.to_owned()),

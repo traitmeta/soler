@@ -2,12 +2,11 @@ pub mod jwt;
 
 use async_trait::async_trait;
 use axum::{
-    RequestPartsExt,
     extract::{FromRequestParts, TypedHeader},
-    headers::{authorization::Bearer, Authorization,HeaderMap},
+    headers::{authorization::Bearer, Authorization, HeaderMap},
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
-    Json,
+    Json, RequestPartsExt,
 };
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use once_cell::sync::Lazy;

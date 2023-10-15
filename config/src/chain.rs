@@ -8,6 +8,4 @@ pub struct Chain {
     pub contracts: Option<Vec<String>>,
 }
 
-impl Chain {
-    
-}
+impl Chain {}

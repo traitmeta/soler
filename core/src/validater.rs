@@ -1,14 +1,13 @@
 use async_trait::async_trait;
 use axum::{
-    http::{Request, StatusCode},
     extract::{rejection::FormRejection, Form, FromRequest},
+    http::{Request, StatusCode},
     response::{Html, IntoResponse, Response},
 };
 
 use serde::{de::DeserializeOwned, Deserialize};
 use thiserror::Error;
 use validator::Validate;
-
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct NameInput {
@@ -39,7 +38,6 @@ where
         Ok(ValidatedForm(value))
     }
 }
-
 
 #[derive(Debug, Error)]
 pub enum ServerError {
