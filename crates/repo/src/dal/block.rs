@@ -1,11 +1,11 @@
-use ::entities::blocks::{ActiveModel, Column, Entity as Blocks, Model};
+use ::entities::blocks::{ActiveModel, Column, Entity, Model};
 use sea_orm::*;
 
 pub struct Query;
 
 impl Query {
     pub async fn select_latest(db: &DbConn) -> Result<Option<Model>, DbErr> {
-        Blocks::find()
+        Entity::find()
             .order_by_desc(Column::Number)
             .limit(1)
             .one(db)
@@ -13,11 +13,11 @@ impl Query {
     }
 
     pub async fn find_by_hash(db: &DbConn, hash: Vec<u8>) -> Result<Option<Model>, DbErr> {
-        Blocks::find().filter(Column::Hash.eq(hash)).one(db).await
+        Entity::find().filter(Column::Hash.eq(hash)).one(db).await
     }
 
     pub async fn find_by_height(db: &DbConn, height: i64) -> Result<Option<Model>, DbErr> {
-        Blocks::find()
+        Entity::find()
             .filter(Column::Number.eq(height))
             .one(db)
             .await
@@ -30,7 +30,7 @@ impl Query {
         blocks_per_page: u64,
     ) -> Result<(Vec<Model>, u64), DbErr> {
         // Setup paginator
-        let paginator = Blocks::find()
+        let paginator = Entity::find()
             .order_by_asc(Column::Number)
             .paginate(db, blocks_per_page);
         let num_pages = paginator.num_pages().await?;
