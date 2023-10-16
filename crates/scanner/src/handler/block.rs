@@ -3,15 +3,16 @@ use crate::evms::eth::EthCli;
 use anyhow::bail;
 use chrono::{NaiveDateTime, Utc};
 use entities::{
-    blocks::Model as BlockModel, internal_transactions::Model as InnerTransactionModel,
-    logs::Model as LogModel, transactions::Model as TransactionModel,
+    addresses::Model as AddressModel, blocks::Model as BlockModel,
+    internal_transactions::Model as InnerTransactionModel, logs::Model as LogModel,
+    transactions::Model as TransactionModel,
 };
 use ethers::types::{Block, Trace, Transaction, TransactionReceipt, TxHash, H256, U64};
+use repo::dal::address::Mutation as AddressMutation;
 use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
 use repo::dal::event::Mutation as EventMutation;
 use repo::dal::internal_transaction::Mutation as InnerTransactionMutation;
 use repo::dal::transaction::Mutation as TransactionMutation;
-
 use sea_orm::prelude::Decimal;
 use sea_orm::{DatabaseConnection, TransactionTrait};
 use std::collections::HashMap;
@@ -181,8 +182,8 @@ impl EthHandler {
         let transactions = Self::handle_transactions(block, &recipet_map, &trace_map).await?;
         let events = handle_block_event(&recipts);
         let inner_tx = handler_inner_transaction(traces);
-        let _address = process_block_addresses(block, &recipet_map, &trace_map);
-        self.sync_to_db(&block_model, &transactions, &events, &inner_tx)
+        let addresses = process_block_addresses(block, &recipet_map, &trace_map);
+        self.sync_to_db(&block_model, &transactions, &events, &inner_tx, &addresses)
             .await?;
 
         Ok(())
@@ -194,6 +195,7 @@ impl EthHandler {
         transactions: &[TransactionModel],
         events: &[LogModel],
         inner_tx: &[InnerTransactionModel],
+        addresses: &[AddressModel],
     ) -> anyhow::Result<()> {
         let txn = self.conn.begin().await?;
 
@@ -240,6 +242,18 @@ impl EthHandler {
                     txn.rollback().await?;
                     bail!(ScannerError::Create {
                         src: "create internal transactions".to_string(),
+                        err: e
+                    });
+                }
+            }
+        }
+        if !addresses.is_empty() {
+            match AddressMutation::save(&txn, addresses).await {
+                Ok(_) => {}
+                Err(e) => {
+                    txn.rollback().await?;
+                    bail!(ScannerError::Create {
+                        src: "save addresses".to_string(),
                         err: e
                     });
                 }
