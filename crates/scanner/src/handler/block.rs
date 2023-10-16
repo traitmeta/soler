@@ -234,7 +234,7 @@ impl EthHandler {
                 }
             }
         }
-        // TODO TEST
+
         if !inner_tx.is_empty() {
             match InnerTransactionMutation::create(&txn, inner_tx).await {
                 Ok(_) => {}
@@ -247,6 +247,7 @@ impl EthHandler {
                 }
             }
         }
+
         if !addresses.is_empty() {
             match AddressMutation::save(&txn, addresses).await {
                 Ok(_) => {}
@@ -290,7 +291,6 @@ impl EthHandler {
         // tracing::debug!("hand transaction, tx: {:?}", tx);
         tracing::info!("hand transaction, txHash: {:#032x}", tx.hash);
 
-        // TODO fulfill inner transaction err info
         let mut transaction = TransactionModel {
             block_number: block_number.map(|number| number.as_u64() as i32),
             hash: tx.hash.as_bytes().to_vec(),
