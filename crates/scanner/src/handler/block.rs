@@ -252,7 +252,7 @@ impl EthHandler {
                 Ok(_) => {}
                 Err(e) => {
                     txn.rollback().await?;
-                    bail!(ScannerError::Create {
+                    bail!(ScannerError::Upsert {
                         src: "save addresses".to_string(),
                         err: e
                     });

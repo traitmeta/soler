@@ -3,6 +3,12 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ScannerError {
+    #[error("Upsert Error: source {src}, err {err}")]
+    Upsert {
+        src: String,
+        #[source]
+        err: DbErr,
+    },
     #[error("Update Error: source {src}, err {err}")]
     Update {
         src: String,

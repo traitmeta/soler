@@ -112,9 +112,8 @@ fn get_contract_code_from_trace(traces: Option<&Vec<(Trace, i32)>>) -> Option<St
         for (trace, _) in traces.iter() {
             if trace.action_type == ActionType::Create {
                 match &trace.result {
-                    Some(Res::Create(res)) => Some(res.code.to_vec()),
-                    Some(_) => None,
-                    None => None,
+                    Some(Res::Create(res)) => return Some(res.code.to_string()),
+                    _ => return None,
                 };
             }
         }
