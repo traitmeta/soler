@@ -1,15 +1,15 @@
 [workspace]
 members = [
-  "app",
+  "crates/api",
+  "crates/config",
+  "crates/entities",
+  "crates/migration",
+  "crates/repo",
+  "crates/scanner",
   "chain",
-  "config",
-  "entities",
   "meta/kafka",
   "meta/rpc",
-  "migration",
   "mq",
-  "repo",
-  "scanner",
 ]
 
 resolver = "2"

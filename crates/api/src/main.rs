@@ -1,4 +1,4 @@
-use app::{handlers::state, router};
+use api::{handlers::state, router};
 use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
 use repo::orm::conn::connect_db;
