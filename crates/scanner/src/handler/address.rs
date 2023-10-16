@@ -6,8 +6,8 @@ use ethers::types::{ActionType, Block, Res, Trace, Transaction, TransactionRecei
 
 pub fn process_block_addresses(
     block: &Block<Transaction>,
-    recipt_map: HashMap<H256, TransactionReceipt>,
-    trace_map: HashMap<H256, Vec<(Trace, i32)>>,
+    recipt_map: &HashMap<H256, TransactionReceipt>,
+    trace_map: &HashMap<H256, Vec<(Trace, i32)>>,
 ) -> Vec<AddressModel> {
     let mut block_addresses = HashMap::new();
     for tx in block.transactions.iter() {

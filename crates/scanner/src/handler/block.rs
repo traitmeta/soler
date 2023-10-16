@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::interval;
 
+use super::address::process_block_addresses;
 use super::event::handle_block_event;
 use super::internal_transaction::{classify_txs, handler_inner_transaction};
 
@@ -177,9 +178,10 @@ impl EthHandler {
             .collect::<HashMap<_, _>>();
 
         let trace_map = classify_txs(traces);
-        let transactions = Self::handle_transactions(block, recipet_map, trace_map).await?;
+        let transactions = Self::handle_transactions(block, &recipet_map, &trace_map).await?;
         let events = handle_block_event(&recipts);
         let inner_tx = handler_inner_transaction(traces);
+        let _address = process_block_addresses(block, &recipet_map, &trace_map);
         self.sync_to_db(&block_model, &transactions, &events, &inner_tx)
             .await?;
 
@@ -251,8 +253,8 @@ impl EthHandler {
 
     async fn handle_transactions(
         block: &Block<Transaction>,
-        recipt_map: HashMap<H256, TransactionReceipt>,
-        trace_map: HashMap<H256, Vec<(Trace, i32)>>,
+        recipt_map: &HashMap<H256, TransactionReceipt>,
+        trace_map: &HashMap<H256, Vec<(Trace, i32)>>,
     ) -> anyhow::Result<Vec<TransactionModel>> {
         let mut transactions = Vec::new();
         for tx in block.transactions.iter() {
