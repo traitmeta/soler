@@ -2,11 +2,13 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{chain::Chain, db::DB, kafka::Kafka, redis::Redis, whitelist::Addr, Config};
+use crate::{api::Api, chain::Chain, db::DB, kafka::Kafka, redis::Redis, whitelist::Addr, Config};
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct BaseConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api: Option<Api>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub database: Option<DB>,
     #[serde(skip_serializing_if = "Option::is_none")]
