@@ -5,17 +5,88 @@ use super::{
     Json,
 };
 use axum::{extract::Path, Extension};
+use chrono::NaiveDateTime;
 use entities::transactions::Model;
 use hex::FromHex;
 use repo::dal::transaction::Query as DbQuery;
-use serde::Deserialize;
+use sea_orm::prelude::Decimal;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-// TODO change vec<u8> to string?
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransactionResp {
+    pub cumulative_gas_used: Option<Decimal>,
+    pub error: Option<String>,
+    pub gas: Decimal,
+    pub gas_price: Option<Decimal>,
+    pub gas_used: Option<Decimal>,
+    pub hash: String,
+    pub index: Option<i32>,
+    pub input: String,
+    pub nonce: i32,
+    pub r: String,
+    pub s: String,
+    pub status: Option<i32>,
+    pub v: Decimal,
+    pub value: Decimal,
+    pub block_time: NaiveDateTime,
+    pub block_hash: Option<String>,
+    pub block_number: Option<i32>,
+    pub from_address_hash: String,
+    pub to_address_hash: Option<String>,
+    pub created_contract_address_hash: Option<String>,
+    pub created_contract_code_indexed_at: Option<NaiveDateTime>,
+    pub revert_reason: Option<String>,
+    pub max_priority_fee_per_gas: Option<Decimal>,
+    pub max_fee_per_gas: Option<Decimal>,
+    pub r#type: Option<i32>,
+    pub has_error_in_internal_txs: Option<bool>,
+}
+
+fn conv_model_to_resp(model: &Model) -> TransactionResp {
+    TransactionResp {
+        cumulative_gas_used: model.cumulative_gas_used,
+        error: model.error.to_owned(),
+        gas: model.gas,
+        gas_price: model.gas_price,
+        gas_used: model.gas_used,
+        hash: format!("0x{}", hex::encode(model.hash.clone())),
+        index: model.index,
+        input: String::from_utf8(model.input.clone()).unwrap(),
+        nonce: model.nonce,
+        r: format!("0x{}", hex::encode(model.r.clone())),
+        s: format!("0x{}", hex::encode(model.s.clone())),
+        status: model.status,
+        v: model.v,
+        value: model.value,
+        block_time: model.inserted_at,
+        block_hash: model
+            .block_hash
+            .as_ref()
+            .map(|hash| format!("0x{}", hex::encode(hash))),
+        block_number: model.block_number,
+        from_address_hash: format!("0x{}", hex::encode(model.from_address_hash.clone())),
+        to_address_hash: model
+            .to_address_hash
+            .as_ref()
+            .map(|to| format!("0x{}", hex::encode(to))),
+        created_contract_address_hash: model
+            .created_contract_address_hash
+            .as_ref()
+            .map(|contract_addr| format!("0x{}", hex::encode(contract_addr))),
+        created_contract_code_indexed_at: model.created_contract_code_indexed_at,
+        revert_reason: model.revert_reason.clone(),
+        max_priority_fee_per_gas: model.max_priority_fee_per_gas,
+        max_fee_per_gas: model.max_fee_per_gas,
+        r#type: model.r#type,
+        has_error_in_internal_txs: model.has_error_in_internal_txs,
+    }
+}
+
 pub async fn get_transaction(
     Extension(state): Extension<Arc<AppState>>,
     Path(id): Path<String>,
-) -> Result<Json<BaseResponse<Model>>, AppError> {
+) -> Result<Json<BaseResponse<TransactionResp>>, AppError> {
     let conn = get_conn(&state);
 
     if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
@@ -28,7 +99,7 @@ pub async fn get_transaction(
         .map_err(AppError::from)?;
 
     match res {
-        Some(res) => Ok(Json(BaseResponse::success(res))),
+        Some(r) => Ok(Json(BaseResponse::success(conv_model_to_resp(&r)))),
         None => Err(AppError::from(CoreError::NotFound)),
     }
 }
@@ -40,11 +111,10 @@ pub struct QueryParams {
     pub page: Option<u64>,
 }
 
-// TODO change vec<u8> to string?
 pub async fn gets_transaction(
     Extension(state): Extension<Arc<AppState>>,
     Json(payload): Json<QueryParams>,
-) -> Result<Json<BaseResponse<Vec<Model>>>, AppError> {
+) -> Result<Json<BaseResponse<Vec<TransactionResp>>>, AppError> {
     let conn = get_conn(&state);
     let res = DbQuery::find_in_page_block(
         conn,
@@ -55,5 +125,10 @@ pub async fn gets_transaction(
     .await
     .map_err(AppError::from)?;
 
-    Ok(Json(BaseResponse::success(res.0)))
+    let mut resp = vec![];
+    for model in res.0.iter() {
+        resp.push(conv_model_to_resp(model));
+    }
+
+    Ok(Json(BaseResponse::success(resp)))
 }
