@@ -111,12 +111,16 @@ pub async fn get_transaction(
     }
 
     let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
-    let res = DbQuery::find_by_hash(conn, hash)
+    let res = DbQuery::find_by_hash_with_relation(conn, hash)
         .await
         .map_err(AppError::from)?;
 
     match res {
-        Some(r) => Ok(Json(BaseResponse::success(conv_model_to_resp(&r)))),
+        Some((tx, block, events)) => {
+            tracing::info!(message = "transaction related block",block = ?block);
+            tracing::info!(message = "transaction related events",events = ?events);
+            Ok(Json(BaseResponse::success(conv_model_to_resp(&tx))))
+        }
         None => Err(AppError::from(CoreError::NotFound)),
     }
 }

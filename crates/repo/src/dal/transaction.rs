@@ -1,4 +1,5 @@
 use ::entities::transactions::{ActiveModel, Column, Entity, Model};
+use entities::{blocks, logs};
 use sea_orm::*;
 
 pub struct Query;
@@ -6,6 +7,21 @@ pub struct Query;
 impl Query {
     pub async fn find_by_hash(db: &DbConn, hash: Vec<u8>) -> Result<Option<Model>, DbErr> {
         Entity::find().filter(Column::Hash.eq(hash)).one(db).await
+    }
+
+    pub async fn find_by_hash_with_relation(
+        db: &DbConn,
+        hash: Vec<u8>,
+    ) -> Result<Option<(Model, Option<blocks::Model>, Vec<logs::Model>)>, DbErr> {
+        let trx = Entity::find().filter(Column::Hash.eq(hash)).one(db).await?;
+        match trx {
+            Some(t) => {
+                let block: Option<blocks::Model> = t.find_related(blocks::Entity).one(db).await?;
+                let events: Vec<logs::Model> = t.find_related(logs::Entity).all(db).await?;
+                Ok(Some((t, block, events)))
+            }
+            None => Ok(None),
+        }
     }
 
     pub async fn find_in_page_block(
