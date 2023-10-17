@@ -13,21 +13,25 @@ use sea_orm::prelude::Decimal;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+/*
+Base Fee = block: base_fee_per_gas
+Gas Usage by Txn = Tx: gas_used
+Burnt Fee = Base Fee * Gas Usage by Txn
+Tx Savings Fees = Max Fee * Gas Usage by Txn - (Base Fee + Max Priority Fee) * Gas Usage by Txn
+Transaction fee = Gas Usage by Txn *  Gas Price
+*/
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransactionResp {
     pub cumulative_gas_used: Option<Decimal>,
     pub error: Option<String>,
-    pub gas: Decimal,
+    pub gas: Decimal, // is gas_limit
     pub gas_price: Option<Decimal>,
     pub gas_used: Option<Decimal>,
     pub hash: String,
     pub index: Option<i32>,
     pub input: String,
     pub nonce: i32,
-    pub r: String,
-    pub s: String,
     pub status: Option<i32>,
-    pub v: Decimal,
     pub value: Decimal,
     pub block_time: NaiveDateTime,
     pub block_hash: Option<String>,
@@ -54,10 +58,7 @@ fn conv_model_to_resp(model: &Model) -> TransactionResp {
         index: model.index,
         input: format!("0x{}", hex::encode(model.input.clone())),
         nonce: model.nonce,
-        r: String::from_utf8(model.r.clone()).unwrap(),
-        s: String::from_utf8(model.s.clone()).unwrap(),
         status: model.status,
-        v: model.v,
         value: model.value,
         block_time: model.inserted_at,
         block_hash: model
