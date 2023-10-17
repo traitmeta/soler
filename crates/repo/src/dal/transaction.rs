@@ -32,12 +32,17 @@ impl Query {
     ) -> Result<(Vec<Model>, u64), DbErr> {
         // Setup paginator
         let mut query = Entity::find();
-        if block_height.is_none() {
-            query = query.filter(Column::BlockNumber.eq(block_height));
+        match block_height {
+            Some(height) => {
+                query = query.filter(Column::BlockNumber.eq(height));
+                query = query.order_by(Column::Index, Order::Asc);
+            }
+            None => {
+                query = query
+                    .order_by(Column::BlockNumber, Order::Desc)
+                    .order_by(Column::Index, Order::Desc)
+            }
         }
-        query = query
-            .order_by(Column::BlockNumber, Order::Desc)
-            .order_by(Column::Index, Order::Desc);
 
         let per_pages = blocks_per_page.unwrap_or(20);
         let paginator = query.paginate(db, per_pages);

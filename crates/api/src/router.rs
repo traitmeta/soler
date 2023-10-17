@@ -18,7 +18,6 @@ pub async fn route(addr: SocketAddr, app_state: state::AppState) {
         .route("/info", get(helth::info))
         .route("/user/create", post(user::create_user))
         .route("/block/:id", get(block::get_block))
-        .route("/block/:id/txs", get(block::get_block)) // TODO
         .route("/tx/:id", get(transaction::get_transaction))
         .route("/tx/:id/logs", get(event::get_transaction_logs))
         .route("/txs", post(transaction::gets_transaction))
