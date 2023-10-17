@@ -4,7 +4,14 @@ use sea_orm::*;
 pub struct Query;
 
 impl Query {
-    pub async fn find_by_hash(db: &DbConn, hash: &str) -> Result<Option<Model>, DbErr> {
+    pub async fn find_by_tx_hash(db: &DbConn, hash: Vec<u8>) -> Result<Vec<Model>, DbErr> {
+        Events::find()
+            .filter(Column::TransactionHash.eq(hash))
+            .all(db)
+            .await
+    }
+
+    pub async fn find_by_hash(db: &DbConn, hash: Vec<u8>) -> Result<Option<Model>, DbErr> {
         Events::find()
             .filter(Column::AddressHash.eq(hash))
             .one(db)

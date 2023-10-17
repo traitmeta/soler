@@ -6,7 +6,7 @@ use super::{
 };
 use axum::{extract::Path, Extension};
 use chrono::NaiveDateTime;
-use entities::transactions::Model;
+use entities::{blocks, transactions::Model};
 use hex::FromHex;
 use repo::dal::transaction::Query as DbQuery;
 use sea_orm::prelude::Decimal;
@@ -63,7 +63,7 @@ pub struct LogResp {
     pub block_number: Option<i32>,
 }
 
-fn conv_model_to_resp(model: &Model) -> TransactionResp {
+fn conv_model_to_resp(model: &Model, block: Option<blocks::Model>) -> TransactionResp {
     TransactionResp {
         cumulative_gas_used: model.cumulative_gas_used,
         error: model.error.to_owned(),
@@ -76,7 +76,10 @@ fn conv_model_to_resp(model: &Model) -> TransactionResp {
         nonce: model.nonce,
         status: model.status,
         value: model.value,
-        block_time: model.inserted_at,
+        block_time: match block {
+            Some(b) => b.timestamp,
+            None => model.inserted_at,
+        },
         block_hash: model
             .block_hash
             .as_ref()
@@ -119,7 +122,7 @@ pub async fn get_transaction(
         Some((tx, block, events)) => {
             tracing::info!(message = "transaction related block",block = ?block);
             tracing::info!(message = "transaction related events",events = ?events);
-            Ok(Json(BaseResponse::success(conv_model_to_resp(&tx))))
+            Ok(Json(BaseResponse::success(conv_model_to_resp(&tx, block))))
         }
         None => Err(AppError::from(CoreError::NotFound)),
     }
@@ -148,7 +151,7 @@ pub async fn gets_transaction(
 
     let mut resp = vec![];
     for model in res.0.iter() {
-        resp.push(conv_model_to_resp(model));
+        resp.push(conv_model_to_resp(model, None));
     }
 
     Ok(Json(BaseResponse::success(resp)))
