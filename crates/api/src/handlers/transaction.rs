@@ -24,7 +24,7 @@ Transaction fee = Gas Usage by Txn *  Gas Price
 pub struct TransactionResp {
     pub cumulative_gas_used: Option<Decimal>,
     pub error: Option<String>,
-    pub gas: Decimal, // is gas_limit
+    pub gas_limit: Decimal,
     pub gas_price: Option<Decimal>,
     pub gas_used: Option<Decimal>,
     pub hash: String,
@@ -51,7 +51,7 @@ fn conv_model_to_resp(model: &Model) -> TransactionResp {
     TransactionResp {
         cumulative_gas_used: model.cumulative_gas_used,
         error: model.error.to_owned(),
-        gas: model.gas,
+        gas_limit: model.gas,
         gas_price: model.gas_price,
         gas_used: model.gas_used,
         hash: format!("0x{}", hex::encode(model.hash.clone())),
