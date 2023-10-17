@@ -33,11 +33,12 @@ pub fn handle_block_event(receipts: &[TransactionReceipt]) -> Vec<LogModel> {
             };
 
             for (i, topic) in log.topics.iter().enumerate() {
+                let tp = Some(format!("0x{}", hex::encode(topic.as_bytes())));
                 match i {
-                    0 => event.first_topic = Some(topic.to_string()),
-                    1 => event.second_topic = Some(topic.to_string()),
-                    2 => event.third_topic = Some(topic.to_string()),
-                    3 => event.fourth_topic = Some(topic.to_string()),
+                    0 => event.first_topic = tp,
+                    1 => event.second_topic = tp,
+                    2 => event.third_topic = tp,
+                    3 => event.fourth_topic = tp,
                     _ => (),
                 }
             }
