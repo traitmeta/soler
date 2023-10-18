@@ -2,6 +2,7 @@ use crate::{common::consts, contracts::erc20::IERC20Call};
 use anyhow::{anyhow, Error};
 use repo::dal::token::{Mutation, Query};
 use sea_orm::{prelude::Decimal, DbConn};
+use std::collections::HashMap;
 
 pub struct TokenHandler {
     rpc_url: String,
@@ -33,6 +34,105 @@ impl TokenHandler {
                 Ok(())
             }
             Err(e) => Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string())),
+        }
+    }
+}
+
+
+
+mod indexer {
+    mod fetcher {
+        mod internal_transaction {
+            use std::error::Error;
+            use std::fmt;
+
+            struct Token {
+                // token fields
+            }
+
+            struct Address {
+                // address fields
+            }
+
+            struct Chain {
+                // chain fields
+            }
+
+            struct MetadataRetriever {
+                // metadata retriever fields
+            }
+
+            struct BufferedTask {
+                // buffered task fields
+            }
+
+            struct Tracer {
+                // tracer fields
+            }
+
+            impl BufferedTask {
+                fn buffer(module: &str, token_contract_addresses: Vec<Address>) -> Result<(), Box<dyn Error>> {
+                    // buffer implementation
+                    Ok(())
+                }
+            }
+
+            impl Chain {
+                fn stream_uncataloged_token_contract_address_hashes(
+                    initial_acc: &str,
+                    reducer: fn(&str, &str) -> &str,
+                    flag: bool,
+                ) -> Result<(&str, &str), Box<dyn Error>> {
+                    // stream uncataloged token contract address hashes implementation
+                    Ok((initial_acc, initial_acc))
+                }
+
+                fn token_from_address_hash(
+                    token_contract_address: &str,
+                    options: HashMap<&str, &str>,
+                ) -> Result<(&str, Token), Box<dyn Error>> {
+                    // token from address hash implementation
+                    Ok((token_contract_address, Token {}))
+                }
+
+                fn update_token(token: Token, token_params: HashMap<&str, &str>) -> Result<(), Box<dyn Error>> {
+                    // update token implementation
+                    Ok(())
+                }
+            }
+
+            impl BufferedTask {
+                fn init(
+                    initial_acc: &str,
+                    reducer: fn(&str, &str) -> &str,
+                    _: &str,
+                ) -> Result<(&str, &str), Box<dyn Error>> {
+                    // init implementation
+                    Ok((initial_acc, initial_acc))
+                }
+
+                fn run(
+                    token_contract_address: &str,
+                    _json_rpc_named_arguments: &str,
+                ) -> Result<(), Box<dyn Error>> {
+                    // run implementation
+                    Ok(())
+                }
+            }
+
+            impl BufferedTask {
+                fn async_fetch(token_contract_addresses: Vec<Address>) -> Result<(), Box<dyn Error>> {
+                    // async fetch implementation
+                    Ok(())
+                }
+            }
+
+            impl BufferedTask {
+                fn defaults() -> HashMap<&str, usize> {
+                    // defaults implementation
+                    HashMap::new()
+                }
+            }
         }
     }
 }
