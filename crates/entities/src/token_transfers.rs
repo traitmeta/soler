@@ -17,9 +17,9 @@ pub struct Model {
     pub from_address_hash: Vec<u8>,
     #[sea_orm(column_type = "Binary(BlobSize::Blob(None))")]
     pub to_address_hash: Vec<u8>,
-    pub amount: Option<Decimal>,
+    pub amount: Option<BigDecimal>,
     #[sea_orm(column_type = "Decimal(Some((78, 0)))", nullable)]
-    pub token_id: Option<Decimal>,
+    pub token_id: Option<BigDecimal>,
     #[sea_orm(column_type = "Binary(BlobSize::Blob(None))")]
     pub token_contract_address_hash: Vec<u8>,
     pub inserted_at: DateTime,
@@ -31,8 +31,8 @@ pub struct Model {
         column_type = "Binary(BlobSize::Blob(None))"
     )]
     pub block_hash: Vec<u8>,
-    pub amounts: Option<Vec<Decimal>>,
-    pub token_ids: Option<Vec<Decimal>>,
+    pub amounts: Option<Vec<BigDecimal>>,
+    pub token_ids: Option<Vec<BigDecimal>>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
