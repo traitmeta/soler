@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use ethers::abi::{decode, ParamType, Token};
-use ethers::types::U256;
+use ethers::types::{H160, U256};
 
 pub fn decode_erc20_event_data(data: &[u8]) -> anyhow::Result<U256> {
     let binding = vec![ParamType::Uint(256)];
@@ -8,7 +8,7 @@ pub fn decode_erc20_event_data(data: &[u8]) -> anyhow::Result<U256> {
     match decode(erc20_event_type, data) {
         Ok(tokens) => {
             if let Some(Token::Uint(t)) = tokens.first() {
-                Ok(t.clone())
+                Ok(*t)
             } else {
                 Err(anyhow!("Erc20 decode value error"))
             }
@@ -18,28 +18,28 @@ pub fn decode_erc20_event_data(data: &[u8]) -> anyhow::Result<U256> {
 }
 
 // return is (from: address,to: address, value(token_id): u256)
-pub fn decode_erc721_event_data(data: &[u8]) -> anyhow::Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+pub fn decode_erc721_event_data(data: &[u8]) -> anyhow::Result<(H160, H160, U256)> {
     let binding = vec![ParamType::Address, ParamType::Address, ParamType::Uint(256)];
     let event_type = binding.as_slice();
     match decode(event_type, data) {
         Ok(tokens) => {
-            let from: Vec<u8>;
-            let to: Vec<u8>;
-            let token_id: Vec<u8>;
+            let from: H160;
+            let to: H160;
+            let token_id: U256;
             if let Some(Token::Address(addr)) = tokens.get(0) {
-                from = addr.as_bytes().to_vec();
+                from = *addr;
             } else {
                 return Err(anyhow!("Erc721 decode from address error"));
             }
 
             if let Some(Token::Address(addr)) = tokens.get(1) {
-                to = addr.as_bytes().to_vec();
+                to = *addr;
             } else {
                 return Err(anyhow!("Erc721 decode to address error"));
             }
 
             if let Some(Token::Uint(token)) = tokens.get(2) {
-                token_id = token.to_string().into_bytes();
+                token_id = *token;
             } else {
                 return Err(anyhow!("Erc721 decode token_id error"));
             }
@@ -59,13 +59,13 @@ pub fn decode_erc1155_single_event_data(data: &[u8]) -> anyhow::Result<(U256, U2
             let id: U256;
             let value: U256;
             if let Some(Token::Uint(token_id)) = tokens.get(0) {
-                id = token_id.clone();
+                id = *token_id;
             } else {
                 return Err(anyhow!("Erc1155 decode token_id error"));
             }
 
             if let Some(Token::Uint(val)) = tokens.get(1) {
-                value = val.clone();
+                value = *val;
             } else {
                 return Err(anyhow!("Erc1155 decode value error"));
             }
@@ -90,7 +90,7 @@ pub fn decode_erc1155_batch_event_data(data: &[u8]) -> anyhow::Result<(Vec<U256>
             if let Some(Token::Array(token_ids)) = tokens.get(0) {
                 for id in token_ids {
                     if let Token::Uint(id_uint) = id {
-                        ids.push(id_uint.clone());
+                        ids.push(*id_uint);
                     } else {
                         return Err(anyhow!("Erc1155 decode token_id error"));
                     }
@@ -102,7 +102,7 @@ pub fn decode_erc1155_batch_event_data(data: &[u8]) -> anyhow::Result<(Vec<U256>
             if let Some(Token::Array(vals)) = tokens.get(1) {
                 for v in vals {
                     if let Token::Uint(v_uint) = v {
-                        values.push(v_uint.clone());
+                        values.push(*v_uint);
                     } else {
                         return Err(anyhow!("Erc1155 decode value error"));
                     }
@@ -118,6 +118,8 @@ pub fn decode_erc1155_batch_event_data(data: &[u8]) -> anyhow::Result<(Vec<U256>
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::{
         decode_erc1155_batch_event_data, decode_erc1155_single_event_data, decode_erc20_event_data,
         decode_erc721_event_data,
@@ -126,6 +128,7 @@ mod tests {
         core::utils::hex::decode as hex_decode,
         types::{H160, H256, U256},
     };
+    use sea_orm::prelude::{BigDecimal, Decimal};
 
     #[test]
     fn test_decode_erc20() {
@@ -155,9 +158,9 @@ mod tests {
         let result = decode_erc721_event_data(data);
         match result {
             Ok((from, to, token)) => {
-                assert!(from == H160::from(from_addr.parse::<H256>().unwrap()).as_bytes());
-                assert!(to == H160::from(to_addr.parse::<H256>().unwrap()).as_bytes());
-                assert!(token == token_id.parse::<U256>().unwrap().to_string().into_bytes());
+                assert!(from == H160::from(from_addr.parse::<H256>().unwrap()));
+                assert!(to == H160::from(to_addr.parse::<H256>().unwrap()));
+                assert!(token == token_id.parse::<U256>().unwrap());
             }
             Err(e) => {
                 println!("error: {:?}", e);
@@ -176,6 +179,7 @@ mod tests {
         let result = decode_erc1155_single_event_data(data);
         match result {
             Ok((id, val)) => {
+                let val_dec = BigDecimal::from_str(id.to_string().as_str()).unwrap();
                 assert!(id == token_id.parse::<U256>().unwrap());
                 assert!(val == value.parse::<U256>().unwrap());
             }

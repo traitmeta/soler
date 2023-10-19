@@ -5,7 +5,6 @@
 // use ethers::types::{Address, Log as Event, H160, H256, U256};
 
 // use crate::common::consts::{self, ERC1155, ERC20, ERC721, WETH};
-// use crate::pkg::abi;
 // use entities::{token_transfers::Model as TokenTransfer, tokens::Model as Token};
 
 // /// TokenTransfers struct holds the parsed token transfers and tokens.
