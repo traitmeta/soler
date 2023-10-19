@@ -1,18 +1,18 @@
 use anyhow::anyhow;
 use ethers::abi::{decode, ParamType, Token};
-use ethers::abi::{AbiDecode, Uint};
 use ethers::types::U256;
 
-use crate::handler::token;
-
-pub fn decode_erc20_event_data(data: &[u8]) -> anyhow::Result<Option<U256>> {
+pub fn decode_erc20_event_data(data: &[u8]) -> anyhow::Result<U256> {
     let binding = vec![ParamType::Uint(256)];
     let erc20_event_type = binding.as_slice();
     match decode(erc20_event_type, data) {
-        Ok(tokens) => match tokens.first() {
-            Some(t) => Ok(t.clone().into_uint()),
-            None => Ok(None),
-        },
+        Ok(tokens) => {
+            if let Some(Token::Uint(t)) = tokens.first() {
+                Ok(t.clone())
+            } else {
+                Err(anyhow!("Erc20 decode value error"))
+            }
+        }
         Err(e) => Err(anyhow!("Erc20 decode value : {}", e.to_string())),
     }
 }
@@ -50,72 +50,96 @@ pub fn decode_erc721_event_data(data: &[u8]) -> anyhow::Result<(Vec<u8>, Vec<u8>
     }
 }
 
-// TODO return is (u256,u256)
-pub fn decode_erc1155_single_event_data(data: &[u8]) -> anyhow::Result<Option<U256>> {
+// return is (id: u256,value: u256)
+pub fn decode_erc1155_single_event_data(data: &[u8]) -> anyhow::Result<(U256, U256)> {
     let binding = vec![ParamType::Uint(256), ParamType::Uint(256)];
     let event_type = binding.as_slice();
     match decode(event_type, data) {
-        Ok(tokens) => match tokens.first() {
-            Some(t) => Ok(t.clone().into_uint()),
-            None => Ok(None),
-        },
-        Err(e) => Err(anyhow!("Erc20 decode value : {}", e.to_string())),
+        Ok(tokens) => {
+            let id: U256;
+            let value: U256;
+            if let Some(Token::Uint(token_id)) = tokens.get(0) {
+                id = token_id.clone();
+            } else {
+                return Err(anyhow!("Erc1155 decode token_id error"));
+            }
+
+            if let Some(Token::Uint(val)) = tokens.get(1) {
+                value = val.clone();
+            } else {
+                return Err(anyhow!("Erc1155 decode value error"));
+            }
+            Ok((id, value))
+        }
+        Err(e) => Err(anyhow!("Erc1155 decode value : {}", e.to_string())),
     }
 }
 
-pub fn decode_erc1155_batch_event_data(data: &[u8]) -> anyhow::Result<Option<U256>> {
+// return is (ids: Array[u256],value: Array[u256])
+pub fn decode_erc1155_batch_event_data(data: &[u8]) -> anyhow::Result<(Vec<U256>, Vec<U256>)> {
     let binding = vec![
         ParamType::Array(Box::new(ParamType::Uint(256))),
         ParamType::Array(Box::new(ParamType::Uint(256))),
     ];
 
-    // TODO how to make sure that there is param1 and param2 ?
     let event_type = binding.as_slice();
     match decode(event_type, data) {
-        Ok(tokens) => match tokens.first() {
-            Some(t) => Ok(t.clone().into_uint()),
-            None => Ok(None),
-        },
-        Err(e) => Err(anyhow!("Erc20 decode value : {}", e.to_string())),
+        Ok(tokens) => {
+            let mut ids = vec![];
+            let mut values = vec![];
+            if let Some(Token::Array(token_ids)) = tokens.get(0) {
+                for id in token_ids {
+                    if let Token::Uint(id_uint) = id {
+                        ids.push(id_uint.clone());
+                    } else {
+                        return Err(anyhow!("Erc1155 decode token_id error"));
+                    }
+                }
+            } else {
+                return Err(anyhow!("Erc1155 decode token_ids error"));
+            }
+
+            if let Some(Token::Array(vals)) = tokens.get(1) {
+                for v in vals {
+                    if let Token::Uint(v_uint) = v {
+                        values.push(v_uint.clone());
+                    } else {
+                        return Err(anyhow!("Erc1155 decode value error"));
+                    }
+                }
+            } else {
+                return Err(anyhow!("Erc1155 decode values error"));
+            }
+            Ok((ids, values))
+        }
+        Err(e) => Err(anyhow!("Erc1155 decode value : {}", e.to_string())),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::token;
-
-    use super::{decode_erc20_event_data, decode_erc721_event_data};
-    use ethers::{
-        abi::Hash,
-        core::utils::hex::decode as hex_decode,
-        types::{Address, H160, H256, U256},
+    use super::{
+        decode_erc1155_single_event_data, decode_erc20_event_data, decode_erc721_event_data,
     };
-    use sea_orm::Related;
+    use ethers::{
+        core::utils::hex::decode as hex_decode,
+        types::{H160, H256, U256},
+    };
 
     #[test]
     fn test_decode_erc20() {
-        let vec1 =
-            hex_decode("00000000000000000000000000000000000000000000003635c9adc5dea00000").unwrap();
+        let val_hex_str = "00000000000000000000000000000000000000000000003635c9adc5dea00000";
+        let vec1 = hex_decode(val_hex_str).unwrap();
         let data: &[u8] = vec1.as_slice();
         let result = decode_erc20_event_data(data);
         match result {
-            Ok(result) => match result {
-                Some(value) => println!("result: {:?}", value),
-                None => println!("result is None"),
-            },
-            Err(e) => println!("error: {:?}", e),
-        }
-
-        let vec1 =
-            hex_decode("000000000000000000000000000000000000000000000000000000000001cbd2").unwrap();
-        let data: &[u8] = vec1.as_slice();
-        let result = decode_erc20_event_data(data);
-        match result {
-            Ok(result) => match result {
-                Some(value) => println!("result: {:?}", value),
-                None => println!("result is None"),
-            },
-            Err(e) => println!("error: {:?}", e),
+            Ok(res) => {
+                assert!(res == val_hex_str.parse::<U256>().unwrap())
+            }
+            Err(e) => {
+                println!("error: {:?}", e);
+                assert!(false)
+            }
         }
     }
 
@@ -134,7 +158,49 @@ mod tests {
                 assert!(to == H160::from(to_addr.parse::<H256>().unwrap()).as_bytes());
                 assert!(token == token_id.parse::<U256>().unwrap().to_string().into_bytes());
             }
-            Err(e) => println!("error: {:?}", e),
+            Err(e) => {
+                println!("error: {:?}", e);
+                assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn test_decode_erc1155_single() {
+        let token_id = "000000000000000000000000112ec3b862ab061609ef01d308109a6691ee6a2d";
+        let value = "000000000000000000000000000000000000000000000000000000000001cbd2";
+        let data = format!("{}{}", token_id, value);
+        let vec1 = hex_decode(data).unwrap();
+        let data: &[u8] = vec1.as_slice();
+        let result = decode_erc1155_single_event_data(data);
+        match result {
+            Ok((id, val)) => {
+                assert!(id == token_id.parse::<U256>().unwrap());
+                assert!(val == value.parse::<U256>().unwrap());
+            }
+            Err(e) => {
+                println!("error: {:?}", e);
+                assert!(false)
+            }
+        }
+    }
+    #[test]
+    fn test_decode_erc1155_batch() {
+        let token_id = "000000000000000000000000112ec3b862ab061609ef01d308109a6691ee6a2d";
+        let value = "000000000000000000000000000000000000000000000000000000000001cbd2";
+        let data = format!("{}{}", token_id, value);
+        let vec1 = hex_decode(data).unwrap();
+        let data: &[u8] = vec1.as_slice();
+        let result = decode_erc1155_single_event_data(data);
+        match result {
+            Ok((id, val)) => {
+                assert!(id == token_id.parse::<U256>().unwrap());
+                assert!(val == value.parse::<U256>().unwrap());
+            }
+            Err(e) => {
+                println!("error: {:?}", e);
+                assert!(false)
+            }
         }
     }
 }
