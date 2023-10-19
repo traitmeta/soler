@@ -242,33 +242,38 @@ fn do_parse(log: &Log, acc: HashMap<String, Vec<TokenTransfer>>, token_type: &st
 
 
 /*
-    ---------------------------------------------------------------------------------
-    |   second topic   |   third topic   |   fourth topic   |   data   |   result   |
-    ---------------------------------------------------------------------------------
-    |       Some       |       Some      |       Some       |   Some   |   result   |
-    ---------------------------------------------------------------------------------
-    |   second topic   |   third topic   |   fourth topic   |   data   |   result   |
-    ---------------------------------------------------------------------------------
-    |   second topic   |   third topic   |   fourth topic   |   data   |   result   |
-    ---------------------------------------------------------------------------------
-    |   second topic   |   third topic   |   fourth topic   |   data   |   result   |
+    -------------------------------------------------------------------------------------
+    |   second topic   |   third topic   |   fourth topic   |     data    |   result    |
+    -------------------------------------------------------------------------------------
+    |       Some       |       Some      |       None       |  Some/None  |   ERC-20    |
+    -------------------------------------------------------------------------------------
+    |       Some       |       None      |       None       |  Some/None  | ERC-20/WETH |
+    -------------------------------------------------------------------------------------
+    |       Some       |       Some      |       Some       |  Some/None  |   ERC-721   |
+    ------------------------------------------------------------------------------------- 
+    |       None       |       None      |       None       |     Some    |   ERC-721   |
+    ------------------------------------------------------------------------------------- 
 */
 
 fn match_token_type(log: &Log) -> &str {
-
-    
-    // ERC-721 token transfer with info in data field instead of in log topics
-    // second third and fourth are None, and data is Some
-
     match log.second_topic{
-        Some(second) => (),
-        None => match log.third_topic{
-            Some(third) => (),
+        Some(second) => match log.third_topic{
+            Some(third) => match log.fourth_topic{
+                Some(fourth) =>  consts::ERC721,
+                None => consts::ERC20,
+            },
             None => match log.fourth_topic{
-                Some(fourth) => (),
+                Some(fourth) => consts::UNKNOWN,
+                None => consts::WETH,
+            }
+        },
+        None => match log.third_topic{
+            Some(third) => consts::UNKNOWN,
+            None => match log.fourth_topic{
+                Some(fourth) => consts::UNKNOWN,
                 None => match log.data{
-                    Some(data) => data.as_slice(),
-                    None => data.as_slice,
+                    Some(data) => consts::ERC721,
+                    None => consts::UNKNOWN,
                 }
             }
         },

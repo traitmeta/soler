@@ -2,6 +2,14 @@ pub(crate) const ERC20: &str = "ERC-20";
 pub const ERC1155: &str = "ERC-1155";
 pub const ERC721: &str = "ERC-721";
 pub const WETH: &str = "WTH";
+pub const UNKNOWN: &str = "Unknown";
+
+pub enum TokenKind {
+    ERC20(String),
+    ERC721(String),
+    ERC1155,
+    None,
+}
 
 // safeCreate2(bytsafes32 salt, bytes initializationCode)
 pub const SAFE_CREATE2_METHOD_ID: &str = "0x64e03087";
