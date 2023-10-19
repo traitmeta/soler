@@ -4,6 +4,7 @@ use ethers::types::{Log, TransactionReceipt, U256};
 use repo::dal::token::{Mutation, Query};
 use sea_orm::{prelude::Decimal, DbConn};
 use std::collections::{HashMap, HashSet};
+use serde::{Deserialize, Serialize};
 
 pub struct TokenHandler {
     rpc_url: String,
@@ -240,6 +241,30 @@ fn do_parse(log: &Log, acc: HashMap<String, Vec<TokenTransfer>>, token_type: &st
     new_acc
 }
 
+struct Topics {
+    first_topic: Option<String>,
+    second_topic: Option<String>,
+    third_topic: Option<String>,
+    fourth_topic: Option<String>,
+}
+
+fn get_topics(log: &Log) -> Topics {
+    let mut topics: Topics;
+    for (i, topic) in log.topics.iter().enumerate() {
+        let tp = Some(format!("0x{}", hex::encode(topic.as_bytes())));
+        match i {
+            0 => topics.first_topic = tp,
+            1 => topics.second_topic = tp,
+            2 => topics.third_topic = tp,
+            3 => topics.fourth_topic = tp,
+            _ => (),
+        }
+    }
+    
+    topics
+}
+
+
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum TokenKind {
     #[serde(rename = "ERC-20")]
@@ -270,25 +295,23 @@ pub enum TokenKind {
 */
 
 fn match_token_type(log: &Log) -> TokenKind {
-    match log.second_topic{
-        Some(second) => match log.third_topic{
-            Some(third) => match log.fourth_topic{
+    let topics = get_topics(log);
+    match topics.second_topic{
+        Some(second) => match topics.third_topic{
+            Some(third) => match topics.fourth_topic{
                 Some(fourth) =>  TokenKind::Erc721Topic,
                 None => TokenKind::ERC20,
             },
-            None => match log.fourth_topic{
+            None => match topics.fourth_topic{
                 Some(fourth) => TokenKind::None,
                 None => TokenKind::Erc20Weth,
             }
         },
-        None => match log.third_topic{
+        None => match topics.third_topic{
             Some(third) => TokenKind::None,
-            None => match log.fourth_topic{
+            None => match topics.fourth_topic{
                 Some(fourth) => TokenKind::None,
-                None => match log.data{
-                    Some(data) => TokenKind::Erc721Data,
-                    None => TokenKind::None,
-                }
+                None => TokenKind::Erc721Data,
             }
         },
     }
@@ -375,41 +398,6 @@ fn parse_erc721_params_with_data(log: &Log) -> (Token, TokenTransfer) {
 
 
 
-
-
-# ERC-721 token transfer with info in data field instead of in log topics
-defp parse_params(
-       %{
-         second_topic: nil,
-         third_topic: nil,
-         fourth_topic: nil,
-         data: data
-       } = log
-     )
-     when not is_nil(data) do
-  [from_address_hash, to_address_hash, token_id] = decode_data(data, [:address, :address, {:uint, 256}])
-
-  token_transfer = %{
-    block_number: log.block_number,
-    block_hash: log.block_hash,
-    log_index: log.index,
-    from_address_hash: encode_address_hash(from_address_hash),
-    to_address_hash: encode_address_hash(to_address_hash),
-    token_contract_address_hash: log.address_hash,
-    token_ids: [token_id],
-    transaction_hash: log.transaction_hash,
-    token_type: "ERC-721"
-  }
-
-  token = %{
-    contract_address_hash: log.address_hash,
-    type: "ERC-721"
-  }
-
-  {token, token_transfer}
-end
-
-
 fn parse_erc1155_params(log: &Log) -> (Option<Token>, Option<TokenTransfer>) {
     if log.first_topic == consts::ERC1155_BATCH_TRANSFER_SIGNATURE{
         if let Some(third_topic) = log.third_topic {
@@ -484,3 +472,5 @@ fn decode_data(encoded_data: &str, types: Vec<(&str, u32)>) -> Vec<u64> {
 
     decoded_values
 }
+
+
