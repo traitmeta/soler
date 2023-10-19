@@ -240,6 +240,20 @@ fn do_parse(log: &Log, acc: HashMap<String, Vec<TokenTransfer>>, token_type: &st
     new_acc
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub enum TokenKind {
+    #[serde(rename = "ERC-20")]
+    ERC20,
+    #[serde(rename = "ERC-20")]
+    Erc20Weth,
+    #[serde(rename = "ERC-721")]
+    Erc721Topic,
+    #[serde(rename = "ERC-721")]
+    Erc721Data,
+    #[serde(rename = "ERC-1155")]
+    ERC1155,
+    None,
+}
 
 /*
     -------------------------------------------------------------------------------------
@@ -255,30 +269,29 @@ fn do_parse(log: &Log, acc: HashMap<String, Vec<TokenTransfer>>, token_type: &st
     ------------------------------------------------------------------------------------- 
 */
 
-fn match_token_type(log: &Log) -> &str {
+fn match_token_type(log: &Log) -> TokenKind {
     match log.second_topic{
         Some(second) => match log.third_topic{
             Some(third) => match log.fourth_topic{
-                Some(fourth) =>  consts::ERC721,
-                None => consts::ERC20,
+                Some(fourth) =>  TokenKind::Erc721Topic,
+                None => TokenKind::ERC20,
             },
             None => match log.fourth_topic{
-                Some(fourth) => consts::UNKNOWN,
-                None => consts::WETH,
+                Some(fourth) => TokenKind::None,
+                None => TokenKind::Erc20Weth,
             }
         },
         None => match log.third_topic{
-            Some(third) => consts::UNKNOWN,
+            Some(third) => TokenKind::None,
             None => match log.fourth_topic{
-                Some(fourth) => consts::UNKNOWN,
+                Some(fourth) => TokenKind::None,
                 None => match log.data{
-                    Some(data) => consts::ERC721,
-                    None => consts::UNKNOWN,
+                    Some(data) => TokenKind::Erc721Data,
+                    None => TokenKind::None,
                 }
             }
         },
     }
-
 }
 
 fn parse_params(log: &Log) -> (Option<Token>, Option<TokenTransfer>) {
@@ -314,65 +327,55 @@ fn parse_params(log: &Log) -> (Option<Token>, Option<TokenTransfer>) {
 }
 
 
-fn parse_erc721_params(log: &Log) -> (Option<Token>, Option<TokenTransfer>) {
-    if let Some(second_topic) = log.second_topic {
-        if let Some(third_topic) = log.third_topic {
-            if log.fourth_topic.is_none() {
-                let amount = decode_data(log.data, vec![("uint", 256)])[0];
+fn parse_erc721_params_with_topic(log: &Log) -> (Token, TokenTransfer) {
+    let amount = decode_data(log.fourth_topic, vec![("uint", 256)])[0];
+    let token_transfer = TokenTransfer {
+        amount: amount as f64,
+        block_number: log.block_number,
+        block_hash: log.block_hash.clone(),
+        log_index: log.index,
+        from_address_hash: truncate_address_hash(log.second_topic.clone()),
+        to_address_hash: truncate_address_hash(log.third_topic.clone()),
+        token_contract_address_hash: log.address_hash.clone(),
+        token_ids: None,
+        token_type: consts::ERC721.to_string(),
+        transaction_hash: log.transaction_hash.clone(),
+    };
 
-                let token_transfer = TokenTransfer {
-                    amount: amount as f64,
-                    block_number: log.block_number,
-                    block_hash: log.block_hash.clone(),
-                    log_index: log.index,
-                    from_address_hash: truncate_address_hash(log.second_topic.clone()),
-                    to_address_hash: truncate_address_hash(log.third_topic.clone()),
-                    token_contract_address_hash: log.address_hash.clone(),
-                    token_ids: None,
-                    token_type: consts::ERC20.to_string(),
-                    transaction_hash: log.transaction_hash.clone(),
-                };
+    let token = Token {
+        contract_address_hash: log.address_hash.clone(),
+        token_type: consts::ERC721.to_string(),
+    };
 
-                let token = Token {
-                    contract_address_hash: log.address_hash.clone(),
-                    token_type: consts::ERC20.to_string(),
-                };
+    (token, token_transfer)
+}
 
-                return (Some(token), Some(token_transfer));
-            }
-        }
-    }
+fn parse_erc721_params_with_data(log: &Log) -> (Token, TokenTransfer) {
+    let (from_address_hash, to_address_hash, token_id) = decode_data(log.data, vec!["address", "address", ("uint", 256)])[0];
+    let token_transfer = TokenTransfer {
+        amount: amount as f64,
+        block_number: log.block_number,
+        block_hash: log.block_hash.clone(),
+        log_index: log.index,
+        from_address_hash: truncate_address_hash(from_address_hash.clone()),
+        to_address_hash: truncate_address_hash(to_address_hash.clone()),
+        token_contract_address_hash: log.address_hash.clone(),
+        token_ids: Some(vec![token_id]),
+        token_type: consts::ERC721.to_string(),
+        transaction_hash: log.transaction_hash.clone(),
+    };
 
-    (None, None)
+    let token = Token {
+        contract_address_hash: log.address_hash.clone(),
+        token_type: consts::ERC721.to_string(),
+    };
+
+    (token, token_transfer)
 }
 
 
 
 
-# ERC-721 token transfer with topics as addresses
-defp parse_params(%{second_topic: second_topic, third_topic: third_topic, fourth_topic: fourth_topic} = log)
-     when not is_nil(second_topic) and not is_nil(third_topic) and not is_nil(fourth_topic) do
-  [token_id] = decode_data(fourth_topic, [{:uint, 256}])
-
-  token_transfer = %{
-    block_number: log.block_number,
-    log_index: log.index,
-    block_hash: log.block_hash,
-    from_address_hash: truncate_address_hash(log.second_topic),
-    to_address_hash: truncate_address_hash(log.third_topic),
-    token_contract_address_hash: log.address_hash,
-    token_ids: [token_id || 0],
-    transaction_hash: log.transaction_hash,
-    token_type: "ERC-721"
-  }
-
-  token = %{
-    contract_address_hash: log.address_hash,
-    type: "ERC-721"
-  }
-
-  {token, token_transfer}
-end
 
 # ERC-721 token transfer with info in data field instead of in log topics
 defp parse_params(
