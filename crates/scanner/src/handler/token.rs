@@ -519,37 +519,3 @@ fn defualt_model(log: &Log) -> (TokenModel, TokenTransferModel) {
 
     (token, transfer_model)
 }
-
-#[allow(dead_code)]
-fn encode_address_hash(binary: Vec<u8>) -> String {
-    format!("0x{}", hex::encode(binary))
-}
-
-#[allow(dead_code)]
-fn decode_data(encoded_data: &str, types: Vec<(&str, u32)>) -> Vec<u64> {
-    if encoded_data == "0x" {
-        return vec![0; types.len()];
-    }
-
-    let decoded_data = hex::decode(&encoded_data[2..]).unwrap();
-
-    let mut offset = 0;
-    let mut decoded_values = Vec::new();
-
-    for (data_type, size) in types {
-        let value = match data_type {
-            "uint" => {
-                let mut bytes = [0; 32];
-                bytes.copy_from_slice(&decoded_data[offset..offset + 32]);
-                U256::from_little_endian(&bytes).as_u64()
-            }
-            // Other data types...
-            _ => 0,
-        };
-
-        decoded_values.push(value);
-        offset += (size / 8) as usize;
-    }
-
-    decoded_values
-}
