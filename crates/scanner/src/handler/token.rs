@@ -4,8 +4,8 @@ use crate::{
 };
 use anyhow::{anyhow, Error};
 use chrono::Utc;
+use entities::token_transfers::Model as TokenTransferModel;
 use entities::tokens::Model as TokenModel;
-use entities::{account_api_keys, token_transfers::Model as TokenTransferModel};
 use ethers::types::{Log, H160, H256};
 use repo::dal::token::{Mutation, Query};
 use sea_orm::{
@@ -154,7 +154,7 @@ fn do_parse(
     let decoded_topics = decode_topics(log);
     match decoded_topics.first_topic {
         Some(first) => {
-            let first_topic = format!("0x{}", hex::encode(first.as_bytes().to_vec()));
+            let first_topic = format!("0x{}", hex::encode(first.as_bytes()));
             let first_str = first_topic.as_str();
             let mut kind = TokenKind::None;
             if first_str == consts::TOKEN_TRANSFER_SIGNATURE
@@ -262,7 +262,7 @@ fn parse_weth_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     };
 
     if let Some(first_topic) = topics.first_topic {
-        let first_topic = format!("0x{}", hex::encode(first_topic.as_bytes().to_vec()));
+        let first_topic = format!("0x{}", hex::encode(first_topic.as_bytes()));
         let first_str = first_topic.as_str();
         if first_str == consts::WETH_DEPOSIT_SIGNATURE {
             if let Some(second_topic) = topics.second_topic {
@@ -335,7 +335,7 @@ fn parse_erc1155_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     token.r#type = consts::ERC1155.to_string();
 
     if let Some(first_topic) = topics.first_topic {
-        let first_topic = format!("0x{}", hex::encode(first_topic.as_bytes().to_vec()));
+        let first_topic = format!("0x{}", hex::encode(first_topic.as_bytes()));
         let first_str = first_topic.as_str();
         if first_str == consts::ERC1155_BATCH_TRANSFER_SIGNATURE {
             match decode::decode_erc1155_batch_event_data(log.data.to_vec().as_slice()) {
