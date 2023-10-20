@@ -96,19 +96,19 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'learn'",
+            "name": "Debug executable 'sacnner'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=learn",
-                    "--package=learn"
+                    "--bin=sacnner",
+                    "--package=sacnner"
                 ],
                 "filter": {
-                    "name": "learn",
+                    "name": "sacnner",
                     "kind": "bin"
                 }
             },
-            "args": ["README.md"],
+            "args": [],
             "cwd": "${workspaceFolder}"
         },
         {

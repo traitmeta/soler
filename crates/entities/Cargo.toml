@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+bigdecimal = { version = "0.3", features = ["serde"] }
 
 [dependencies.sea-orm]
 features = [
@@ -14,5 +15,6 @@ features = [
     "macros",
     "debug-print",
     "with-bigdecimal",
+    "with-json",
 ]
 version = "0.12.2"

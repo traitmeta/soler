@@ -4,8 +4,8 @@ use crate::{
 };
 use anyhow::{anyhow, Error};
 use chrono::Utc;
-use entities::token_transfers::Model as TokenTransferModel;
 use entities::tokens::Model as TokenModel;
+use entities::{account_api_keys, token_transfers::Model as TokenTransferModel};
 use ethers::types::{Log, H160, H256};
 use repo::dal::token::{Mutation, Query};
 use sea_orm::{
@@ -50,26 +50,6 @@ impl TokenHandler {
             Err(e) => Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string())),
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-struct TokenTransfer {
-    amount: String,
-    block_number: u64,
-    block_hash: String,
-    log_index: u64,
-    from_address_hash: String,
-    to_address_hash: String,
-    transaction_hash: String,
-    token_contract_address_hash: String,
-    token_ids: Option<Vec<String>>,
-    token_type: String,
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-struct Token {
-    contract_address_hash: String,
-    token_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -174,15 +154,16 @@ fn do_parse(
     let decoded_topics = decode_topics(log);
     match decoded_topics.first_topic {
         Some(first) => {
-            let first_str = first.as_bytes();
+            let first_topic = format!("0x{}", hex::encode(first.as_bytes().to_vec()));
+            let first_str = first_topic.as_str();
             let mut kind = TokenKind::None;
-            if first_str == consts::TOKEN_TRANSFER_SIGNATURE.as_bytes()
-                || first_str == consts::WETH_DEPOSIT_SIGNATURE.as_bytes()
-                || first_str == consts::WETH_WITHDRAWAL_SIGNATURE.as_bytes()
+            if first_str == consts::TOKEN_TRANSFER_SIGNATURE
+                || first_str == consts::WETH_DEPOSIT_SIGNATURE
+                || first_str == consts::WETH_WITHDRAWAL_SIGNATURE
             {
                 kind = decode_token_type(decoded_topics);
-            } else if first_str == consts::ERC1155_BATCH_TRANSFER_SIGNATURE.as_bytes()
-                || first_str == consts::ERC1155_SINGLE_TRANSFER_SIGNATURE.as_bytes()
+            } else if first_str == consts::ERC1155_BATCH_TRANSFER_SIGNATURE
+                || first_str == consts::ERC1155_SINGLE_TRANSFER_SIGNATURE
             {
                 kind = TokenKind::ERC1155;
             }
@@ -191,7 +172,7 @@ fn do_parse(
                 TokenKind::ERC20 => parse_erc20_params(log),
                 TokenKind::Erc721Data | TokenKind::Erc721Topic => parse_erc721_params(log),
                 TokenKind::Erc20Weth => parse_weth_params(log),
-                _ => unreachable!(),
+                _ => return acc,
             };
 
             acc.0.push(token);
@@ -281,7 +262,9 @@ fn parse_weth_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     };
 
     if let Some(first_topic) = topics.first_topic {
-        if H160::from(first_topic).as_bytes() == consts::WETH_DEPOSIT_SIGNATURE.as_bytes() {
+        let first_topic = format!("0x{}", hex::encode(first_topic.as_bytes().to_vec()));
+        let first_str = first_topic.as_str();
+        if first_str == consts::WETH_DEPOSIT_SIGNATURE {
             if let Some(second_topic) = topics.second_topic {
                 transfer_model.to_address_hash = H160::from(second_topic).as_bytes().to_vec();
             }
@@ -352,8 +335,9 @@ fn parse_erc1155_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     token.r#type = consts::ERC1155.to_string();
 
     if let Some(first_topic) = topics.first_topic {
-        if H160::from(first_topic).as_bytes() == consts::ERC1155_BATCH_TRANSFER_SIGNATURE.as_bytes()
-        {
+        let first_topic = format!("0x{}", hex::encode(first_topic.as_bytes().to_vec()));
+        let first_str = first_topic.as_str();
+        if first_str == consts::ERC1155_BATCH_TRANSFER_SIGNATURE {
             match decode::decode_erc1155_batch_event_data(log.data.to_vec().as_slice()) {
                 Ok((ids, values)) => {
                     transfer_model.amounts = Some(
