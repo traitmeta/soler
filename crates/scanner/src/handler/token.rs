@@ -6,7 +6,7 @@ use anyhow::{anyhow, Error};
 use chrono::Utc;
 use entities::token_transfers::Model as TokenTransferModel;
 use entities::tokens::Model as TokenModel;
-use ethers::types::{Log, TransactionReceipt, H256, U256};
+use ethers::types::{Log, TransactionReceipt, H160, H256, U256};
 use repo::dal::token::{Mutation, Query};
 use sea_orm::{
     prelude::{BigDecimal, Decimal},
@@ -71,29 +71,7 @@ struct Token {
     contract_address_hash: String,
     token_type: String,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct Topics {
-    first_topic: Option<String>,
-    second_topic: Option<String>,
-    third_topic: Option<String>,
-    fourth_topic: Option<String>,
-}
 
-fn get_topics(log: &Log) -> Topics {
-    let mut topics = Topics::default();
-    for (i, topic) in log.topics.iter().enumerate() {
-        let tp = Some(format!("0x{}", hex::encode(topic.as_bytes())));
-        match i {
-            0 => topics.first_topic = tp,
-            1 => topics.second_topic = tp,
-            2 => topics.third_topic = tp,
-            3 => topics.fourth_topic = tp,
-            _ => (),
-        }
-    }
-
-    topics
-}
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct DecodedTopics {
     first_topic: Option<H256>,
@@ -132,124 +110,52 @@ pub enum TokenKind {
     None,
 }
 
-/*
-    -------------------------------------------------------------------------------------
-    |   second topic   |   third topic   |   fourth topic   |     data    |   result    |
-    -------------------------------------------------------------------------------------
-    |       Some       |       Some      |       None       |  Some/None  |   ERC-20    |
-    -------------------------------------------------------------------------------------
-    |       Some       |       None      |       None       |  Some/None  | ERC-20/WETH |
-    -------------------------------------------------------------------------------------
-    |       Some       |       Some      |       Some       |  Some/None  |   ERC-721   |
-    -------------------------------------------------------------------------------------
-    |       None       |       None      |       None       |     Some    |   ERC-721   |
-    -------------------------------------------------------------------------------------
-*/
-
-fn match_token_type(log: &Log) -> TokenKind {
-    let topics = get_topics(log);
-    match topics.second_topic {
-        Some(second) => match topics.third_topic {
-            Some(third) => match topics.fourth_topic {
-                Some(fourth) => TokenKind::Erc721Topic,
-                None => TokenKind::ERC20,
-            },
-            None => match topics.fourth_topic {
-                Some(fourth) => TokenKind::None,
-                None => TokenKind::Erc20Weth,
-            },
-        },
-        None => match topics.third_topic {
-            Some(third) => TokenKind::None,
-            None => match topics.fourth_topic {
-                Some(fourth) => TokenKind::None,
-                None => TokenKind::Erc721Data,
-            },
-        },
-    }
-}
-
 pub fn token_process(logs: Vec<Log>) -> (Vec<TokenModel>, Vec<TokenTransferModel>) {
-    let mut initial_acc = (vec![], vec![]);
-    let erc20_and_erc721_token_transfers = logs
-        .iter()
-        .filter(|log| {
-            Some(format!("0x{}", hex::encode(log.topics[0].as_bytes())))
-                .is_some_and(|first| first == consts::TOKEN_TRANSFER_SIGNATURE)
-        })
-        .fold(initial_acc.clone(), |acc, log| {
-            do_parse(log, acc.clone(), consts::ERC20)
-        });
+    let mut acc = (vec![], vec![]);
+    for log in logs {
+        acc = do_parse(&log, acc);
+    }
 
-    let weth_transfers = logs
-        .iter()
-        .filter(|log| {
-            Some(format!("0x{}", hex::encode(log.topics[0].as_bytes()))).is_some_and(|first| {
-                first == consts::WETH_DEPOSIT_SIGNATURE
-                    || first == consts::WETH_WITHDRAWAL_SIGNATURE
-            })
-        })
-        .fold(initial_acc.clone(), |acc, log| {
-            do_parse(log, acc.clone(), consts::ERC20)
-        });
-
-    let erc1155_token_transfers = logs
-        .iter()
-        .filter(|log| {
-            Some(format!("0x{}", hex::encode(log.topics[0].as_bytes()))).is_some_and(|first| {
-                first == consts::ERC1155_BATCH_TRANSFER_SIGNATURE
-                    || first == consts::ERC1155_SINGLE_TRANSFER_SIGNATURE
-            })
-        })
-        .fold(initial_acc.clone(), |acc, log| {
-            do_parse(log, acc.clone(), consts::ERC1155)
-        });
-
-    let rough_tokens = [
-        erc1155_token_transfers.0,
-        erc20_and_erc721_token_transfers.0,
-        weth_transfers.0,
-    ]
-    .concat();
-
-    let rough_token_transfers = [
-        erc1155_token_transfers.1,
-        erc20_and_erc721_token_transfers.1,
-        weth_transfers.1,
-    ]
-    .concat();
-
-    let (tokens, token_transfers) = sanitize_token_types(rough_tokens, rough_token_transfers);
+    let (tokens, token_transfers) = sanitize_token_types(acc.0, acc.1);
 
     let token_transfers_filtered = token_transfers
         .into_iter()
-        .filter(|token_transfer| {
-            token_transfer.to_address_hash == consts::BURN_ADDRESS
-                || token_transfer.from_address_hash == consts::BURN_ADDRESS
+        .filter(|transfer| {
+            transfer.to_address_hash == consts::BURN_ADDRESS.as_bytes().to_vec()
+                || transfer.from_address_hash == consts::BURN_ADDRESS.as_bytes().to_vec()
         })
-        .collect::<Vec<TokenTransfer>>();
+        .collect::<Vec<TokenTransferModel>>();
 
     let token_contract_addresses = token_transfers_filtered
         .iter()
-        .map(|token_transfer| token_transfer.token_contract_address_hash.clone())
-        .collect::<Vec<String>>();
+        .map(|transfer| transfer.token_contract_address_hash.clone())
+        .collect::<Vec<Vec<u8>>>();
 
     let unique_token_contract_addresses = token_contract_addresses
         .iter()
         .cloned()
-        .collect::<HashSet<String>>();
+        .collect::<HashSet<Vec<u8>>>();
 
     // TokenTotalSupplyUpdater::add_tokens(unique_token_contract_addresses);
-    let tokens_uniq = tokens.iter().cloned().collect::<HashSet<Token>>();
+    let mut tokens_uniq = vec![];
+    let mut tokens_uniq_uniq: HashSet<Vec<u8>> = HashSet::new();
+    for token in tokens {
+        if tokens_uniq_uniq.get(&token.contract_address_hash).is_some() {
+            continue;
+        } else {
+            tokens_uniq_uniq.insert(token.contract_address_hash);
+            tokens_uniq.push(token);
+        }
+    }
 
     let token_transfers = token_transfers_filtered.into_iter().clone().collect();
 
-    (tokens_uniq.into_iter().collect(), token_transfers)
+    (tokens_uniq, token_transfers)
 }
 
 fn sanitize_token_types(
-    tokens: Vec<Token>,
-    token_transfers: Vec<TokenTransfer>,
+    tokens: Vec<TokenModel>,
+    token_transfers: Vec<TokenTransferModel>,
 ) -> (Vec<TokenModel>, Vec<TokenTransferModel>) {
     let existing_token_types_map = HashMap::new();
 
@@ -349,49 +255,87 @@ fn token_type_priority(token_type: String) -> i32 {
 fn do_parse(
     log: &Log,
     mut acc: (Vec<TokenModel>, Vec<TokenTransferModel>),
-    token_type: &str,
 ) -> (Vec<TokenModel>, Vec<TokenTransferModel>) {
     let decoded_topics = decode_topics(log);
-    if let Some(first) = decoded_topics.first_topic {
-        let first_str = first.as_bytes();
+    match decoded_topics.first_topic {
+        Some(first) => {
+            let first_str = first.as_bytes();
+            let mut kind = TokenKind::None;
+            if first_str == consts::TOKEN_TRANSFER_SIGNATURE.as_bytes()
+                || first_str == consts::WETH_DEPOSIT_SIGNATURE.as_bytes()
+                || first_str == consts::WETH_WITHDRAWAL_SIGNATURE.as_bytes()
+            {
+                kind = decode_token_type(decoded_topics);
+            } else if first_str == consts::ERC1155_BATCH_TRANSFER_SIGNATURE.as_bytes()
+                || first_str == consts::ERC1155_SINGLE_TRANSFER_SIGNATURE.as_bytes()
+            {
+                kind = TokenKind::ERC1155;
+            }
+            let (token, token_transfer) = match kind {
+                TokenKind::ERC1155 => parse_erc1155_params(log),
+                TokenKind::ERC20 => parse_erc20_params(log),
+                TokenKind::Erc721Data | TokenKind::Erc721Topic => parse_erc721_params(log),
+                TokenKind::Erc20Weth => parse_weth_params(log),
+                _ => unreachable!(),
+            };
 
-        if first_str == consts::TOKEN_TRANSFER_SIGNATURE.as_bytes()
-            || first_str == consts::WETH_DEPOSIT_SIGNATURE.as_bytes()
-            || first_str == consts::WETH_WITHDRAWAL_SIGNATURE.as_bytes()
-        {
-            
+            acc.0.push(token);
+            acc.1.push(token_transfer);
+
+            acc
         }
-
-        // consts::ERC1155_BATCH_TRANSFER_SIGNATURE
-        // | consts::ERC1155_SINGLE_TRANSFER_SIGNATURE => {}
+        None => acc,
     }
-    let (token, token_transfer) = match token_type {
-        consts::ERC1155 => parse_erc1155_params(log),
-        consts::ERC20 => parse_erc20_params(log),
-        consts::ERC721 => parse_erc721_params(log),
-        consts::WETH => parse_weth_params(log),
-        _ => unreachable!(),
-    };
+}
 
-    acc.0.push(token);
-    acc.1.push(token_transfer);
-
-    acc
+/*
+    -------------------------------------------------------------------------------------
+    |   second topic   |   third topic   |   fourth topic   |     data    |   result    |
+    -------------------------------------------------------------------------------------
+    |       Some       |       Some      |       None       |  Some/None  |   ERC-20    |
+    -------------------------------------------------------------------------------------
+    |       Some       |       None      |       None       |  Some/None  | ERC-20/WETH |
+    -------------------------------------------------------------------------------------
+    |       Some       |       Some      |       Some       |  Some/None  |   ERC-721   |
+    -------------------------------------------------------------------------------------
+    |       None       |       None      |       None       |     Some    |   ERC-721   |
+    -------------------------------------------------------------------------------------
+*/
+fn decode_token_type(topics: DecodedTopics) -> TokenKind {
+    match topics.second_topic {
+        Some(second) => match topics.third_topic {
+            Some(third) => match topics.fourth_topic {
+                Some(fourth) => TokenKind::Erc721Topic,
+                None => TokenKind::ERC20,
+            },
+            None => match topics.fourth_topic {
+                Some(fourth) => TokenKind::None,
+                None => TokenKind::Erc20Weth,
+            },
+        },
+        None => match topics.third_topic {
+            Some(third) => TokenKind::None,
+            None => match topics.fourth_topic {
+                Some(fourth) => TokenKind::None,
+                None => TokenKind::Erc721Data,
+            },
+        },
+    }
 }
 
 fn parse_erc20_params(log: &Log) -> (TokenModel, TokenTransferModel) {
-    let topics = get_topics(log);
+    let topics = decode_topics(log);
 
     let (mut token, mut transfer_model) = defualt_model(log);
     transfer_model.from_address_hash = topics
         .second_topic
         .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
-            topic.into_bytes()
+            H160::from(topic).as_bytes().to_vec()
         });
     transfer_model.to_address_hash = topics
         .third_topic
         .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
-            topic.into_bytes()
+            H160::from(topic).as_bytes().to_vec()
         });
     token.r#type = consts::ERC20.to_string();
 
@@ -408,7 +352,7 @@ fn parse_erc20_params(log: &Log) -> (TokenModel, TokenTransferModel) {
 }
 
 fn parse_weth_params(log: &Log) -> (TokenModel, TokenTransferModel) {
-    let topics = get_topics(log);
+    let topics = decode_topics(log);
     let (mut token, mut transfer_model) = defualt_model(log);
     token.r#type = consts::ERC20.to_string();
 
@@ -422,13 +366,13 @@ fn parse_weth_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     };
 
     if let Some(first_topic) = topics.first_topic {
-        if first_topic == consts::WETH_DEPOSIT_SIGNATURE {
+        if H160::from(first_topic).as_bytes() == consts::WETH_DEPOSIT_SIGNATURE.as_bytes() {
             if let Some(second_topic) = topics.second_topic {
-                transfer_model.to_address_hash = second_topic.as_bytes().to_vec();
+                transfer_model.to_address_hash = H160::from(second_topic).as_bytes().to_vec();
             }
         } else {
             if let Some(second_topic) = topics.second_topic {
-                transfer_model.from_address_hash = second_topic.as_bytes().to_vec();
+                transfer_model.from_address_hash = H160::from(second_topic).as_bytes().to_vec();
             }
         }
     }
@@ -437,17 +381,17 @@ fn parse_weth_params(log: &Log) -> (TokenModel, TokenTransferModel) {
 }
 
 fn parse_erc721_params(log: &Log) -> (TokenModel, TokenTransferModel) {
-    let topics = get_topics(log);
+    let topics = decode_topics(log);
     let (mut token, mut transfer_model) = defualt_model(log);
     transfer_model.from_address_hash = topics
         .second_topic
         .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
-            topic.into_bytes()
+            H160::from(topic).as_bytes().to_vec()
         });
     transfer_model.to_address_hash = topics
         .third_topic
         .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
-            topic.into_bytes()
+            H160::from(topic).as_bytes().to_vec()
         });
     token.r#type = consts::ERC721.to_string();
 
@@ -479,23 +423,24 @@ fn parse_erc721_params(log: &Log) -> (TokenModel, TokenTransferModel) {
 }
 
 fn parse_erc1155_params(log: &Log) -> (TokenModel, TokenTransferModel) {
-    let topics = get_topics(log);
+    let topics = decode_topics(log);
 
     let (mut token, mut transfer_model) = defualt_model(log);
     transfer_model.from_address_hash = topics
         .third_topic
         .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
-            topic.into_bytes()
+            H160::from(topic).as_bytes().to_vec()
         });
     transfer_model.to_address_hash = topics
         .fourth_topic
         .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
-            topic.into_bytes()
+            H160::from(topic).as_bytes().to_vec()
         });
     token.r#type = consts::ERC1155.to_string();
 
     if let Some(first_topic) = topics.first_topic {
-        if first_topic == consts::ERC1155_BATCH_TRANSFER_SIGNATURE {
+        if H160::from(first_topic).as_bytes() == consts::ERC1155_BATCH_TRANSFER_SIGNATURE.as_bytes()
+        {
             match decode::decode_erc1155_batch_event_data(log.data.to_vec().as_slice()) {
                 Ok((ids, values)) => {
                     transfer_model.amounts = Some(
