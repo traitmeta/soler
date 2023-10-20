@@ -1,16 +1,16 @@
 use crate::{
-    common::{self, consts},
+    common::consts,
     contracts::{decode, erc20::IERC20Call},
 };
 use anyhow::{anyhow, Error};
 use chrono::Utc;
 use entities::token_transfers::Model as TokenTransferModel;
 use entities::tokens::Model as TokenModel;
-use ethers::types::{Log, TransactionReceipt, H160, H256, U256};
+use ethers::types::{Log, H160, H256};
 use repo::dal::token::{Mutation, Query};
 use sea_orm::{
     prelude::{BigDecimal, Decimal},
-    DbConn, Related,
+    DbConn,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -116,9 +116,8 @@ pub fn token_process(logs: Vec<Log>) -> (Vec<TokenModel>, Vec<TokenTransferModel
         acc = do_parse(&log, acc);
     }
 
-    let (tokens, token_transfers) = sanitize_token_types(acc.0, acc.1);
-
-    let token_transfers_filtered = token_transfers
+    let token_transfers_filtered = acc
+        .1
         .into_iter()
         .filter(|transfer| {
             transfer.to_address_hash == consts::BURN_ADDRESS.as_bytes().to_vec()
@@ -137,114 +136,30 @@ pub fn token_process(logs: Vec<Log>) -> (Vec<TokenModel>, Vec<TokenTransferModel
         .collect::<HashSet<Vec<u8>>>();
 
     // TokenTotalSupplyUpdater::add_tokens(unique_token_contract_addresses);
-    let mut tokens_uniq = vec![];
-    let mut tokens_uniq_uniq: HashSet<Vec<u8>> = HashSet::new();
-    for token in tokens {
-        if tokens_uniq_uniq.get(&token.contract_address_hash).is_some() {
-            continue;
-        } else {
-            tokens_uniq_uniq.insert(token.contract_address_hash);
-            tokens_uniq.push(token);
-        }
+    let mut tokens_map: HashMap<Vec<u8>, TokenModel> = HashMap::new();
+    for token in acc.0 {
+        tokens_map
+            .entry(token.contract_address_hash.clone())
+            .and_modify(|t| t.r#type = confirm_token_type(token.r#type.clone(), t.r#type.clone()))
+            .or_insert(token.clone());
     }
-
+    let tokens_uniq = tokens_map
+        .iter()
+        .map(|(_, v)| v.clone())
+        .collect::<Vec<TokenModel>>();
     let token_transfers = token_transfers_filtered.into_iter().clone().collect();
 
     (tokens_uniq, token_transfers)
 }
 
-fn sanitize_token_types(
-    tokens: Vec<TokenModel>,
-    token_transfers: Vec<TokenTransferModel>,
-) -> (Vec<TokenModel>, Vec<TokenTransferModel>) {
-    let existing_token_types_map = HashMap::new();
-
-    // TODO query from db
-    // for token in tokens {
-    //     match Repo.get_by(Token, contract_address_hash: token.contract_address_hash) {
-    //         Some(existing_token) => {
-    //             existing_token_types_map.insert(token.contract_address_hash, existing_token.type);
-    //         }
-    //         None => {}
-    //     }
-    // }
-
-    let existing_tokens = existing_token_types_map
-        .keys()
-        .cloned()
-        .collect::<Vec<String>>();
-
-    let new_tokens_token_transfers = token_transfers
-        .iter()
-        .filter(|token_transfer| {
-            !existing_tokens.contains(&token_transfer.token_contract_address_hash)
-        })
-        .cloned()
-        .collect::<Vec<TokenTransfer>>();
-
-    let mut new_token_map = HashMap::new();
-    new_tokens_token_transfers.iter().for_each(|t| {
-        new_token_map
-            .entry(t.token_contract_address_hash.clone())
-            .or_insert_with(Vec::new)
-            .push(t.clone())
-    });
-    let new_token_types_map = new_token_map
-        .iter()
-        .map(|(contract_address_hash, transfers)| {
-            (
-                contract_address_hash.clone(),
-                define_token_type(transfers.clone()),
-            )
-        })
-        .collect::<HashMap<String, String>>();
-
-    let actual_token_types_map = new_token_types_map
-        .into_iter()
-        .chain(existing_token_types_map)
-        .collect::<HashMap<String, String>>();
-
-    let actual_tokens = tokens
-        .iter()
-        .map(|token| {
-            let mut token = token.clone();
-            token.token_type = actual_token_types_map[&token.contract_address_hash].clone();
-            token
-        })
-        .collect::<Vec<Token>>();
-
-    let actual_token_transfers = token_transfers
-        .iter()
-        .map(|token_transfer| {
-            let mut token_transfer = token_transfer.clone();
-            token_transfer.token_type =
-                actual_token_types_map[&token_transfer.token_contract_address_hash].clone();
-            token_transfer
-        })
-        .collect::<Vec<TokenTransfer>>();
-
-    (actual_tokens, actual_token_transfers)
+fn confirm_token_type(new_type: String, old_type: String) -> String {
+    if token_type_priority(new_type.as_str()) > token_type_priority(old_type.as_str()) {
+        return new_type;
+    }
+    old_type
 }
 
-fn define_token_type(token_transfers: Vec<TokenTransferModel>) -> String {
-    token_transfers
-        .iter()
-        .fold(None, |acc: Option<String>, token_transfer| match acc {
-            Some(token_type) => {
-                if token_type_priority(token_transfer.token_type.clone())
-                    > token_type_priority(token_type.clone())
-                {
-                    Some(token_transfer.token_type.clone())
-                } else {
-                    Some(token_type)
-                }
-            }
-            None => Some(token_transfer.token_type.clone()),
-        })
-        .unwrap_or_else(|| "-1".to_string())
-}
-
-fn token_type_priority(token_type: String) -> i32 {
+fn token_type_priority(token_type: &str) -> i32 {
     let token_types_priority_order = [consts::ERC20, consts::ERC721, consts::ERC1155];
     token_types_priority_order
         .iter()

@@ -20,6 +20,16 @@ impl Query {
             .await
     }
 
+    pub async fn find_by_contract_address(
+        db: &DbConn,
+        addresses: Vec<Vec<u8>>,
+    ) -> Result<Vec<Model>, DbErr> {
+        Entity::find()
+            .filter(Column::ContractAddressHash.is_in(addresses))
+            .all(db)
+            .await
+    }
+
     // If ok, returns (scanner height models, num pages).
     pub async fn find_in_page(
         db: &DbConn,
