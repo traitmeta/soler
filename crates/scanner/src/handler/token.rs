@@ -265,6 +265,7 @@ fn parse_weth_params(log: &Log) -> (TokenModel, TokenTransferModel) {
         let first_topic = format!("0x{}", hex::encode(first_topic.as_bytes()));
         let first_str = first_topic.as_str();
         if first_str == consts::WETH_DEPOSIT_SIGNATURE {
+            // TODO this will be mint for api
             if let Some(second_topic) = topics.second_topic {
                 transfer_model.to_address_hash = H160::from(second_topic).as_bytes().to_vec();
             }
