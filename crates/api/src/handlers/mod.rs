@@ -5,6 +5,7 @@ pub mod event;
 pub mod helth;
 pub mod response;
 pub mod state;
+pub mod token;
 pub mod transaction;
 pub mod user;
 
