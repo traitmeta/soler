@@ -5,8 +5,10 @@ use chrono::{NaiveDateTime, Utc};
 use entities::{
     addresses::Model as AddressModel, blocks::Model as BlockModel,
     internal_transactions::Model as InnerTransactionModel, logs::Model as LogModel,
+    token_transfers::Model as TokenTransferModel, tokens::Model as TokenModel,
     transactions::Model as TransactionModel,
 };
+use ethers::abi::token;
 use ethers::types::{Block, Trace, Transaction, TransactionReceipt, TxHash, H256, U64};
 use repo::dal::address::Mutation as AddressMutation;
 use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
@@ -22,6 +24,7 @@ use tokio::time::interval;
 use super::address::process_block_addresses;
 use super::event::handle_block_event;
 use super::internal_transaction::{classify_txs, handler_inner_transaction};
+use super::token::handle_token_from_receipts;
 
 pub struct EthHandler {
     cli: EthCli,
@@ -183,8 +186,17 @@ impl EthHandler {
         let events = handle_block_event(&recipts);
         let inner_tx = handler_inner_transaction(traces);
         let addresses = process_block_addresses(block, &recipet_map, &trace_map);
-        self.sync_to_db(&block_model, &transactions, &events, &inner_tx, &addresses)
-            .await?;
+        let (tokens, token_transfers) = handle_token_from_receipts(&recipts);
+        self.sync_to_db(
+            &block_model,
+            &transactions,
+            &events,
+            &inner_tx,
+            &addresses,
+            &tokens,
+            &token_transfers,
+        )
+        .await?;
 
         Ok(())
     }
@@ -196,6 +208,8 @@ impl EthHandler {
         events: &[LogModel],
         inner_tx: &[InnerTransactionModel],
         addresses: &[AddressModel],
+        _tokens: &[TokenModel],
+        _token_transfers: &[TokenTransferModel],
     ) -> anyhow::Result<()> {
         let txn = self.conn.begin().await?;
 
@@ -260,6 +274,32 @@ impl EthHandler {
                 }
             }
         }
+
+        // if !tokens.is_empty() {
+        //     match AddressMutation::save(&txn, addresses).await {
+        //         Ok(_) => {}
+        //         Err(e) => {
+        //             txn.rollback().await?;
+        //             bail!(ScannerError::Upsert {
+        //                 src: "save addresses".to_string(),
+        //                 err: e
+        //             });
+        //         }
+        //     }
+        // }
+
+        // if !token_transfers.is_empty() {
+        //     match AddressMutation::save(&txn, addresses).await {
+        //         Ok(_) => {}
+        //         Err(e) => {
+        //             txn.rollback().await?;
+        //             bail!(ScannerError::Upsert {
+        //                 src: "save addresses".to_string(),
+        //                 err: e
+        //             });
+        //         }
+        //     }
+        // }
 
         txn.commit().await?;
 
