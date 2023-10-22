@@ -8,3 +8,4 @@ pub mod token;
 pub mod token_transfer;
 pub mod transaction;
 pub mod user;
+pub mod withdrawal;

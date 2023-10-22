@@ -6,7 +6,7 @@ use entities::{
     addresses::Model as AddressModel, blocks::Model as BlockModel,
     internal_transactions::Model as InnerTransactionModel, logs::Model as LogModel,
     token_transfers::Model as TokenTransferModel, tokens::Model as TokenModel,
-    transactions::Model as TransactionModel,
+    transactions::Model as TransactionModel, withdrawals::Model as WithdrawModel,
 };
 use ethers::types::{Block, Trace, Transaction, TransactionReceipt, TxHash, H256, U64};
 use repo::dal::{
@@ -17,6 +17,7 @@ use repo::dal::{
     token::Mutation as TokenMutation,
     token_transfer::Mutation as TokenTransferMutation,
     transaction::Mutation as TransactionMutation,
+    withdrawal::Mutation as WithdrawalMutation,
 };
 use sea_orm::{
     prelude::{BigDecimal, Decimal},
@@ -26,10 +27,10 @@ use std::time::Duration;
 use std::{collections::HashMap, str::FromStr};
 use tokio::time::interval;
 
-use super::address::process_block_addresses;
 use super::event::handle_block_event;
 use super::internal_transaction::{classify_txs, handler_inner_transaction};
 use super::token::handle_token_from_receipts;
+use super::{address::process_block_addresses, withdrawal::withdrawals_process};
 
 #[derive(Default)]
 struct HandlerModels {
@@ -39,6 +40,7 @@ struct HandlerModels {
     addresses: Vec<AddressModel>,
     tokens: Vec<TokenModel>,
     token_transfers: Vec<TokenTransferModel>,
+    withdraws: Vec<WithdrawModel>,
 }
 pub struct EthHandler {
     cli: EthCli,
@@ -190,6 +192,8 @@ impl EthHandler {
             refetch_needed: Some(false),
             is_empty: Some(block.transactions.is_empty()), // transaction count is zero
         };
+
+        handle_models.withdraws = withdrawals_process(block.hash, block.withdrawals.clone());
         let recipts = self.cli.get_block_receipt(block_model.number as u64).await;
         let recipet_map = recipts
             .iter()
@@ -279,12 +283,13 @@ impl EthHandler {
         }
 
         if !handle_models.tokens.is_empty() {
+            // TODO change to update
             match TokenMutation::create(&txn, &handle_models.tokens).await {
                 Ok(_) => {}
                 Err(e) => {
                     txn.rollback().await?;
                     bail!(ScannerError::Upsert {
-                        src: "save addresses".to_string(),
+                        src: "create tokens".to_string(),
                         err: e
                     });
                 }
@@ -297,7 +302,20 @@ impl EthHandler {
                 Err(e) => {
                     txn.rollback().await?;
                     bail!(ScannerError::Upsert {
-                        src: "save addresses".to_string(),
+                        src: "create token transfers".to_string(),
+                        err: e
+                    });
+                }
+            }
+        }
+
+        if !handle_models.withdraws.is_empty() {
+            match WithdrawalMutation::create(&txn, &handle_models.withdraws).await {
+                Ok(_) => {}
+                Err(e) => {
+                    txn.rollback().await?;
+                    bail!(ScannerError::Upsert {
+                        src: "create withdraws".to_string(),
                         err: e
                     });
                 }
