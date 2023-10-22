@@ -9,7 +9,7 @@ use chrono::NaiveDateTime;
 use entities::{blocks, transactions::Model};
 use hex::FromHex;
 use repo::dal::transaction::Query as DbQuery;
-use sea_orm::prelude::Decimal;
+use sea_orm::prelude::{BigDecimal, Decimal};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -32,7 +32,7 @@ pub struct TransactionResp {
     pub input: String,
     pub nonce: i32,
     pub status: Option<i32>,
-    pub value: Decimal,
+    pub value: BigDecimal,
     pub block_time: NaiveDateTime,
     pub block_hash: Option<String>,
     pub block_number: Option<i32>,
@@ -75,7 +75,7 @@ fn conv_model_to_resp(model: &Model, block: Option<blocks::Model>) -> Transactio
         input: format!("0x{}", hex::encode(model.input.clone())),
         nonce: model.nonce,
         status: model.status,
-        value: model.value,
+        value: model.value.clone(),
         block_time: match block {
             Some(b) => b.timestamp,
             None => model.inserted_at,

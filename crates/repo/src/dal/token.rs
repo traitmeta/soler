@@ -59,12 +59,17 @@ impl Query {
 pub struct Mutation;
 
 impl Mutation {
-    pub async fn create<C>(db: &C, form_data: &Model) -> Result<Model, DbErr>
+    pub async fn create<C>(db: &C, form_datas: &[Model]) -> Result<InsertResult<ActiveModel>, DbErr>
     where
         C: ConnectionTrait,
     {
-        let model = form_data.clone().into_active_model();
-        model.insert(db).await
+        let mut batch = vec![];
+        for form_data in form_datas.iter() {
+            let data = form_data.clone().into_active_model();
+            batch.push(data);
+        }
+
+        Entity::insert_many(batch).exec(db).await
     }
 
     pub async fn update_metadata<C>(db: &C, form_data: &Model) -> Result<Model, DbErr>
@@ -156,7 +161,7 @@ mod tests {
             icon_url: None,
             is_verified_via_admin_panel: None,
         };
-        if let Ok(db_model) = rt.block_on(Mutation::create(&conn, &model)) {
+        if let Ok(db_model) = rt.block_on(Mutation::create(&conn, &vec![model])) {
             println!("{:?}", db_model);
         }
     }

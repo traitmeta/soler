@@ -13,10 +13,10 @@ repository.workspace = true
 entities = { path = "../entities" }
 migration = { path = "../migration" }
 config = { path = "../config" }
-
 tokio = { version = "1.28.0", features = ["full"] }
 tracing = "0.1"
 chrono = "0.4.31"
+bigdecimal = { version = "0.3", features = ["serde"] }
 
 [dependencies.sea-orm]
 features = [

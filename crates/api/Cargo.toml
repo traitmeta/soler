@@ -31,6 +31,7 @@ twitter-v2 = "0.1.8"
 time = "0.3.30"
 hex = '0.4'
 chrono = "0.4.31"
+bigdecimal = { version = "0.3", features = ["serde"] }
 
 [dependencies.sea-orm]
 features = [
