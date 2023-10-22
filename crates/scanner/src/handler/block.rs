@@ -8,15 +8,17 @@ use entities::{
     token_transfers::Model as TokenTransferModel, tokens::Model as TokenModel,
     transactions::Model as TransactionModel,
 };
-use ethers::abi::token;
 use ethers::types::{Block, Trace, Transaction, TransactionReceipt, TxHash, H256, U64};
-use repo::dal::address::Mutation as AddressMutation;
-use repo::dal::block::{Mutation as BlockMutation, Query as BlockQuery};
-use repo::dal::event::Mutation as EventMutation;
-use repo::dal::internal_transaction::Mutation as InnerTransactionMutation;
-use repo::dal::transaction::Mutation as TransactionMutation;
-use sea_orm::prelude::Decimal;
-use sea_orm::{DatabaseConnection, TransactionTrait};
+use repo::dal::{
+    address::Mutation as AddressMutation,
+    block::{Mutation as BlockMutation, Query as BlockQuery},
+    event::Mutation as EventMutation,
+    internal_transaction::Mutation as InnerTransactionMutation,
+    token::Mutation as TokenMutation,
+    token_transfer::Mutation as TokenTransferMutation,
+    transaction::Mutation as TransactionMutation,
+};
+use sea_orm::{prelude::Decimal, DatabaseConnection, TransactionTrait};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::interval;
@@ -26,6 +28,15 @@ use super::event::handle_block_event;
 use super::internal_transaction::{classify_txs, handler_inner_transaction};
 use super::token::handle_token_from_receipts;
 
+#[derive(Default)]
+struct HandlerModels {
+    transactions: Vec<TransactionModel>,
+    events: Vec<LogModel>,
+    inner_tx: Vec<InnerTransactionModel>,
+    addresses: Vec<AddressModel>,
+    tokens: Vec<TokenModel>,
+    token_transfers: Vec<TokenTransferModel>,
+}
 pub struct EthHandler {
     cli: EthCli,
     conn: DatabaseConnection,
@@ -136,6 +147,7 @@ impl EthHandler {
         block: &Block<Transaction>,
         traces: &[Trace],
     ) -> anyhow::Result<()> {
+        let mut handle_models = HandlerModels::default();
         let block_model = BlockModel {
             difficulty: Some(Decimal::from_i128_with_scale(
                 block.difficulty.as_u128() as i128,
@@ -182,21 +194,14 @@ impl EthHandler {
             .collect::<HashMap<_, _>>();
 
         let trace_map = classify_txs(traces);
-        let transactions = Self::handle_transactions(block, &recipet_map, &trace_map).await?;
-        let events = handle_block_event(&recipts);
-        let inner_tx = handler_inner_transaction(traces);
-        let addresses = process_block_addresses(block, &recipet_map, &trace_map);
-        let (tokens, token_transfers) = handle_token_from_receipts(&recipts);
-        self.sync_to_db(
-            &block_model,
-            &transactions,
-            &events,
-            &inner_tx,
-            &addresses,
-            &tokens,
-            &token_transfers,
-        )
-        .await?;
+        handle_models.transactions =
+            Self::handle_transactions(block, &recipet_map, &trace_map).await?;
+        handle_models.events = handle_block_event(&recipts);
+        handle_models.inner_tx = handler_inner_transaction(traces);
+        handle_models.addresses = process_block_addresses(block, &recipet_map, &trace_map);
+        (handle_models.tokens, handle_models.token_transfers) =
+            handle_token_from_receipts(&recipts);
+        self.sync_to_db(&block_model, handle_models).await?;
 
         Ok(())
     }
@@ -204,12 +209,7 @@ impl EthHandler {
     async fn sync_to_db(
         &self,
         block: &BlockModel,
-        transactions: &[TransactionModel],
-        events: &[LogModel],
-        inner_tx: &[InnerTransactionModel],
-        addresses: &[AddressModel],
-        _tokens: &[TokenModel],
-        _token_transfers: &[TokenTransferModel],
+        handle_models: HandlerModels,
     ) -> anyhow::Result<()> {
         let txn = self.conn.begin().await?;
 
@@ -223,8 +223,8 @@ impl EthHandler {
                 });
             }
         }
-        if !events.is_empty() {
-            match TransactionMutation::create(&txn, transactions).await {
+        if !handle_models.transactions.is_empty() {
+            match TransactionMutation::create(&txn, &handle_models.transactions).await {
                 Ok(_) => {}
                 Err(e) => {
                     txn.rollback().await?;
@@ -236,8 +236,8 @@ impl EthHandler {
             }
         }
 
-        if !events.is_empty() {
-            match EventMutation::create(&txn, events).await {
+        if !handle_models.events.is_empty() {
+            match EventMutation::create(&txn, &handle_models.events).await {
                 Ok(_) => {}
                 Err(e) => {
                     txn.rollback().await?;
@@ -249,8 +249,8 @@ impl EthHandler {
             }
         }
 
-        if !inner_tx.is_empty() {
-            match InnerTransactionMutation::create(&txn, inner_tx).await {
+        if !handle_models.inner_tx.is_empty() {
+            match InnerTransactionMutation::create(&txn, &handle_models.inner_tx).await {
                 Ok(_) => {}
                 Err(e) => {
                     txn.rollback().await?;
@@ -262,8 +262,8 @@ impl EthHandler {
             }
         }
 
-        if !addresses.is_empty() {
-            match AddressMutation::save(&txn, addresses).await {
+        if !handle_models.addresses.is_empty() {
+            match AddressMutation::save(&txn, &handle_models.addresses).await {
                 Ok(_) => {}
                 Err(e) => {
                     txn.rollback().await?;
@@ -275,31 +275,31 @@ impl EthHandler {
             }
         }
 
-        // if !tokens.is_empty() {
-        //     match AddressMutation::save(&txn, addresses).await {
-        //         Ok(_) => {}
-        //         Err(e) => {
-        //             txn.rollback().await?;
-        //             bail!(ScannerError::Upsert {
-        //                 src: "save addresses".to_string(),
-        //                 err: e
-        //             });
-        //         }
-        //     }
-        // }
+        if !handle_models.tokens.is_empty() {
+            match TokenMutation::create(&txn, &handle_models.tokens).await {
+                Ok(_) => {}
+                Err(e) => {
+                    txn.rollback().await?;
+                    bail!(ScannerError::Upsert {
+                        src: "save addresses".to_string(),
+                        err: e
+                    });
+                }
+            }
+        }
 
-        // if !token_transfers.is_empty() {
-        //     match AddressMutation::save(&txn, addresses).await {
-        //         Ok(_) => {}
-        //         Err(e) => {
-        //             txn.rollback().await?;
-        //             bail!(ScannerError::Upsert {
-        //                 src: "save addresses".to_string(),
-        //                 err: e
-        //             });
-        //         }
-        //     }
-        // }
+        if !handle_models.token_transfers.is_empty() {
+            match TokenTransferMutation::create(&txn, &handle_models.token_transfers).await {
+                Ok(_) => {}
+                Err(e) => {
+                    txn.rollback().await?;
+                    bail!(ScannerError::Upsert {
+                        src: "save addresses".to_string(),
+                        err: e
+                    });
+                }
+            }
+        }
 
         txn.commit().await?;
 
