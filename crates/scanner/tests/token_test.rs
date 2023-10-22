@@ -44,7 +44,7 @@ fn test_handle_batch_transfer_1155() {
     let reader = BufReader::new(file);
     let receipt: TransactionReceipt = serde_json::from_reader(reader).unwrap();
 
-    let (tokens, token_transfers) = token_process(receipt.logs);
+    let (tokens, token_transfers) = token_process(&receipt.logs);
     assert!(tokens.len() >= 1);
     assert!(tokens[0].r#type.as_bytes() == consts::ERC1155.as_bytes());
     assert!(token_transfers.len() >= 1);
@@ -63,7 +63,7 @@ fn test_handle_transfer_20() {
     let reader = BufReader::new(file);
     let receipt: TransactionReceipt = serde_json::from_reader(reader).unwrap();
 
-    let (tokens, token_transfers) = token_process(receipt.logs);
+    let (tokens, token_transfers) = token_process(&receipt.logs);
     assert!(tokens.len() >= 1);
     assert!(tokens[0].r#type.as_bytes() == consts::ERC20.as_bytes());
     assert!(token_transfers.len() >= 1);
@@ -86,7 +86,7 @@ fn test_handle_transfer_weth_deposit() {
     let reader = BufReader::new(file);
     let receipt: TransactionReceipt = serde_json::from_reader(reader).unwrap();
 
-    let (tokens, token_transfers) = token_process(receipt.logs);
+    let (tokens, token_transfers) = token_process(&receipt.logs);
     assert!(tokens.len() == 2);
     assert!(tokens[0].r#type.as_bytes() == consts::ERC20.as_bytes());
     assert!(tokens[1].r#type.as_bytes() == consts::ERC20.as_bytes());
@@ -110,7 +110,7 @@ fn test_handle_transfer_721() {
     let reader = BufReader::new(file);
     let receipt: TransactionReceipt = serde_json::from_reader(reader).unwrap();
 
-    let (tokens, token_transfers) = token_process(receipt.logs);
+    let (tokens, token_transfers) = token_process(&receipt.logs);
     assert!(tokens.len() == 1);
     assert!(tokens[0].r#type.as_bytes() == consts::ERC721.as_bytes());
     assert!(token_transfers.len() == 1);

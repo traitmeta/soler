@@ -6,7 +6,7 @@ use anyhow::{anyhow, Error};
 use chrono::Utc;
 use entities::token_transfers::Model as TokenTransferModel;
 use entities::tokens::Model as TokenModel;
-use ethers::types::{Log, H160, H256};
+use ethers::types::{Log, TransactionReceipt, H160, H256};
 use repo::dal::token::{Mutation, Query};
 use sea_orm::{
     prelude::{BigDecimal, Decimal},
@@ -90,10 +90,32 @@ pub enum TokenKind {
     None,
 }
 
-pub fn token_process(logs: Vec<Log>) -> (Vec<TokenModel>, Vec<TokenTransferModel>) {
+pub fn handle_token_from_receipts(
+    receipts: &[TransactionReceipt],
+) -> (Vec<TokenModel>, Vec<TokenTransferModel>) {
+    let mut acc: (Vec<TokenModel>, Vec<TokenTransferModel>) = (vec![], vec![]);
+    for receipt in receipts.iter() {
+        let (mut tokens, mut token_transfers) = token_process(&receipt.logs);
+        acc.0.append(&mut tokens);
+        acc.1.append(&mut token_transfers);
+    }
+
+    let mut tokens_map: HashMap<Vec<u8>, TokenModel> = HashMap::new();
+    for token in acc.0 {
+        tokens_map
+            .entry(token.contract_address_hash.clone())
+            .and_modify(|t| t.r#type = confirm_token_type(token.r#type.clone(), t.r#type.clone()))
+            .or_insert(token.clone());
+    }
+    let tokens_uniq = tokens_map.values().cloned().collect::<Vec<TokenModel>>();
+
+    (tokens_uniq, acc.1)
+}
+
+pub fn token_process(logs: &[Log]) -> (Vec<TokenModel>, Vec<TokenTransferModel>) {
     let mut acc = (vec![], vec![]);
     for log in logs {
-        acc = do_parse(&log, acc);
+        acc = do_parse(log, acc);
     }
 
     let mut tokens_map: HashMap<Vec<u8>, TokenModel> = HashMap::new();
