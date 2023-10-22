@@ -23,7 +23,7 @@ fn parse(logs: &[Log]) -> Vec<MintTransfer> {
 
     for log in logs.iter() {
         if log.topics[0].as_bytes() == consts::BRIDGE_HASH.as_bytes() {
-            if let Some(params) = parse_params(&log) {
+            if let Some(params) = parse_params(log) {
                 mint_transfers.push(params);
             }
         }
