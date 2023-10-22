@@ -118,8 +118,6 @@ pub fn decode_erc1155_batch_event_data(data: &[u8]) -> anyhow::Result<(Vec<U256>
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::{
         decode_erc1155_batch_event_data, decode_erc1155_single_event_data, decode_erc20_event_data,
         decode_erc721_event_data,
@@ -128,7 +126,6 @@ mod tests {
         core::utils::hex::decode as hex_decode,
         types::{H160, H256, U256},
     };
-    use sea_orm::prelude::{BigDecimal, Decimal};
 
     #[test]
     fn test_decode_erc20() {
@@ -179,7 +176,6 @@ mod tests {
         let result = decode_erc1155_single_event_data(data);
         match result {
             Ok((id, val)) => {
-                let val_dec = BigDecimal::from_str(id.to_string().as_str()).unwrap();
                 assert!(id == token_id.parse::<U256>().unwrap());
                 assert!(val == value.parse::<U256>().unwrap());
             }
