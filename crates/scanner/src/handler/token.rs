@@ -292,8 +292,8 @@ fn parse_erc721_params(log: &Log) -> (TokenModel, TokenTransferModel) {
         });
     token.r#type = consts::ERC721.to_string();
 
-    if topics.second_topic.is_some() {
-        match decode::decode_erc20_event_data(log.data.to_vec().as_slice()) {
+    match topics.fourth_topic {
+        Some(fourth_topic) => match decode::decode_erc20_event_data(fourth_topic.as_bytes()) {
             Ok(value) => {
                 transfer_model.token_id =
                     Some(BigDecimal::from_str(value.to_string().as_str()).unwrap());
@@ -301,9 +301,8 @@ fn parse_erc721_params(log: &Log) -> (TokenModel, TokenTransferModel) {
             Err(err) => {
                 tracing::info!(message = "parse_erc721_params", err = ?err);
             }
-        };
-    } else {
-        match decode::decode_erc721_event_data(log.data.to_vec().as_slice()) {
+        },
+        None => match decode::decode_erc721_event_data(log.data.to_vec().as_slice()) {
             Ok((from, to, token_id)) => {
                 transfer_model.from_address_hash = from.as_bytes().to_vec();
                 transfer_model.to_address_hash = to.as_bytes().to_vec();
@@ -313,7 +312,7 @@ fn parse_erc721_params(log: &Log) -> (TokenModel, TokenTransferModel) {
             Err(err) => {
                 tracing::info!(message = "parse_erc721_params", err = ?err);
             }
-        };
+        },
     }
 
     (token, transfer_model)

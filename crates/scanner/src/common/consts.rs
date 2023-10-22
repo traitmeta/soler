@@ -1,4 +1,4 @@
-pub(crate) const ERC20: &str = "ERC-20";
+pub const ERC20: &str = "ERC-20";
 pub const ERC1155: &str = "ERC-1155";
 pub const ERC721: &str = "ERC-721";
 pub const WETH: &str = "WTH";
