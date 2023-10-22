@@ -95,7 +95,7 @@ impl Mutation {
                 s: Set(form_data.s.to_owned()),
                 status: Set(form_data.status),
                 v: Set(form_data.v),
-                value: Set(form_data.value),
+                value: Set(form_data.value.clone()),
                 block_hash: Set(form_data.block_hash.to_owned()),
                 block_number: Set(form_data.block_number),
                 from_address_hash: Set(form_data.from_address_hash.to_owned()),

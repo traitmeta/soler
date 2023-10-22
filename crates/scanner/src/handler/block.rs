@@ -18,9 +18,12 @@ use repo::dal::{
     token_transfer::Mutation as TokenTransferMutation,
     transaction::Mutation as TransactionMutation,
 };
-use sea_orm::{prelude::Decimal, DatabaseConnection, TransactionTrait};
-use std::collections::HashMap;
+use sea_orm::{
+    prelude::{BigDecimal, Decimal},
+    DatabaseConnection, TransactionTrait,
+};
 use std::time::Duration;
+use std::{collections::HashMap, str::FromStr};
 use tokio::time::interval;
 
 use super::address::process_block_addresses;
@@ -334,7 +337,7 @@ impl EthHandler {
         let mut transaction = TransactionModel {
             block_number: block_number.map(|number| number.as_u64() as i32),
             hash: tx.hash.as_bytes().to_vec(),
-            value: match Decimal::from_str_exact(tx.value.to_string().as_str()) {
+            value: match BigDecimal::from_str(tx.value.to_string().as_str()) {
                 Ok(dec) => dec,
                 Err(err) => bail!(ScannerError::NewDecimal {
                     src: "Pocess transaction value".to_string(),
