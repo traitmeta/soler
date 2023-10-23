@@ -2,6 +2,7 @@ use super::{
     err::{AppError, CoreError},
     response::BaseResponse,
     state::{get_conn, AppState},
+    token_transfer::TokenTransferResp,
     Json,
 };
 use axum::{extract::Path, Extension};
@@ -45,6 +46,7 @@ pub struct TransactionResp {
     pub max_fee_per_gas: Option<Decimal>,
     pub r#type: Option<i32>,
     pub has_error_in_internal_txs: Option<bool>,
+    pub token_transfers: Option<Vec<TokenTransferResp>>,
 }
 
 pub struct LogResp {
@@ -100,6 +102,7 @@ fn conv_model_to_resp(model: &Model, block: Option<blocks::Model>) -> Transactio
         max_fee_per_gas: model.max_fee_per_gas,
         r#type: model.r#type,
         has_error_in_internal_txs: model.has_error_in_internal_txs,
+        token_transfers: None,
     }
 }
 
