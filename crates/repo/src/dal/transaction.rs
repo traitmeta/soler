@@ -1,5 +1,5 @@
 use ::entities::transactions::{ActiveModel, Column, Entity, Model};
-use entities::{blocks, logs};
+use entities::{blocks, token_transfers};
 use sea_orm::*;
 
 pub struct Query;
@@ -12,13 +12,14 @@ impl Query {
     pub async fn find_by_hash_with_relation(
         db: &DbConn,
         hash: Vec<u8>,
-    ) -> Result<Option<(Model, Option<blocks::Model>, Vec<logs::Model>)>, DbErr> {
+    ) -> Result<Option<(Model, Option<blocks::Model>, Vec<token_transfers::Model>)>, DbErr> {
         let trx = Entity::find().filter(Column::Hash.eq(hash)).one(db).await?;
         match trx {
             Some(t) => {
                 let block: Option<blocks::Model> = t.find_related(blocks::Entity).one(db).await?;
-                let events: Vec<logs::Model> = t.find_related(logs::Entity).all(db).await?;
-                Ok(Some((t, block, events)))
+                let token_transfers: Vec<token_transfers::Model> =
+                    t.find_related(token_transfers::Entity).all(db).await?;
+                Ok(Some((t, block, token_transfers)))
             }
             None => Ok(None),
         }
