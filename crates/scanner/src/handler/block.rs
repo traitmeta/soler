@@ -283,8 +283,7 @@ impl EthHandler {
         }
 
         if !handle_models.tokens.is_empty() {
-            // TODO change to update
-            match TokenMutation::create(&txn, &handle_models.tokens).await {
+            match TokenMutation::save(&txn, &handle_models.tokens).await {
                 Ok(_) => {}
                 Err(e) => {
                     txn.rollback().await?;

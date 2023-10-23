@@ -1,5 +1,6 @@
 use ::entities::tokens::{ActiveModel, Column, Entity, Model};
 use chrono::Utc;
+use migration::OnConflict;
 use sea_orm::*;
 
 pub struct Query;
@@ -59,6 +60,29 @@ impl Query {
 pub struct Mutation;
 
 impl Mutation {
+    pub async fn save<C>(db: &C, form_datas: &[Model]) -> Result<InsertResult<ActiveModel>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let mut datas = vec![];
+        for form_data in form_datas.iter() {
+            let model = form_data.clone().into_active_model();
+            datas.push(model);
+        }
+
+        if datas.is_empty() {
+            return Err(DbErr::RecordNotInserted);
+        }
+
+        Entity::insert_many(datas)
+            .on_conflict(
+                OnConflict::column(Column::ContractAddressHash)
+                    .do_nothing()
+                    .to_owned(),
+            )
+            .exec(db)
+            .await
+    }
     pub async fn create<C>(db: &C, form_datas: &[Model]) -> Result<InsertResult<ActiveModel>, DbErr>
     where
         C: ConnectionTrait,
