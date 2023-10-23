@@ -49,8 +49,12 @@ impl Query {
 
     pub async fn filter_not_skip_metadata(db: &DbConn, r_type: &str) -> Result<Vec<Model>, DbErr> {
         Entity::find()
-            .filter(Column::SkipMetadata.ne(Some(true)))
-            .filter(Column::Type.ne(r_type.to_string()))
+            .filter(
+                Condition::any()
+                    .add(Column::SkipMetadata.eq(Some(false)))
+                    .add(Column::SkipMetadata.is_null()),
+            )
+            .filter(Column::Type.eq(r_type.to_string()))
             .limit(50)
             .all(db)
             .await
@@ -74,14 +78,22 @@ impl Mutation {
             return Err(DbErr::RecordNotInserted);
         }
 
-        Entity::insert_many(datas)
+        let res = Entity::insert_many(datas)
             .on_conflict(
                 OnConflict::column(Column::ContractAddressHash)
                     .do_nothing()
                     .to_owned(),
             )
             .exec(db)
-            .await
+            .await;
+
+        if matches!(res, Err(DbErr::RecordNotInserted)) {
+            return Ok(InsertResult {
+                last_insert_id: vec![],
+            });
+        }
+
+        res
     }
     pub async fn create<C>(db: &C, form_datas: &[Model]) -> Result<InsertResult<ActiveModel>, DbErr>
     where
