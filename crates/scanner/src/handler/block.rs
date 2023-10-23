@@ -43,7 +43,7 @@ pub struct HandlerModels {
 }
 
 pub async fn init_block(cli: EthCli, conn: &DbConn) {
-    if let Some(block) = BlockQuery::select_latest(&conn).await.unwrap() {
+    if let Some(block) = BlockQuery::select_latest(conn).await.unwrap() {
         if block.number != 0 {
             return;
         }
@@ -265,10 +265,10 @@ pub async fn handle_block(
 
     let trace_map = classify_txs(traces);
     handle_models.transactions = handle_transactions(block, &recipet_map, &trace_map).await?;
-    handle_models.events = handle_block_event(&recipts);
+    handle_models.events = handle_block_event(recipts);
     handle_models.inner_tx = handler_inner_transaction(traces);
     handle_models.addresses = process_block_addresses(block, &recipet_map, &trace_map);
-    (handle_models.tokens, handle_models.token_transfers) = handle_token_from_receipts(&recipts);
+    (handle_models.tokens, handle_models.token_transfers) = handle_token_from_receipts(recipts);
 
     Ok((block_model, handle_models))
 }
