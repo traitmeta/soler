@@ -1,5 +1,5 @@
-use crate::common::err::ScannerError;
-use crate::evms::eth::EthCli;
+use std::{collections::HashMap, str::FromStr};
+
 use anyhow::bail;
 use chrono::{NaiveDateTime, Utc};
 use entities::{
@@ -21,16 +21,15 @@ use repo::dal::{
 };
 use sea_orm::{
     prelude::{BigDecimal, Decimal},
-    DatabaseConnection, TransactionTrait,
+    DbConn, TransactionTrait,
 };
-use std::time::Duration;
-use std::{collections::HashMap, str::FromStr};
-use tokio::time::interval;
 
 use super::event::handle_block_event;
 use super::internal_transaction::{classify_txs, handler_inner_transaction};
 use super::token::handle_token_from_receipts;
 use super::{address::process_block_addresses, withdrawal::withdrawals_process};
+use crate::common::err::ScannerError;
+use crate::evms::eth::EthCli;
 
 #[derive(Default)]
 struct HandlerModels {
@@ -42,224 +41,236 @@ struct HandlerModels {
     token_transfers: Vec<TokenTransferModel>,
     withdraws: Vec<WithdrawModel>,
 }
-pub struct EthHandler {
-    cli: EthCli,
-    conn: DatabaseConnection,
+
+pub async fn init_block(cli: EthCli, conn: &DbConn) {
+    if let Some(block) = BlockQuery::select_latest(&conn).await.unwrap() {
+        if block.number != 0 {
+            return;
+        }
+    }
+
+    let latest_block_number = cli.get_block_number().await;
+    let latest_block = cli.get_block(latest_block_number).await;
+    let block = convert_block_to_model(&latest_block);
+
+    BlockMutation::create(conn, &block).await.unwrap();
 }
 
-impl EthHandler {
-    pub fn new(cli: EthCli, conn: DatabaseConnection) -> Self {
-        Self { cli, conn }
-    }
+fn convert_block_to_model(block: &Block<TxHash>) -> BlockModel {
+    let block = BlockModel {
+        difficulty: Some(Decimal::from_i128_with_scale(
+            block.difficulty.as_u128() as i128,
+            0,
+        )),
+        gas_limit: Decimal::from_i128_with_scale(block.gas_limit.as_u128() as i128, 0),
+        gas_used: Decimal::from_i128_with_scale(block.gas_used.as_u128() as i128, 0),
+        hash: match block.hash {
+            Some(hash) => hash.as_bytes().to_vec(),
+            None => vec![],
+        },
+        miner_hash: match block.author {
+            Some(hash) => hash.as_bytes().to_vec(),
+            None => vec![],
+        },
+        nonce: match block.nonce {
+            Some(nonce) => nonce.as_bytes().to_vec(),
+            None => vec![],
+        },
+        number: match block.number {
+            Some(number) => number.as_u64() as i64,
+            None => 0,
+        },
+        parent_hash: block.parent_hash.as_bytes().to_vec(),
+        size: block.size.map(|size| size.as_u32() as i32),
+        timestamp: NaiveDateTime::from_timestamp_opt(block.timestamp.as_u64() as i64, 0).unwrap(),
+        base_fee_per_gas: block.base_fee_per_gas.map(|base_fee_per_gas| {
+            Decimal::from_i128_with_scale(base_fee_per_gas.as_u128() as i128, 0)
+        }),
+        consensus: true,
+        total_difficulty: block.total_difficulty.map(|total_difficulty| {
+            Decimal::from_i128_with_scale(total_difficulty.as_u128() as i128, 0)
+        }),
+        inserted_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
+        refetch_needed: Some(false),
+        is_empty: Some(false),
+    };
 
-    pub async fn init_block(&self) {
-        if let Some(block) = BlockQuery::select_latest(&self.conn).await.unwrap() {
-            if block.number != 0 {
-                return;
-            }
-        }
+    block
+}
 
-        let latest_block_number = self.cli.get_block_number().await;
-        let latest_block = self.cli.get_block(latest_block_number).await;
-        let block = self.convert_block_to_model(&latest_block);
+pub async fn sync_to_db(
+    conn: &DbConn,
+    block: &BlockModel,
+    handle_models: HandlerModels,
+) -> anyhow::Result<()> {
+    let txn = conn.begin().await?;
 
-        BlockMutation::create(&self.conn, &block).await.unwrap();
-    }
-
-    fn convert_block_to_model(&self, block: &Block<TxHash>) -> BlockModel {
-        let block = BlockModel {
-            difficulty: Some(Decimal::from_i128_with_scale(
-                block.difficulty.as_u128() as i128,
-                0,
-            )),
-            gas_limit: Decimal::from_i128_with_scale(block.gas_limit.as_u128() as i128, 0),
-            gas_used: Decimal::from_i128_with_scale(block.gas_used.as_u128() as i128, 0),
-            hash: match block.hash {
-                Some(hash) => hash.as_bytes().to_vec(),
-                None => vec![],
-            },
-            miner_hash: match block.author {
-                Some(hash) => hash.as_bytes().to_vec(),
-                None => vec![],
-            },
-            nonce: match block.nonce {
-                Some(nonce) => nonce.as_bytes().to_vec(),
-                None => vec![],
-            },
-            number: match block.number {
-                Some(number) => number.as_u64() as i64,
-                None => 0,
-            },
-            parent_hash: block.parent_hash.as_bytes().to_vec(),
-            size: block.size.map(|size| size.as_u32() as i32),
-            timestamp: NaiveDateTime::from_timestamp_opt(block.timestamp.as_u64() as i64, 0)
-                .unwrap(),
-            base_fee_per_gas: block.base_fee_per_gas.map(|base_fee_per_gas| {
-                Decimal::from_i128_with_scale(base_fee_per_gas.as_u128() as i128, 0)
-            }),
-            consensus: true,
-            total_difficulty: block.total_difficulty.map(|total_difficulty| {
-                Decimal::from_i128_with_scale(total_difficulty.as_u128() as i128, 0)
-            }),
-            inserted_at: Utc::now().naive_utc(),
-            updated_at: Utc::now().naive_utc(),
-            refetch_needed: Some(false),
-            is_empty: Some(false),
-        };
-
-        block
-    }
-
-    pub async fn sync_task(&self) {
-        let mut interval = interval(Duration::from_secs(3));
-        loop {
-            interval.tick().await;
-
-            let latest_block_number = self.cli.get_block_number().await;
-            if let Some(latest_block) = BlockQuery::select_latest(&self.conn).await.unwrap() {
-                if latest_block.number > latest_block_number as i64 {
-                    tracing::info!(
-                        "latestBlock.LatestBlockHeight: {} greater than latestBlockNumber: {}",
-                        latest_block.number,
-                        latest_block_number
-                    );
-                    continue;
-                }
-                let current_block = self
-                    .cli
-                    .get_block_with_tx(latest_block.number as u64 + 1)
-                    .await;
-
-                tracing::info!(
-                    "get currentBlock blockNumber: {}, blockHash: {:#032x}, hash size: {}",
-                    current_block.number.unwrap(),
-                    current_block.hash.unwrap(),
-                    current_block.hash.unwrap().as_bytes().to_vec().len(),
-                );
-
-                let block_traces = self.cli.trace_block(latest_block.number as u64 + 1).await;
-
-                self.handle_block(&current_block, &block_traces)
-                    .await
-                    .unwrap();
-            }
+    match BlockMutation::create(&txn, block).await {
+        Ok(_) => {}
+        Err(e) => {
+            txn.rollback().await?;
+            bail!(ScannerError::Create {
+                src: "create block".to_string(),
+                err: e
+            });
         }
     }
-
-    
-
-    async fn sync_to_db(
-        &self,
-        block: &BlockModel,
-        handle_models: HandlerModels,
-    ) -> anyhow::Result<()> {
-        let txn = self.conn.begin().await?;
-
-        match BlockMutation::create(&txn, block).await {
+    if !handle_models.transactions.is_empty() {
+        match TransactionMutation::create(&txn, &handle_models.transactions).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
                 bail!(ScannerError::Create {
-                    src: "create block".to_string(),
+                    src: "create transactions".to_string(),
                     err: e
                 });
             }
         }
-        if !handle_models.transactions.is_empty() {
-            match TransactionMutation::create(&txn, &handle_models.transactions).await {
-                Ok(_) => {}
-                Err(e) => {
-                    txn.rollback().await?;
-                    bail!(ScannerError::Create {
-                        src: "create transactions".to_string(),
-                        err: e
-                    });
-                }
-            }
-        }
-
-        if !handle_models.events.is_empty() {
-            match EventMutation::create(&txn, &handle_models.events).await {
-                Ok(_) => {}
-                Err(e) => {
-                    txn.rollback().await?;
-                    bail!(ScannerError::Create {
-                        src: "create events".to_string(),
-                        err: e
-                    });
-                }
-            }
-        }
-
-        if !handle_models.inner_tx.is_empty() {
-            match InnerTransactionMutation::create(&txn, &handle_models.inner_tx).await {
-                Ok(_) => {}
-                Err(e) => {
-                    txn.rollback().await?;
-                    bail!(ScannerError::Create {
-                        src: "create internal transactions".to_string(),
-                        err: e
-                    });
-                }
-            }
-        }
-
-        if !handle_models.addresses.is_empty() {
-            match AddressMutation::save(&txn, &handle_models.addresses).await {
-                Ok(_) => {}
-                Err(e) => {
-                    txn.rollback().await?;
-                    bail!(ScannerError::Upsert {
-                        src: "save addresses".to_string(),
-                        err: e
-                    });
-                }
-            }
-        }
-
-        if !handle_models.tokens.is_empty() {
-            match TokenMutation::save(&txn, &handle_models.tokens).await {
-                Ok(_) => {}
-                Err(e) => {
-                    txn.rollback().await?;
-                    bail!(ScannerError::Upsert {
-                        src: "create tokens".to_string(),
-                        err: e
-                    });
-                }
-            }
-        }
-
-        if !handle_models.token_transfers.is_empty() {
-            match TokenTransferMutation::create(&txn, &handle_models.token_transfers).await {
-                Ok(_) => {}
-                Err(e) => {
-                    txn.rollback().await?;
-                    bail!(ScannerError::Upsert {
-                        src: "create token transfers".to_string(),
-                        err: e
-                    });
-                }
-            }
-        }
-
-        if !handle_models.withdraws.is_empty() {
-            match WithdrawalMutation::create(&txn, &handle_models.withdraws).await {
-                Ok(_) => {}
-                Err(e) => {
-                    txn.rollback().await?;
-                    bail!(ScannerError::Upsert {
-                        src: "create withdraws".to_string(),
-                        err: e
-                    });
-                }
-            }
-        }
-
-        txn.commit().await?;
-
-        Ok(())
     }
+
+    if !handle_models.events.is_empty() {
+        match EventMutation::create(&txn, &handle_models.events).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                bail!(ScannerError::Create {
+                    src: "create events".to_string(),
+                    err: e
+                });
+            }
+        }
+    }
+
+    if !handle_models.inner_tx.is_empty() {
+        match InnerTransactionMutation::create(&txn, &handle_models.inner_tx).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                bail!(ScannerError::Create {
+                    src: "create internal transactions".to_string(),
+                    err: e
+                });
+            }
+        }
+    }
+
+    if !handle_models.addresses.is_empty() {
+        match AddressMutation::save(&txn, &handle_models.addresses).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                bail!(ScannerError::Upsert {
+                    src: "save addresses".to_string(),
+                    err: e
+                });
+            }
+        }
+    }
+
+    if !handle_models.tokens.is_empty() {
+        match TokenMutation::save(&txn, &handle_models.tokens).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                bail!(ScannerError::Upsert {
+                    src: "create tokens".to_string(),
+                    err: e
+                });
+            }
+        }
+    }
+
+    if !handle_models.token_transfers.is_empty() {
+        match TokenTransferMutation::create(&txn, &handle_models.token_transfers).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                bail!(ScannerError::Upsert {
+                    src: "create token transfers".to_string(),
+                    err: e
+                });
+            }
+        }
+    }
+
+    if !handle_models.withdraws.is_empty() {
+        match WithdrawalMutation::create(&txn, &handle_models.withdraws).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                bail!(ScannerError::Upsert {
+                    src: "create withdraws".to_string(),
+                    err: e
+                });
+            }
+        }
+    }
+
+    txn.commit().await?;
+
+    Ok(())
+}
+
+pub async fn handle_block(
+    block: &Block<Transaction>,
+    traces: &[Trace],
+    recipts: &[TransactionReceipt],
+) -> anyhow::Result<(BlockModel, HandlerModels)> {
+    let mut handle_models = HandlerModels::default();
+    let block_model = BlockModel {
+        difficulty: Some(Decimal::from_i128_with_scale(
+            block.difficulty.as_u128() as i128,
+            0,
+        )),
+        gas_limit: Decimal::from_i128_with_scale(block.gas_limit.as_u128() as i128, 0),
+        gas_used: Decimal::from_i128_with_scale(block.gas_used.as_u128() as i128, 0),
+        hash: match block.hash {
+            Some(hash) => hash.as_bytes().to_vec(),
+            None => vec![],
+        },
+        miner_hash: match block.author {
+            Some(hash) => hash.as_bytes().to_vec(),
+            None => vec![],
+        },
+        nonce: match block.nonce {
+            Some(nonce) => nonce.as_bytes().to_vec(),
+            None => vec![],
+        },
+        number: match block.number {
+            Some(number) => number.as_u64() as i64,
+            None => 0,
+        },
+        parent_hash: block.parent_hash.as_bytes().to_vec(),
+        size: block.size.map(|size| size.as_u32() as i32),
+        timestamp: NaiveDateTime::from_timestamp_opt(block.timestamp.as_u64() as i64, 0).unwrap(),
+        base_fee_per_gas: block.base_fee_per_gas.map(|base_fee_per_gas| {
+            Decimal::from_i128_with_scale(base_fee_per_gas.as_u128() as i128, 0)
+        }),
+        consensus: true,
+        total_difficulty: block.total_difficulty.map(|total_difficulty| {
+            Decimal::from_i128_with_scale(total_difficulty.as_u128() as i128, 0)
+        }),
+        inserted_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
+        refetch_needed: Some(false),
+        is_empty: Some(block.transactions.is_empty()), // transaction count is zero
+    };
+
+    handle_models.withdraws = withdrawals_process(block.hash, block.withdrawals.clone());
+    let recipet_map = recipts
+        .iter()
+        .map(|r| (r.transaction_hash, r.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let trace_map = classify_txs(traces);
+    handle_models.transactions = handle_transactions(block, &recipet_map, &trace_map).await?;
+    handle_models.events = handle_block_event(&recipts);
+    handle_models.inner_tx = handler_inner_transaction(traces);
+    handle_models.addresses = process_block_addresses(block, &recipet_map, &trace_map);
+    (handle_models.tokens, handle_models.token_transfers) = handle_token_from_receipts(&recipts);
+
+    Ok((block_model, handle_models))
 }
 
 async fn handle_transactions(
