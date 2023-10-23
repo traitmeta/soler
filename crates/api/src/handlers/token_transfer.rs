@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use entities::{token_transfers::Model, tokens::Model as TokenModel};
+use repo::dal::token::Query as TokenQuery;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -20,7 +23,20 @@ pub struct TotalTokenDetail {
     pub token_id: Option<String>,
 }
 
-pub fn decode_token_transfer(token: TokenModel, token_transfer: &Model) -> Vec<TokenTransferResp> {
+pub fn decode_token_transfers(
+    token_map: HashMap<Vec<u8>, TokenModel>,
+    token_transfers: &[Model],
+) -> Vec<TokenTransferResp> {
+    let mut resp = vec![];
+    for token in token_transfers.iter() {
+        let token_info = token_map.get(&token.token_contract_address_hash).unwrap();
+        let mut transfers = decode_token_transfer(token_info, token);
+        resp.append(&mut transfers);
+    }
+    resp
+}
+
+pub fn decode_token_transfer(token: &TokenModel, token_transfer: &Model) -> Vec<TokenTransferResp> {
     let mut token_transfers = vec![];
     let mut resp = TokenTransferResp {
         transaction_hash: format!("0x{}", hex::encode(token_transfer.transaction_hash.clone())),

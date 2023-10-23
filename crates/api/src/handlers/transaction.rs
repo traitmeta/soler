@@ -2,17 +2,21 @@ use super::{
     err::{AppError, CoreError},
     response::BaseResponse,
     state::{get_conn, AppState},
-    token_transfer::TokenTransferResp,
+    token_transfer::{decode_token_transfers, TokenTransferResp},
     Json,
 };
 use axum::{extract::Path, Extension};
 use chrono::NaiveDateTime;
-use entities::{blocks, token_transfers::Model as TokenTransferModel, transactions::Model};
+use entities::{
+    blocks, token_transfers::Model as TokenTransferModel, tokens::Model as TokenModel,
+    transactions::Model,
+};
 use hex::FromHex;
+use repo::dal::token::Query as TokenQuery;
 use repo::dal::transaction::Query as DbQuery;
 use sea_orm::prelude::{BigDecimal, Decimal};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 /*
 Base Fee = block: base_fee_per_gas
@@ -68,9 +72,10 @@ pub struct LogResp {
 fn conv_model_to_resp(
     model: &Model,
     block: Option<blocks::Model>,
-    _token_transfers: Vec<TokenTransferModel>,
+    token_transfers: Vec<TokenTransferModel>,
+    token_map: HashMap<Vec<u8>, TokenModel>,
 ) -> TransactionResp {
-    TransactionResp {
+    let mut resp = TransactionResp {
         cumulative_gas_used: model.cumulative_gas_used,
         error: model.error.to_owned(),
         gas_limit: model.gas,
@@ -107,7 +112,11 @@ fn conv_model_to_resp(
         r#type: model.r#type,
         has_error_in_internal_txs: model.has_error_in_internal_txs,
         token_transfers: vec![],
-    }
+    };
+
+    resp.token_transfers = decode_token_transfers(token_map, &token_transfers);
+
+    resp
 }
 
 pub async fn get_transaction(
@@ -129,10 +138,25 @@ pub async fn get_transaction(
         Some((tx, block, token_transfers)) => {
             tracing::info!(message = "transaction related block",block = ?block);
             tracing::info!(message = "transaction related token transfers",token_transfers = ?token_transfers);
+            let mut token_contracts = vec![];
+            for token in token_transfers.iter() {
+                token_contracts.push(token.token_contract_address_hash.clone());
+            }
+
+            let tokens = TokenQuery::find_by_contract_address(conn, token_contracts)
+                .await
+                .map_err(AppError::from)?;
+
+            let tokens_map = tokens
+                .iter()
+                .map(|t| (t.contract_address_hash.clone(), t.clone()))
+                .collect::<HashMap<Vec<u8>, TokenModel>>();
+
             Ok(Json(BaseResponse::success(conv_model_to_resp(
                 &tx,
                 block,
                 token_transfers,
+                tokens_map,
             ))))
         }
         None => Err(AppError::from(CoreError::NotFound)),
@@ -162,7 +186,7 @@ pub async fn gets_transaction(
 
     let mut resp = vec![];
     for model in res.0.iter() {
-        resp.push(conv_model_to_resp(model, None, vec![]));
+        resp.push(conv_model_to_resp(model, None, vec![], HashMap::new()));
     }
 
     Ok(Json(BaseResponse::success(resp)))
