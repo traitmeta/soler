@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use entities::{token_transfers::Model, tokens::Model as TokenModel};
-use repo::dal::token::Query as TokenQuery;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TokenTransferResp {
