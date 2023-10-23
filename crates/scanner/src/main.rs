@@ -1,7 +1,9 @@
 use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
 use repo::orm::conn::connect_db;
-use scanner::{evms::eth::EthCli, handler::block::EthHandler, tasks::token::TokenHandler};
+use scanner::{
+    evms::eth::EthCli, handler::block::EthHandler, tasks::token::strat_token_metadata_task,
+};
 use tracing::instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -33,8 +35,8 @@ async fn main() {
     eth_handler.init_block().await;
     eth_handler.sync_task().await;
 
-    // tokio::spawn(async move || {
-    //     eth_handler.sync_task().;
+    // let block_task = tokio::spawn(move || {
+    //     eth_handler.sync_task();
     // });
 
     tracing::debug!(
@@ -42,8 +44,7 @@ async fn main() {
         config.chains.get("Goerli").unwrap().chain_name
     );
 
-    let token_task = TokenHandler::new(goerli_url);
-    token_task.token_metadata_task(&conn).await;
+    strat_token_metadata_task(goerli_url, &conn).await;
     // let hanlder = tokio::spawn(token_task.token_metadata_task(&conn));
 
     // let mut height = 0;
