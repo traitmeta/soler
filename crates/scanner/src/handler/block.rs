@@ -47,7 +47,6 @@ pub struct EthHandler {
     conn: DatabaseConnection,
 }
 
-// TODO handle token transfer
 impl EthHandler {
     pub fn new(cli: EthCli, conn: DatabaseConnection) -> Self {
         Self { cli, conn }
