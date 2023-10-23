@@ -32,7 +32,7 @@ use crate::common::err::ScannerError;
 use crate::evms::eth::EthCli;
 
 #[derive(Default)]
-struct HandlerModels {
+pub struct HandlerModels {
     transactions: Vec<TransactionModel>,
     events: Vec<LogModel>,
     inner_tx: Vec<InnerTransactionModel>,

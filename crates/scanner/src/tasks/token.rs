@@ -1,6 +1,8 @@
 use crate::{common::consts, contracts::erc20::IERC20Call};
 use anyhow::{anyhow, Error};
+use config::db::DB;
 use repo::dal::token::{Mutation, Query};
+use repo::orm::conn::connect_db;
 use sea_orm::{prelude::Decimal, DbConn};
 use std::time::Duration;
 use tokio::time::interval;
@@ -29,11 +31,12 @@ pub async fn handle_erc20_metadata(rpc_url: &str, conn: &DbConn) -> Result<(), E
     }
 }
 
-pub async fn strat_token_metadata_task(rpc_url: &str, conn: &DbConn) {
+pub async fn strat_token_metadata_task(rpc_url: String, db_cfg: DB) {
+    let conn = connect_db(db_cfg).await.unwrap();
     let mut interval = interval(Duration::from_secs(3));
     loop {
         interval.tick().await;
-        match handle_erc20_metadata(rpc_url, conn).await {
+        match handle_erc20_metadata(rpc_url.as_str(), &conn).await {
             Ok(_) => (),
             Err(err) => tracing::error!(message = "token metadata task", err = ?err),
         };

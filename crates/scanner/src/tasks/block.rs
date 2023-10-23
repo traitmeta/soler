@@ -1,31 +1,17 @@
 use std::time::Duration;
 
-use anyhow::bail;
-use entities::{
-    addresses::Model as AddressModel, blocks::Model as BlockModel,
-    internal_transactions::Model as InnerTransactionModel, logs::Model as LogModel,
-    token_transfers::Model as TokenTransferModel, tokens::Model as TokenModel,
-    transactions::Model as TransactionModel, withdrawals::Model as WithdrawModel,
-};
-use ethers::types::{Block, Trace, Transaction, TransactionReceipt, TxHash, H256, U64};
 use repo::dal::block::Query;
-use repo::dal::{
-    address::Mutation as AddressMutation,
-    block::{Mutation as BlockMutation, Query as BlockQuery},
-    event::Mutation as EventMutation,
-    internal_transaction::Mutation as InnerTransactionMutation,
-    token::Mutation as TokenMutation,
-    token_transfer::Mutation as TokenTransferMutation,
-    transaction::Mutation as TransactionMutation,
-    withdrawal::Mutation as WithdrawalMutation,
-};
-use sea_orm::DbConn;
+
+use repo::orm::conn::connect_db;
 use tokio::time::interval;
 
 use crate::evms::eth::EthCli;
-use crate::handler::block::{self, handle_block};
+use crate::handler::block::{handle_block, sync_to_db};
+use config::db::DB;
 
-pub async fn sync_task(cli: EthCli, conn: &DbConn) {
+pub async fn sync_task(rpc_url: String, db_cfg: DB) {
+    let cli = EthCli::new(rpc_url.as_str());
+    let conn = connect_db(db_cfg).await.unwrap();
     let mut interval = interval(Duration::from_secs(3));
     loop {
         interval.tick().await;
@@ -52,14 +38,14 @@ pub async fn sync_task(cli: EthCli, conn: &DbConn) {
 
             let block_traces = cli.trace_block(current_number).await;
             let recipts = cli.get_block_receipt(current_number).await;
-
             let (block_model, handle_models) =
                 handle_block(&current_block, &block_traces, &recipts)
                     .await
                     .unwrap();
 
-            sync_to_db(&block_model, handle_models).await?;
+            sync_to_db(&conn, &block_model, handle_models)
+                .await
+                .unwrap();
         }
     }
 }
-

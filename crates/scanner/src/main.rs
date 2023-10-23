@@ -2,8 +2,11 @@ use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
 use repo::orm::conn::connect_db;
 use scanner::{
-    evms::eth::EthCli, handler::block::EthHandler, tasks::token::strat_token_metadata_task,
+    evms::eth::EthCli,
+    handler::block::init_block,
+    tasks::{block::sync_task, token::strat_token_metadata_task},
 };
+use std::sync::Arc;
 use tracing::instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -28,24 +31,26 @@ async fn main() {
         tracing::error!("Init failed for not found Goerli chain config");
     }
 
+    let rpc_url = Arc::new(goerli_url.to_string());
     let db_cfg = config.database.unwrap();
-    let conn = connect_db(db_cfg).await.unwrap();
-    let eth_cli = EthCli::new(goerli_url);
-    let eth_handler = EthHandler::new(eth_cli, conn.clone());
-    eth_handler.init_block().await;
-    eth_handler.sync_task().await;
+    let conn = connect_db(db_cfg.clone()).await.unwrap();
+    let eth_cli = EthCli::new(rpc_url.clone().as_str());
+    init_block(eth_cli, &conn).await;
 
-    // let block_task = tokio::spawn(move || {
-    //     eth_handler.sync_task();
-    // });
+    let sync_db_cfg = db_cfg.clone();
+    let block_task = tokio::spawn(sync_task(rpc_url.clone().to_string(), sync_db_cfg));
 
     tracing::debug!(
         "end chain sync: {:?}",
         config.chains.get("Goerli").unwrap().chain_name
     );
 
-    strat_token_metadata_task(goerli_url, &conn).await;
-    // let hanlder = tokio::spawn(token_task.token_metadata_task(&conn));
+    // strat_token_metadata_task(goerli_url, &conn).await;
+    let sync_db_cfg = db_cfg.clone();
+    let token_task = tokio::spawn(strat_token_metadata_task(
+        rpc_url.clone().to_string(),
+        sync_db_cfg,
+    ));
 
     // let mut height = 0;
     // if let Some(db_height) = log_scanner_current_height(&conn, "eth:5", "eth").await {
@@ -59,4 +64,6 @@ async fn main() {
     // }
 
     // TODO 定时任务的多线程实现
+    block_task.await.unwrap();
+    token_task.await.unwrap();
 }
