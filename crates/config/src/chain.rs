@@ -6,6 +6,7 @@ pub struct Chain {
     pub chain_id: Option<u64>,
     pub chain_name: String,
     pub contracts: Option<Vec<String>>,
+    pub interval: u64,
 }
 
 impl Chain {}

@@ -63,7 +63,6 @@ async fn main() {
     //     _ => tracing::debug!("hanlded height: {}", height),
     // }
 
-    // TODO 定时任务的多线程实现
     block_task.await.unwrap();
     token_task.await.unwrap();
 }
