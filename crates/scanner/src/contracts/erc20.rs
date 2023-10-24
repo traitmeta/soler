@@ -2,7 +2,7 @@ use anyhow::{anyhow, Error};
 use ethers::{
     prelude::abigen,
     providers::{Http, Provider},
-    types::{Address, H160},
+    types::{Address, H160, U256},
 };
 
 use std::sync::Arc;
@@ -89,7 +89,10 @@ impl IERC20Call {
         }
     }
 
-    pub async fn metadata(&self, contract_address: &str) -> Result<(String, String, u8), Error> {
+    pub async fn metadata(
+        &self,
+        contract_address: &str,
+    ) -> Result<(String, String, u8, U256), Error> {
         let name = match self.name(contract_address).await {
             Ok(s) => s.to_string(),
             Err(e) => return Err(e),
@@ -105,7 +108,12 @@ impl IERC20Call {
             Err(e) => return Err(e),
         };
 
-        Ok((name, symbol, decimals))
+        let total_supply = match self.total_supply(contract_address).await {
+            Ok(s) => s,
+            Err(e) => return Err(e),
+        };
+
+        Ok((name, symbol, decimals, total_supply))
     }
 }
 

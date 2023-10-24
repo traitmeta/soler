@@ -59,6 +59,19 @@ impl Query {
             .all(db)
             .await
     }
+
+    pub async fn filter_uncataloged(db: &DbConn, r_type: &str) -> Result<Vec<Model>, DbErr> {
+        Entity::find()
+            .filter(
+                Condition::any()
+                    .add(Column::Cataloged.eq(Some(false)))
+                    .add(Column::Cataloged.is_null()),
+            )
+            .filter(Column::Type.eq(r_type.to_string()))
+            .limit(50)
+            .all(db)
+            .await
+    }
 }
 
 pub struct Mutation;
@@ -115,15 +128,15 @@ impl Mutation {
         ActiveModel {
             name: Set(form_data.name.to_owned()),
             symbol: Set(form_data.symbol.to_owned()),
-            total_supply: Unchanged(form_data.total_supply),
+            total_supply: Set(form_data.total_supply),
             decimals: Set(form_data.decimals),
             r#type: Unchanged(form_data.r#type.to_owned()),
-            cataloged: Unchanged(form_data.cataloged),
+            cataloged: Set(form_data.cataloged),
             contract_address_hash: Unchanged(form_data.contract_address_hash.to_vec()),
             inserted_at: Unchanged(form_data.inserted_at),
-            updated_at: Unchanged(form_data.updated_at),
+            updated_at: Set(Utc::now().naive_utc()),
             holder_count: Unchanged(form_data.holder_count),
-            skip_metadata: Set(form_data.skip_metadata),
+            skip_metadata: Unchanged(form_data.skip_metadata),
             fiat_value: Unchanged(form_data.fiat_value),
             circulating_market_cap: Unchanged(form_data.circulating_market_cap),
             total_supply_updated_at_block: Unchanged(form_data.total_supply_updated_at_block),
