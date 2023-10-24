@@ -27,8 +27,6 @@ async fn main() {
     info!(message = "listening", addr = ?addr);
 
     let db_cfg = config.database.unwrap();
-    info!(message = "db config", cfg = ?db_cfg);
-
     let conn = connect_db(db_cfg).await.unwrap();
     info!(message = "connected db");
 

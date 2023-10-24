@@ -2,7 +2,6 @@ use config::db::DB;
 use sea_orm::DbErr;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::time::Duration;
-use tracing::log;
 
 // pub async fn migration(database_url: String) {
 //     use migration::{Migrator, MigratorTrait};
@@ -14,6 +13,7 @@ use tracing::log;
 pub async fn connect_db(cfg: DB) -> Result<DatabaseConnection, DbErr> {
     let db_url = cfg.url();
     let mut opt = ConnectOptions::new(db_url);
+    let log_level = cfg.from_usize();
     opt.max_connections(100)
         .min_connections(5)
         .connect_timeout(Duration::from_secs(8))
@@ -21,7 +21,7 @@ pub async fn connect_db(cfg: DB) -> Result<DatabaseConnection, DbErr> {
         .idle_timeout(Duration::from_secs(8))
         .max_lifetime(Duration::from_secs(8))
         .sqlx_logging(true)
-        .sqlx_logging_level(log::LevelFilter::Info)
+        .sqlx_logging_level(log_level)
         .set_schema_search_path("public"); // Setting default PostgreSQL schema
 
     Database::connect(opt).await
@@ -43,6 +43,7 @@ pub mod test {
             username: "root".to_string(),
             password: "meta".to_string(),
             database: "rust_test".to_string(),
+            log_level: 3,
         };
 
         let runtime = Runtime::new().unwrap();

@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 /*
     When process in api, need to rename transfer type
     - mint => to not zero and from is zero
@@ -10,6 +12,19 @@ pub const TOKEN_BURN: &str = "Token Burning";
 pub const TOKEN_MINT: &str = "Token Minting";
 pub const TOKEN_TRANSFER: &str = "Token Transfer";
 pub const TOKEN_CREATION: &str = "Token Creation";
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TokenResp {
+    pub address: Vec<u8>,
+    pub circulating_market_cap: Option<String>,
+    pub decimals: Option<String>,
+    pub holders: Option<String>,
+    pub icon_url: Option<String>,
+    pub name: Option<String>,
+    pub symbol: Option<String>,
+    pub total_supply: Option<String>,
+    pub r#type: String,
+}
 
 pub fn rename_transfer_type(from: Vec<u8>, to: Vec<u8>) -> String {
     if from == ZERO_ADDRESS.as_bytes().to_vec() {

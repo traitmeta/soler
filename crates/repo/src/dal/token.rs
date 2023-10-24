@@ -161,16 +161,21 @@ mod tests {
 
     use super::{Mutation, Query};
 
-    #[test]
-    #[ignore]
-    fn test_create() {
-        let db_cfg = DB {
+    fn setup_database() -> DB {
+        DB {
             url: "172.22.215.113:5432".to_string(),
             schema: "postgres".to_string(),
             username: "postgres".to_string(),
             password: "postgres".to_string(),
             database: "soler".to_string(),
-        };
+            log_level: 3,
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn test_create() {
+        let db_cfg = setup_database();
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -205,13 +210,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_update_total_supply() {
-        let db_cfg = DB {
-            url: "172.22.215.113:5432".to_string(),
-            schema: "postgres".to_string(),
-            username: "postgres".to_string(),
-            password: "postgres".to_string(),
-            database: "soler".to_string(),
-        };
+        let db_cfg = setup_database();
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -235,13 +234,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_update_total_supply_without_query() {
-        let db_cfg = DB {
-            url: "172.22.215.113:5432".to_string(),
-            schema: "postgres".to_string(),
-            username: "postgres".to_string(),
-            password: "postgres".to_string(),
-            database: "soler".to_string(),
-        };
+        let db_cfg = setup_database();
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
