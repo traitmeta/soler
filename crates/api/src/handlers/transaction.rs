@@ -53,22 +53,6 @@ pub struct TransactionResp {
     pub token_transfers: Vec<TokenTransferResp>,
 }
 
-pub struct LogResp {
-    pub data: String,
-    pub index: i32,
-    pub r#type: Option<String>,
-    pub first_topic: Option<String>,
-    pub second_topic: Option<String>,
-    pub third_topic: Option<String>,
-    pub fourth_topic: Option<String>,
-    pub inserted_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-    pub address_hash: Option<String>,
-    pub transaction_hash: String,
-    pub block_hash: String,
-    pub block_number: Option<i32>,
-}
-
 fn conv_model_to_resp(
     model: &Model,
     block: Option<blocks::Model>,
