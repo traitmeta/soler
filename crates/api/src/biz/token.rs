@@ -1,3 +1,4 @@
+use entities::tokens::Model;
 use serde::{Deserialize, Serialize};
 
 /*
@@ -15,7 +16,7 @@ pub const TOKEN_CREATION: &str = "Token Creation";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TokenResp {
-    pub address: Vec<u8>,
+    pub address: String,
     pub circulating_market_cap: Option<String>,
     pub decimals: Option<String>,
     pub holders: Option<String>,
@@ -24,6 +25,20 @@ pub struct TokenResp {
     pub symbol: Option<String>,
     pub total_supply: Option<String>,
     pub r#type: String,
+}
+
+pub fn conv_model_to_resp(model: &Model) -> TokenResp {
+    TokenResp {
+        address: format!("0x{}", hex::encode(model.contract_address_hash.clone())),
+        circulating_market_cap: model.circulating_market_cap.map(|c| c.to_string()),
+        decimals: model.decimals.map(|c| c.to_string()),
+        holders: model.holder_count.map(|c| c.to_string()),
+        icon_url: model.icon_url.clone(),
+        name: model.name.clone(),
+        symbol: model.symbol.clone(),
+        total_supply: model.total_supply.map(|c| c.to_string()),
+        r#type: model.r#type.clone(),
+    }
 }
 
 pub fn rename_transfer_type(from: Vec<u8>, to: Vec<u8>) -> String {

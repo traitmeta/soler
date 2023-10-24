@@ -2,13 +2,15 @@ use entities::{token_transfers::Model, tokens::Model as TokenModel};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use super::token::{self};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TokenTransferResp {
     pub transaction_hash: String,
     pub log_index: i32,
     pub from: String,
     pub to: String,
-    pub token: String,
+    pub token: token::TokenResp,
     pub block_number: Option<i32>,
     pub block_hash: String,
     pub total: Vec<TotalTokenDetail>,
@@ -44,10 +46,7 @@ pub fn decode_token_transfer(token: &TokenModel, token_transfer: &Model) -> Vec<
             hex::encode(token_transfer.from_address_hash.clone())
         ),
         to: format!("0x{}", hex::encode(token_transfer.to_address_hash.clone())),
-        token: format!(
-            "0x{}",
-            hex::encode(token_transfer.token_contract_address_hash.clone())
-        ),
+        token: token::conv_model_to_resp(token),
         block_number: token_transfer.block_number,
         block_hash: format!("0x{}", hex::encode(token_transfer.block_hash.clone())),
         total: vec![],
