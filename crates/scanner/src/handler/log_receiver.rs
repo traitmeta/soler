@@ -1,5 +1,5 @@
-use crate::repo::log_receiver_chain::{Mutation, Query};
 use entities::log_receiver_chain::Model as ScannerBlockModel;
+use repo::dal::log_receiver_chain::{Mutation, Query};
 use sea_orm::DbConn;
 
 pub async fn log_scanner_current_height(
