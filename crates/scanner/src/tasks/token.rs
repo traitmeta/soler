@@ -8,6 +8,8 @@ use sea_orm::{prelude::Decimal, DbConn};
 use std::time::Duration;
 use tokio::time::interval;
 
+// TODO all metadata ok than update skip metadata
+// TODO and now, catalog will be set ture at once call metadata
 pub async fn handle_erc20_metadata(rpc_url: &str, conn: &DbConn) -> Result<(), Error> {
     let erc20_call = IERC20Call::new(rpc_url);
     match Query::filter_uncataloged(conn, consts::ERC20).await {
