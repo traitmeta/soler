@@ -1,19 +1,23 @@
-use api::{handlers::state, router};
+use api::{biz::state, router};
 use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
 use repo::orm::conn::connect_db;
 use std::net::SocketAddr;
 use tracing::info;
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 // RUST_LOG=debug cargo run --package api
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "app=debug".into()),
-        ))
-        .with(fmt::layer())
+    let file_appender = tracing_appender::rolling::daily("logs", "api.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let formatting_layer = fmt::layer().pretty().with_writer(std::io::stderr);
+    let file_layer = fmt::layer().with_ansi(false).with_writer(non_blocking);
+    tracing_subscriber::Registry::default()
+        .with(env_filter)
+        .with(formatting_layer)
+        .with(file_layer)
         .init();
 
     let args = Args::parse();

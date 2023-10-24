@@ -25,6 +25,7 @@ chains:
   SUI:
     url: https://fullnode.testnet.sui.io:443
     chain_name: SUI_test
+    interval: 3
 
 whitelist:
   - 0x001
