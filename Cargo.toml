@@ -6,7 +6,7 @@ members = [
   "crates/migration",
   "crates/repo",
   "crates/scanner",
-  "chain",
+  "crates/chain-tools",
   "meta/kafka",
   "meta/rpc",
   "mq",
