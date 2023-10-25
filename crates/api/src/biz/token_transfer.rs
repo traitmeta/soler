@@ -1,8 +1,8 @@
 use entities::{token_transfers::Model, tokens::Model as TokenModel};
-use serde::{Deserialize, Serialize};
+use repo::dal::token_transfer::Query as DbQuery;
 use std::collections::HashMap;
 
-use super::token::{self};
+use super::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TokenTransferResp {
@@ -89,4 +89,38 @@ pub fn decode_token_transfer(token: &TokenModel, token_transfer: &Model) -> Vec<
 
     token_transfers.push(resp);
     token_transfers
+}
+
+pub async fn get_token_transfers(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<BaseResponse<Vec<TokenTransferResp>>>, AppError> {
+    let conn = get_conn(&state);
+
+    if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
+        return Err(AppError::from(CoreError::Param(id)));
+    }
+
+    let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
+    let res = DbQuery::find_by_tx(conn, hash)
+        .await
+        .map_err(AppError::from)?;
+
+    let mut token_contracts = vec![];
+    for token in res.iter() {
+        token_contracts.push(token.token_contract_address_hash.clone());
+    }
+
+    let tokens = repo::dal::token::Query::find_by_contract_address(conn, token_contracts)
+        .await
+        .map_err(AppError::from)?;
+
+    let tokens_map = tokens
+        .iter()
+        .map(|t| (t.contract_address_hash.clone(), t.clone()))
+        .collect::<HashMap<Vec<u8>, TokenModel>>();
+
+    Ok(Json(BaseResponse::success(decode_token_transfers(
+        tokens_map, &res,
+    ))))
 }

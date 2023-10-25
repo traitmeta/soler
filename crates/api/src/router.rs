@@ -6,6 +6,8 @@ use axum::{
 use std::{net::SocketAddr, sync::Arc};
 use tokio::signal;
 
+use crate::biz::token_transfer;
+
 use super::{
     auth::jwt,
     biz::{block, err, event, helth, response, state, transaction, user},
@@ -18,10 +20,13 @@ pub async fn route(addr: SocketAddr, app_state: state::AppState) {
         .route("/info", get(helth::info))
         .route("/user/create", post(user::create_user))
         .route("/block/:id", get(block::get_block))
+        .route("/txs", post(transaction::gets_transaction))
         .route("/tx/:id", get(transaction::get_transaction))
         .route("/tx/:id/logs", get(event::get_transaction_logs))
-        .route("/txs", post(transaction::gets_transaction))
-        .route("/err", get(err::handler))
+        .route(
+            "/tx/:id/token-transfers",
+            get(token_transfer::get_token_transfers),
+        )
         .route("/protected", get(jwt::protected))
         .route("/authorize/bearer", post(jwt::authorize))
         .route("/authorize/api", post(jwt::authorize_api_token))
