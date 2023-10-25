@@ -110,7 +110,7 @@ pub async fn get_token_transfers(
         token_contracts.push(token.token_contract_address_hash.clone());
     }
 
-    let tokens = repo::dal::token::Query::find_by_contract_address(conn, token_contracts)
+    let tokens = repo::dal::token::Query::find_by_contract_addresses(conn, token_contracts)
         .await
         .map_err(AppError::from)?;
 
