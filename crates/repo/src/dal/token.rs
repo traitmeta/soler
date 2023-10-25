@@ -14,14 +14,14 @@ impl Query {
             .await
     }
 
-    pub async fn find_by_hash(db: &DbConn, hash: &str) -> Result<Option<Model>, DbErr> {
+    pub async fn find_by_hash(db: &DbConn, hash: Vec<u8>) -> Result<Option<Model>, DbErr> {
         Entity::find()
-            .filter(Column::ContractAddressHash.eq(hash.as_bytes().to_vec()))
+            .filter(Column::ContractAddressHash.eq(hash))
             .one(db)
             .await
     }
 
-    pub async fn find_by_contract_address(
+    pub async fn find_by_contract_addresses(
         db: &DbConn,
         addresses: Vec<Vec<u8>>,
     ) -> Result<Vec<Model>, DbErr> {
@@ -170,6 +170,7 @@ mod tests {
     use ::entities::tokens::Model;
     use chrono::Utc;
     use config::db::DB;
+    use ethers::types::H160;
     use sea_orm::prelude::Decimal;
 
     use super::{Mutation, Query};
@@ -230,11 +231,11 @@ mod tests {
             .unwrap();
 
         let conn = rt.block_on(connect_db(db_cfg)).unwrap();
+        let addr: H160 = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+            .parse()
+            .unwrap();
         let mut db_model = rt
-            .block_on(Query::find_by_hash(
-                &conn,
-                "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-            ))
+            .block_on(Query::find_by_hash(&conn, addr.as_bytes().to_vec()))
             .unwrap()
             .unwrap();
 
