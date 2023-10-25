@@ -1,16 +1,7 @@
-use super::{
-    err::{AppError, CoreError},
-    response::BaseResponse,
-    state::{get_conn, AppState},
-    Json,
-};
-use axum::{extract::Path, Extension};
 use entities::logs::Model;
-use hex::FromHex;
 use repo::dal::event::Query as DbQuery;
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
+use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LogResp {
     pub data: String,

@@ -1,6 +1,5 @@
 use entities::{token_transfers::Model, tokens::Model as TokenModel};
 use repo::dal::token_transfer::Query as DbQuery;
-use std::collections::HashMap;
 
 use super::*;
 
