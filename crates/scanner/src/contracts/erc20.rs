@@ -174,4 +174,28 @@ mod tests {
             Err(err) => println!("{}", err.to_string()),
         };
     }
+
+    #[test]
+    #[ignore]
+    fn test_metadata() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let contract = IERC20Call::new("https://eth.llamarpc.com");
+        match rt.block_on(IERC20Call::metadata(&contract, WETH_ADDRESS)) {
+            Ok((name, symbols, decimals, total_supply)) => {
+                println!(
+                    "name={}, symbols={}, decimals={}, total_supply={}",
+                    name, symbols, decimals, total_supply
+                );
+                assert!(name == "Wrapped Ether".to_string(),);
+                assert!(symbols == "WETH".to_string());
+                assert!(decimals == 18);
+                assert!(!total_supply.is_zero())
+            }
+            Err(err) => println!("{}", err.to_string()),
+        };
+        // 0xEC3a9c7d612E0E0326e70D97c9310A5f57f9Af9E
+    }
 }
