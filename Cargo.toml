@@ -10,6 +10,7 @@ members = [
   "meta/kafka",
   "meta/rpc",
   "mq",
+  "learn/mastering"
 ]
 
 resolver = "2"

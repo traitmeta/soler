@@ -14,7 +14,7 @@ pub fn xor(a: u8, b: u8) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use crate::logic_gates::{and, xor};
+    use super::{and, xor};
 
     #[test]
     fn test_and() {
