@@ -1,16 +1,16 @@
 use std::usize;
-struct Primes {
+pub struct Primes {
     limit: usize,
 }
 
 impl Primes {
-    fn iter(&self) -> PrimesIter {
+    pub fn iter(&self) -> PrimesIter {
         PrimesIter {
             index: 2,
             computed: compute_primes(self.limit),
         }
     }
-    fn new(limit: usize) -> Primes {
+    pub fn new(limit: usize) -> Primes {
         Primes { limit }
     }
 }
@@ -30,7 +30,7 @@ fn compute_primes(limit: usize) -> Vec<bool> {
     sieve
 }
 
-struct PrimesIter {
+pub struct PrimesIter {
     index: usize,
     computed: Vec<bool>,
 }
@@ -50,6 +50,7 @@ impl Iterator for PrimesIter {
     }
 }
 
+#[allow(dead_code)]
 fn useage() -> Vec<usize> {
     let primes = Primes::new(100);
     let mut res: Vec<usize> = vec![];

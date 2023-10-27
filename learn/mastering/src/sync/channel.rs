@@ -2,6 +2,7 @@ use std::sync::mpsc::{self, channel};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 
+#[allow(dead_code)]
 fn run_mpsc_sync_channel() {
     let (tx, rx) = mpsc::sync_channel(1);
     let tx_clone = tx.clone();
@@ -23,12 +24,12 @@ fn run_mpsc_sync_channel() {
 }
 
 // 出现了死锁，注释其中一个joinHandler，可以解锁
-
+#[allow(dead_code)]
 fn run_mpsc_multi_tx() {
     let (tx, rx) = channel();
     let mut childs = vec![];
 
-    let join_handle = thread::spawn(move || {
+    let _join_handle = thread::spawn(move || {
         // loop{
         //     match rx.recv() {
         //         Ok(n) => println!("Received {}", n),
@@ -56,11 +57,12 @@ fn run_mpsc_multi_tx() {
     // join_handle.join().unwrap();
 }
 
+#[allow(dead_code)]
 fn run_mutex() {
     let vec = Arc::new(Mutex::new(vec![]));
     let mut childs = vec![];
     for i in 0..5 {
-        let mut v = vec.clone();
+        let v = vec.clone();
         let t = thread::spawn(move || {
             let mut v = v.lock().unwrap();
             v.push(i);
@@ -74,6 +76,7 @@ fn run_mutex() {
 }
 
 // RwLock on some systems such as Linux, suffers from the writer starvation problem.
+#[allow(dead_code)]
 fn run_rwlock() {
     let m = RwLock::new(5);
     let c = thread::spawn(move || {

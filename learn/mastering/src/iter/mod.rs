@@ -1,1 +1,1 @@
-pub mod iter;
+pub mod primes;

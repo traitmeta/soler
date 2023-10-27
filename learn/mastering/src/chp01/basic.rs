@@ -1,6 +1,6 @@
 use std::env;
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub(crate) fn closures() {
     let doubler = |x| x * 2;
     let value = 5;
@@ -16,9 +16,9 @@ pub(crate) fn closures() {
     println!("Result form closure: {}", some_number)
 }
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 fn basic() {
-    let name = env::args().skip(1).next();
+    let name = env::args().nth(1);
     match name {
         Some(n) => println!("Hi there ! {}", n),
         None => panic!("Didn't reveive any name ?"),
@@ -37,22 +37,11 @@ fn basic() {
     let some_number = big_closure(1, 2);
     println!("Result form closure: {}", some_number);
 
-    let result = if 1 == 2 {
-        "Nothing makes sense";
-    } else {
-        "Sanity reigns";
+    let mut result = "Sanity reigns";
+    if 1 == 2 {
+        result = "Nothing makes sense";
     };
     print!("Result of computation: {:?}", result);
-}
-
-#[derive(Debug)]
-struct Items(u32);
-
-fn assert_items() {
-    let items = Items(2);
-    let items_ptr = &items;
-    let ref items_ref = items;
-    assert_eq!(items_ptr as *const Items, items_ref as *const Items);
 }
 
 #[cfg(test)]

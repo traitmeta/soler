@@ -29,7 +29,7 @@ impl WordCounter {
         }
     }
 }
-
+#[allow(dead_code)]
 fn count_word() {
     let arguments: Vec<String> = env::args().collect();
     let filename = &arguments[1];

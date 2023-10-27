@@ -1,4 +1,4 @@
-use mastering::logic_gates::logic_gates::{and, xor};
+use mastering::logic::gate::{and, xor};
 
 pub type Sum = u8;
 pub type Carry = u8;
