@@ -52,17 +52,6 @@ async fn main() {
         sync_db_cfg,
     ));
 
-    // let mut height = 0;
-    // if let Some(db_height) = log_scanner_current_height(&conn, "eth:5", "eth").await {
-    //     height = db_height + 1;
-    // }
-
-    // let res = Mutation::update_height_by_task_name(&conn, "eth:5", height).await;
-    // match res {
-    //     Err(e) => tracing::debug!("hanlder height {} failed,err:{}", height, e),
-    //     _ => tracing::debug!("hanlded height: {}", height),
-    // }
-
     block_task.await.unwrap();
     token_task.await.unwrap();
 }
