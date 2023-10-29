@@ -16,8 +16,10 @@ The explorer for block;
 
 ## Project dir
 
+all core work is in cates
+
 1. `scanner` is indexer for block info
 2. `entities` is table of DB model and use sea-orm
 3. `repo` is dal for upsert and query db
-4. `app` is api with auxm
+4. `api` is api with auxm
 5. `config` is common configuration
