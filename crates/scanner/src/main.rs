@@ -2,6 +2,7 @@ use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
 use repo::orm::conn::connect_db;
 use scanner::{
+    cache::block_number,
     evms::eth::EthCli,
     handler::block::init_block,
     tasks::{block::sync_task, token::strat_token_metadata_task},
@@ -39,6 +40,7 @@ async fn main() {
 
     let sync_db_cfg = db_cfg.clone();
     let block_task = tokio::spawn(sync_task(rpc_url.clone().to_string(), sync_db_cfg));
+    // let block_number_cache = block_number::Cache::new();
 
     tracing::debug!(
         "end chain sync: {:?}",

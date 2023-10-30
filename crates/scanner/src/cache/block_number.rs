@@ -1,7 +1,9 @@
+use anyhow::anyhow;
 use repo::dal::block::Query;
 use sea_orm::DbConn;
 use std::cmp::{max, min};
 
+#[derive(Debug)]
 pub enum CacheKey {
     Min,
     Max,
@@ -13,7 +15,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Cache {
             min: None,
             max: None,
@@ -28,11 +30,11 @@ impl Cache {
         self.min
     }
 
-    fn handle_update(
+    pub fn handle_update(
         &mut self,
         key: CacheKey,
-        old_value: Option<u64>,
-        new_value: u64,
+        old_value: Option<i64>,
+        new_value: i64,
     ) -> Result<(), String> {
         match key {
             CacheKey::Min => {
@@ -49,26 +51,26 @@ impl Cache {
                 });
                 Ok(())
             }
-            _ => Err(format!("Invalid key: {}", key)),
+            _ => Err(format!("Invalid key: {:?}", key)),
         }
     }
 
-    async fn handle_fallback(
+    pub async fn handle_fallback(
         &self,
         key: CacheKey,
         conn: &DbConn,
         enabled: bool,
-    ) -> Result<i64, String> {
+    ) -> anyhow::Result<i64> {
         let result = match key {
             CacheKey::Min => Query::find_min_number(conn).await,
             CacheKey::Max => Query::find_max_number(conn).await,
-            _ => return Err(format!("Invalid key: {}", key)),
+            _ => return Err(anyhow!("Invalid key: {:?}", key)),
         };
 
         if enabled {
-            Ok(result)
+            Ok(result?)
         } else {
-            Err(result)
+            Err(anyhow!("unenbaled"))
         }
     }
 }
