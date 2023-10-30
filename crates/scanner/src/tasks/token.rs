@@ -9,22 +9,51 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
 
-// TODO all metadata ok than update skip metadata
-// TODO and now, catalog will be set ture at once call metadata
+// all metadata ok than update skip metadata
+// and now, catalog will be set ture at once call metadata
 pub async fn handle_erc20_metadata(rpc_url: &str, conn: &DbConn) -> Result<(), Error> {
     let erc20_call = IERC20Call::new(rpc_url);
     match Query::filter_uncataloged(conn, consts::ERC20).await {
         Ok(models) => {
             for mut model in models.into_iter() {
                 let contract_addr = format!("0x{}", hex::encode(&model.contract_address_hash));
-                if let Ok((name, symbol, decimals, total_supply)) =
-                    erc20_call.metadata(contract_addr.as_str()).await
-                {
-                    model.name = Some(name);
-                    model.symbol = Some(symbol);
-                    model.decimals = Some(Decimal::new(decimals as i64, 0));
-                    model.total_supply = Decimal::from_i128(total_supply.as_u128() as i128);
-                    model.cataloged = Some(true);
+                match erc20_call.metadata(contract_addr.as_str()).await {
+                    Ok((name, symbol, decimals, total_supply)) => {
+                        model.name = Some(name);
+                        model.symbol = Some(symbol);
+                        model.decimals = Some(Decimal::new(decimals as i64, 0));
+                        model.total_supply = Decimal::from_i128(total_supply.as_u128() as i128);
+                        model.skip_metadata = Some(true);
+                    }
+                    Err(e) => {
+                        let mut err_count = 0;
+                        match erc20_call.name(contract_addr.as_str()).await {
+                            Ok(name) => model.name = Some(name),
+                            Err(_) => err_count += 1,
+                        };
+                        match erc20_call.symbol(contract_addr.as_str()).await {
+                            Ok(symbol) => model.symbol = Some(symbol),
+                            Err(_) => err_count += 1,
+                        };
+                        match erc20_call.decimals(contract_addr.as_str()).await {
+                            Ok(decimals) => model.decimals = Some(Decimal::new(decimals as i64, 0)),
+                            Err(_) => err_count += 1,
+                        };
+                        match erc20_call.total_supply(contract_addr.as_str()).await {
+                            Ok(total_supply) => {
+                                model.total_supply =
+                                    Decimal::from_i128(total_supply.as_u128() as i128)
+                            }
+                            Err(_) => err_count += 1,
+                        };
+                        model.cataloged = Some(true);
+                        if err_count >= 4 {
+                            return Err(anyhow!(
+                                "Handler Erc20 metadata all fail: {:?}",
+                                e.to_string()
+                            ));
+                        }
+                    }
                 }
 
                 if let Err(e) = Mutation::update_metadata(conn, &model).await {
