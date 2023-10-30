@@ -3,14 +3,14 @@ use sea_orm::DbConn;
 use std::collections::HashMap;
 
 #[derive(Clone)]
-pub struct ScannerContract {
+pub struct LogReceiverContract {
     pub chain_name: String,
     pub chain_id: u32,
     pub address: String,
     pub event_sign: String,
 }
 
-impl ScannerContract {
+impl LogReceiverContract {
     pub fn cache_key(&self) -> String {
         format!(
             "{}-{}-{}-{}",
@@ -20,7 +20,7 @@ impl ScannerContract {
 }
 
 pub struct ContractAddrCache {
-    contact_map: HashMap<String, ScannerContract>,
+    contact_map: HashMap<String, LogReceiverContract>,
 }
 
 impl Default for ContractAddrCache {
@@ -36,11 +36,11 @@ impl ContractAddrCache {
         }
     }
 
-    pub fn insert(&mut self, k: String, v: ScannerContract) {
+    pub fn insert(&mut self, k: String, v: LogReceiverContract) {
         self.contact_map.insert(k, v);
     }
 
-    pub fn find(&self, k: String) -> ScannerContract {
+    pub fn find(&self, k: String) -> LogReceiverContract {
         let res = self.contact_map.get(&k).unwrap();
         res.clone()
     }
@@ -57,7 +57,7 @@ async fn update_contract_cache(conn: &DbConn) -> ContractAddrCache {
         .await
         .unwrap();
     for v in contracts {
-        let data = ScannerContract {
+        let data = LogReceiverContract {
             chain_name: v.chain_name,
             chain_id: v.chain_id,
             address: v.address,

@@ -30,3 +30,16 @@ pub enum ScannerError {
     #[error("NewBigDecimal Error: source {0}")]
     NewBigDecimal(String),
 }
+
+#[derive(Error, Debug)]
+pub enum FetchError {
+    #[error("token not found in db")]
+    TokenNotFound,
+
+    #[error("Update Total Supply Error: source {src}, err {err}")]
+    TokenUpdateSupply {
+        src: String,
+        #[source]
+        err: DbErr,
+    },
+}

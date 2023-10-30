@@ -136,7 +136,7 @@ impl Mutation {
             inserted_at: Unchanged(form_data.inserted_at),
             updated_at: Set(Utc::now().naive_utc()),
             holder_count: Unchanged(form_data.holder_count),
-            skip_metadata: Unchanged(form_data.skip_metadata),
+            skip_metadata: Set(form_data.skip_metadata),
             fiat_value: Unchanged(form_data.fiat_value),
             circulating_market_cap: Unchanged(form_data.circulating_market_cap),
             total_supply_updated_at_block: Unchanged(form_data.total_supply_updated_at_block),

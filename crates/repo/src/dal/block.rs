@@ -23,6 +23,32 @@ impl Query {
             .await
     }
 
+    pub async fn find_max_number(db: &DbConn) -> Result<i64, DbErr> {
+        let res = Entity::find()
+            .filter(Column::Consensus.eq(true))
+            .order_by_desc(Column::Number)
+            .one(db)
+            .await?;
+
+        match res {
+            Some(m) => Ok(m.number),
+            None => Err(DbErr::RecordNotFound("max block number".to_string())),
+        }
+    }
+
+    pub async fn find_min_number(db: &DbConn) -> Result<i64, DbErr> {
+        let res = Entity::find()
+            .filter(Column::Consensus.eq(true))
+            .order_by_asc(Column::Number)
+            .one(db)
+            .await?;
+
+        match res {
+            Some(m) => Ok(m.number),
+            None => Err(DbErr::RecordNotFound("min block number".to_string())),
+        }
+    }
+
     // If ok, returns (scanner height models, num pages).
     pub async fn find_in_page(
         db: &DbConn,

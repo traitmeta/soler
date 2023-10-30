@@ -39,6 +39,7 @@ async fn main() {
 
     let sync_db_cfg = db_cfg.clone();
     let block_task = tokio::spawn(sync_task(rpc_url.clone().to_string(), sync_db_cfg));
+    // let block_number_cache = block_number::Cache::new();
 
     tracing::debug!(
         "end chain sync: {:?}",

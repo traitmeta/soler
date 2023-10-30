@@ -65,7 +65,7 @@ impl IERC20Call {
         let contract = IERC20::new(address, client);
         match contract.name().call().await {
             Ok(name) => Ok(name),
-            Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
+            Err(err) => Err(anyhow!("Erc20 get user name: {}", err.to_string())),
         }
     }
 
@@ -75,7 +75,7 @@ impl IERC20Call {
         let contract = IERC20::new(address, client);
         match contract.symbol().call().await {
             Ok(symbol) => Ok(symbol),
-            Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
+            Err(err) => Err(anyhow!("Erc20 get user symbol: {}", err.to_string())),
         }
     }
 
@@ -85,7 +85,7 @@ impl IERC20Call {
         let contract = IERC20::new(address, client);
         match contract.decimals().call().await {
             Ok(decimals) => Ok(decimals),
-            Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
+            Err(err) => Err(anyhow!("Erc20 get user decimals: {}", err.to_string())),
         }
     }
 
@@ -196,6 +196,20 @@ mod tests {
             }
             Err(err) => println!("{}", err.to_string()),
         };
-        // 0xEC3a9c7d612E0E0326e70D97c9310A5f57f9Af9E
+
+        let erc721 = "0xEC3a9c7d612E0E0326e70D97c9310A5f57f9Af9E";
+        match rt.block_on(IERC20Call::metadata(&contract, erc721)) {
+            Ok((name, symbols, decimals, total_supply)) => {
+                println!(
+                    "name={}, symbols={}, decimals={}, total_supply={}",
+                    name, symbols, decimals, total_supply
+                );
+                // assert!(name == "Wrapped Ether".to_string(),);
+                // assert!(symbols == "WETH".to_string());
+                // assert!(decimals == 18);
+                // assert!(!total_supply.is_zero())
+            }
+            Err(err) => println!("{}", err.to_string()),
+        };
     }
 }
