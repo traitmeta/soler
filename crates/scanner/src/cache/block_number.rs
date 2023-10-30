@@ -14,6 +14,12 @@ pub struct Cache {
     max: Option<i64>,
 }
 
+impl Default for Cache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Cache {
     pub fn new() -> Self {
         Cache {
@@ -51,7 +57,6 @@ impl Cache {
                 });
                 Ok(())
             }
-            _ => Err(format!("Invalid key: {:?}", key)),
         }
     }
 
@@ -64,7 +69,6 @@ impl Cache {
         let result = match key {
             CacheKey::Min => Query::find_min_number(conn).await,
             CacheKey::Max => Query::find_max_number(conn).await,
-            _ => return Err(anyhow!("Invalid key: {:?}", key)),
         };
 
         if enabled {

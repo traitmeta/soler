@@ -2,7 +2,6 @@ use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
 use repo::orm::conn::connect_db;
 use scanner::{
-    cache::block_number,
     evms::eth::EthCli,
     handler::block::init_block,
     tasks::{block::sync_task, token::strat_token_metadata_task},

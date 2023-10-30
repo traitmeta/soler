@@ -1,7 +1,6 @@
-use std::sync::mpsc::{Receiver, Sender};
-
 use sea_orm::strum::Display;
 use serde::{Deserialize, Serialize};
+use std::sync::mpsc::Sender;
 
 #[derive(Debug, Display, Clone, Serialize, Deserialize)]
 pub enum BroadcastType {
@@ -53,12 +52,7 @@ impl Publisher {
     }
 
     fn send_data(&self, event_type: &str, broadcast_type: BroadcastType, event_data: &str) {
-        let message = format!(
-            "{} {} {}",
-            event_type,
-            broadcast_type.to_string(),
-            event_data
-        );
+        let message = format!("{} {} {}", event_type, broadcast_type, event_data);
         self.sender.send(message).unwrap();
     }
 }
