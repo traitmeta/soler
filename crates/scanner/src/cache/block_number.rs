@@ -8,8 +8,8 @@ pub enum CacheKey {
 }
 
 pub struct Cache {
-    min: Option<u64>,
-    max: Option<u64>,
+    min: Option<i64>,
+    max: Option<i64>,
 }
 
 impl Cache {
@@ -20,11 +20,11 @@ impl Cache {
         }
     }
 
-    pub fn get_max(&self) -> Option<u64> {
+    pub fn get_max(&self) -> Option<i64> {
         self.max
     }
 
-    pub fn get_min(&self) -> Option<u64> {
+    pub fn get_min(&self) -> Option<i64> {
         self.min
     }
 
