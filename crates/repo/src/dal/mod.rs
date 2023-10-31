@@ -5,6 +5,7 @@ pub mod internal_transaction;
 pub mod log_receiver_chain;
 pub mod log_receiver_contract;
 pub mod token;
+pub mod token_balance;
 pub mod token_transfer;
 pub mod transaction;
 pub mod user;
