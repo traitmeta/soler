@@ -367,7 +367,7 @@ fn defualt_model(log: &Log) -> (TokenModel, TokenTransferModel) {
         token_contract_address_hash: log.address.as_bytes().to_vec(),
         inserted_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
-        block_number: log.block_number.map(|number| number.as_u32() as i32),
+        block_number: log.block_number.map(|number| number.as_u64() as i64),
         block_hash: log
             .block_hash
             .map_or(vec![], |hash| hash.as_bytes().to_vec()),

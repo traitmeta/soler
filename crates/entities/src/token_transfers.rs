@@ -25,7 +25,7 @@ pub struct Model {
     pub token_contract_address_hash: Vec<u8>,
     pub inserted_at: DateTime,
     pub updated_at: DateTime,
-    pub block_number: Option<i32>,
+    pub block_number: Option<i64>,
     #[sea_orm(
         primary_key,
         auto_increment = false,
