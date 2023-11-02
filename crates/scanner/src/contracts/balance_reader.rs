@@ -25,11 +25,11 @@ abigen!(
 );
 
 pub struct TokenBalanceRequest {
-    token_contract_address_hash: String,
-    address_hash: String,
-    block_number: u64,
-    token_id: Option<U256>,
-    token_type: consts::TokenKind,
+    pub token_contract_address_hash: String,
+    pub address_hash: String,
+    pub block_number: i64,
+    pub token_id: Option<U256>,
+    pub token_type: consts::TokenKind,
 }
 
 pub struct BalanceReader {
@@ -39,7 +39,7 @@ pub struct BalanceReader {
 }
 
 impl BalanceReader {
-    fn new(rpc_url: &str) -> Self {
+    pub fn new(rpc_url: &str) -> Self {
         let balance_function_abi = vec![HashMap::new()];
         let erc1155_balance_function_abi = vec![HashMap::new()];
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -51,7 +51,7 @@ impl BalanceReader {
         }
     }
 
-    async fn get_balances_of(
+    pub async fn get_balances_of(
         &self,
         token_balance_requests: Vec<TokenBalanceRequest>,
         _abi: Vec<HashMap<String, serde_json::Value>>,
@@ -73,7 +73,7 @@ impl BalanceReader {
         let client = Arc::new(&self.provider);
         let address: Address = req.token_contract_address_hash.parse().unwrap();
         match req.token_type {
-            consts::TokenKind::ERC20(_) => {
+            consts::TokenKind::ERC20 => {
                 let contract = TokenBalance::new(address, client);
                 let user: H160 = req.address_hash.parse().unwrap();
                 return match contract.balance_of(user).call().await {

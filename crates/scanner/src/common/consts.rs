@@ -5,8 +5,8 @@ pub const WETH: &str = "WTH";
 pub const UNKNOWN: &str = "Unknown";
 
 pub enum TokenKind {
-    ERC20(String),
-    ERC721(String),
+    ERC20,
+    ERC721,
     ERC1155,
     None,
 }
