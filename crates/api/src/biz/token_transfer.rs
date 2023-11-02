@@ -10,7 +10,7 @@ pub struct TokenTransferResp {
     pub from: String,
     pub to: String,
     pub token: token::TokenResp,
-    pub block_number: Option<i32>,
+    pub block_number: Option<i64>,
     pub block_hash: String,
     pub total: Vec<TotalTokenDetail>,
 }
