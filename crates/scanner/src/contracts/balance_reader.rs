@@ -1,5 +1,5 @@
+use std::collections::HashMap;
 use std::sync::Arc;
-use std::{any, collections::HashMap};
 
 use anyhow::{anyhow, Result};
 use ethers::{
@@ -33,22 +33,14 @@ pub struct TokenBalanceRequest {
 }
 
 pub struct BalanceReader {
-    balance_function_abi: Vec<HashMap<String, serde_json::Value>>,
-    erc1155_balance_function_abi: Vec<HashMap<String, serde_json::Value>>,
     provider: Provider<Http>,
 }
 
 impl BalanceReader {
     pub fn new(rpc_url: &str) -> Self {
-        let balance_function_abi = vec![HashMap::new()];
-        let erc1155_balance_function_abi = vec![HashMap::new()];
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
-        BalanceReader {
-            provider,
-            balance_function_abi,
-            erc1155_balance_function_abi,
-        }
+        BalanceReader { provider }
     }
 
     pub async fn get_balances_of(
