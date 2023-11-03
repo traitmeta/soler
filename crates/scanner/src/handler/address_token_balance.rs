@@ -14,47 +14,47 @@ pub fn process_address_token_balances(
 ) -> Vec<AddressTokenBalanceModel> {
     let mut resp = vec![];
     for token in token_transfers.iter() {
-        let token_type = token_map
+        let token_type = &token_map
             .get(&token.token_contract_address_hash)
             .unwrap()
             .r#type;
 
-        if filter_burn_address(&token_type, token.to_address_hash) {
+        if filter_burn_address(token_type, token.to_address_hash.clone()) {
             continue;
         }
 
         let mut from_model = AddressTokenBalanceModel {
-            address_hash: token.from_address_hash,
+            address_hash: token.from_address_hash.clone(),
             block_number: token.block_number.unwrap_or(0),
-            token_contract_address_hash: token.token_contract_address_hash,
+            token_contract_address_hash: token.token_contract_address_hash.clone(),
             value: None,
             value_fetched_at: None,
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
             token_id: None,
-            token_type: Some(token_type),
+            token_type: Some(token_type.to_string()),
             id: 0,
         };
 
         let mut to_model = from_model.clone();
-        to_model.address_hash = token.to_address_hash;
+        to_model.address_hash = token.to_address_hash.clone();
 
-        if let Some(token_ids) = token.token_ids {
-            for token_id in token_ids.iter() {
+        if let Some(token_ids) = &token.token_ids {
+            for token_id in token_ids {
                 let mut from_model_tmp = from_model.clone();
-                from_model_tmp.token_id = Some(*token_id);
+                from_model_tmp.token_id = Some(token_id.clone());
                 resp.push(from_model_tmp);
 
                 let mut to_model_tmp = to_model.clone();
-                to_model_tmp.token_id = Some(*token_id);
+                to_model_tmp.token_id = Some(token_id.clone());
                 resp.push(to_model_tmp);
             }
             continue;
         }
 
-        if let Some(token_id) = token.token_id {
-            from_model.token_id = Some(token_id);
-            to_model.token_id = Some(token_id);
+        if let Some(token_id) = token.token_id.as_ref() {
+            from_model.token_id = Some(token_id.clone());
+            to_model.token_id = Some(token_id.clone());
         }
 
         resp.push(from_model);
