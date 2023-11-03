@@ -151,7 +151,7 @@ impl TokenBalanceFetcher {
 
     fn format_and_filter_token_balance_params(
         &self,
-        token_balances_params: &Vec<HashMap<String, String>>,
+        token_balances_params: &[HashMap<String, String>],
     ) -> Vec<HashMap<String, String>> {
         token_balances_params
             .iter()
@@ -252,24 +252,29 @@ impl BufferedTask for TokenBalanceFetcher {
     }
 }
 
-fn main() {
-    let token_balances = vec![
-        TokenBalance {
-            token_contract_address_hash: "token_contract_1".to_string(),
-            address_hash: "address_1".to_string(),
-            block_number: 1,
-            token_type: "token_type_1".to_string(),
-            token_id: 1,
-        },
-        TokenBalance {
-            token_contract_address_hash: "token_contract_2".to_string(),
-            address_hash: "address_2".to_string(),
-            block_number: 2,
-            token_type: "token_type_2".to_string(),
-            token_id: 2,
-        },
-    ];
+#[cfg(tests)]
+mod test {
+    #[test]
+    #[ignore]
+    fn test_fetcher() {
+        let token_balances = vec![
+            TokenBalance {
+                token_contract_address_hash: "token_contract_1".to_string(),
+                address_hash: "address_1".to_string(),
+                block_number: 1,
+                token_type: "token_type_1".to_string(),
+                token_id: 1,
+            },
+            TokenBalance {
+                token_contract_address_hash: "token_contract_2".to_string(),
+                address_hash: "address_2".to_string(),
+                block_number: 2,
+                token_type: "token_type_2".to_string(),
+                token_id: 2,
+            },
+        ];
 
-    let fetcher = TokenBalanceFetcher::new();
-    fetcher.async_fetch(token_balances);
+        let fetcher = TokenBalanceFetcher::new();
+        fetcher.async_fetch(token_balances);
+    }
 }

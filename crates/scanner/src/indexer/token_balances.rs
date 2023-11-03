@@ -70,15 +70,12 @@ pub async fn fetch_token_balances_from_blockchain(
 
 fn get_token_balance_key(token_balance: &TokenBalanceModel) -> String {
     format!(
-        "{}_{}_{}",
-        format!(
-            "0x{}",
-            hex::encode(token_balance.token_contract_address_hash.clone())
-        ),
+        "0x{}_{}_0x{}",
+        hex::encode(token_balance.token_contract_address_hash.clone()),
         token_balance
             .token_id
             .as_ref()
             .unwrap_or(&BigDecimal::from(0)),
-        format!("0x{}", hex::encode(token_balance.address_hash.clone())),
+        hex::encode(token_balance.address_hash.clone()),
     )
 }

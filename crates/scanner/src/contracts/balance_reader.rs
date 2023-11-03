@@ -76,7 +76,7 @@ impl BalanceReader {
             consts::TokenKind::ERC20 => {
                 let contract = TokenBalance::new(address, client);
                 let user: H160 = req.address_hash.parse().unwrap();
-                return match contract.balance_of(user).call().await {
+                match contract.balance_of(user).call().await {
                     Ok(balance) => Ok(balance),
                     Err(err) => Err(anyhow!(
                         "Erc20 get balance: contract_addr:{}, user:{}, err:{}",
@@ -84,12 +84,12 @@ impl BalanceReader {
                         req.address_hash,
                         err.to_string()
                     )),
-                };
+                }
             }
             consts::TokenKind::ERC1155 => {
                 let contract = Erc1155TokenBalance::new(address, client);
                 let user: H160 = req.address_hash.parse().unwrap();
-                return match contract
+                match contract
                     .balance_of(user, req.token_id.unwrap())
                     .call()
                     .await
@@ -101,9 +101,9 @@ impl BalanceReader {
                         req.address_hash,
                         err.to_string()
                     )),
-                };
+                }
             }
-            _ => return Err(anyhow!("Invalid token type")),
+            _ => Err(anyhow!("Invalid token type")),
         }
     }
 }
