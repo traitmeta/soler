@@ -3,10 +3,11 @@ use std::{collections::HashMap, str::FromStr};
 use anyhow::bail;
 use chrono::{NaiveDateTime, Utc};
 use entities::{
-    addresses::Model as AddressModel, blocks::Model as BlockModel,
-    internal_transactions::Model as InnerTransactionModel, logs::Model as LogModel,
-    token_transfers::Model as TokenTransferModel, tokens::Model as TokenModel,
-    transactions::Model as TransactionModel, withdrawals::Model as WithdrawModel,
+    address_token_balances::Model as AddressTokenBalanceModel, addresses::Model as AddressModel,
+    blocks::Model as BlockModel, internal_transactions::Model as InnerTransactionModel,
+    logs::Model as LogModel, token_transfers::Model as TokenTransferModel,
+    tokens::Model as TokenModel, transactions::Model as TransactionModel,
+    withdrawals::Model as WithdrawModel,
 };
 use ethers::types::{Block, Trace, Transaction, TransactionReceipt, TxHash, H256, U64};
 use repo::dal::{
@@ -40,6 +41,7 @@ pub struct HandlerModels {
     tokens: Vec<TokenModel>,
     token_transfers: Vec<TokenTransferModel>,
     withdraws: Vec<WithdrawModel>,
+    address_token_balance: Vec<AddressTokenBalanceModel>,
 }
 
 pub async fn init_block(cli: EthCli, conn: &DbConn) {
@@ -207,6 +209,19 @@ pub async fn sync_to_db(
         }
     }
 
+    if !handle_models.address_token_balance.is_empty() {
+        match WithdrawalMutation::create(&txn, &handle_models.withdraws).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                bail!(ScannerError::Upsert {
+                    src: "create withdraws".to_string(),
+                    err: e
+                });
+            }
+        }
+    }
+
     txn.commit().await?;
 
     Ok(())
@@ -268,7 +283,11 @@ pub async fn handle_block(
     handle_models.events = handle_block_event(recipts);
     handle_models.inner_tx = handler_inner_transaction(traces);
     handle_models.addresses = process_block_addresses(block, &recipet_map, &trace_map);
-    (handle_models.tokens, handle_models.token_transfers) = handle_token_from_receipts(recipts);
+    (
+        handle_models.tokens,
+        handle_models.token_transfers,
+        handle_models.address_token_balance,
+    ) = handle_token_from_receipts(recipts);
 
     Ok((block_model, handle_models))
 }
