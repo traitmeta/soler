@@ -16,6 +16,7 @@ use repo::dal::{
     event::Mutation as EventMutation,
     internal_transaction::Mutation as InnerTransactionMutation,
     token::Mutation as TokenMutation,
+    token_balance::Mutation as TokenBalanceMutation,
     token_transfer::Mutation as TokenTransferMutation,
     transaction::Mutation as TransactionMutation,
     withdrawal::Mutation as WithdrawalMutation,
@@ -210,12 +211,12 @@ pub async fn sync_to_db(
     }
 
     if !handle_models.address_token_balance.is_empty() {
-        match WithdrawalMutation::create(&txn, &handle_models.withdraws).await {
+        match TokenBalanceMutation::save(&txn, &handle_models.address_token_balance).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
                 bail!(ScannerError::Upsert {
-                    src: "create withdraws".to_string(),
+                    src: "create address token balance".to_string(),
                     err: e
                 });
             }

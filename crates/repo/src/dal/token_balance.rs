@@ -1,5 +1,6 @@
 use ::entities::address_token_balances::{ActiveModel, Column, Entity, Model};
 use entities::address_token_balances::Relation;
+use migration::OnConflict;
 use sea_orm::*;
 
 pub struct Query;
@@ -56,5 +57,36 @@ impl Mutation {
         }
 
         Entity::insert_many(batch).exec(db).await
+    }
+
+    pub async fn save<C>(db: &C, form_datas: &[Model]) -> Result<InsertResult<ActiveModel>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let mut datas = vec![];
+        for form_data in form_datas.iter() {
+            let model = form_data.clone().into_active_model();
+            datas.push(model);
+        }
+
+        if datas.is_empty() {
+            return Err(DbErr::RecordNotInserted);
+        }
+
+        // TODO what's unique index?
+        let res = Entity::insert_many(datas)
+            .on_conflict(
+                OnConflict::column(Column::AddressHash)
+                    .do_nothing()
+                    .to_owned(),
+            )
+            .exec(db)
+            .await;
+
+        if matches!(res, Err(DbErr::RecordNotInserted)) {
+            return Ok(InsertResult { last_insert_id: 0 });
+        }
+
+        res
     }
 }
