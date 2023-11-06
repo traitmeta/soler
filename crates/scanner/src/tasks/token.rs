@@ -22,6 +22,7 @@ pub async fn handle_erc20_metadata(rpc_url: &str, conn: &DbConn) -> Result<(), E
                         model.name = Some(name);
                         model.symbol = Some(symbol);
                         model.decimals = Some(Decimal::new(decimals as i64, 0));
+                        // TODO change to BigDecimal
                         model.total_supply = Decimal::from_i128(total_supply.as_u128() as i128);
                         model.skip_metadata = Some(true);
                     }
