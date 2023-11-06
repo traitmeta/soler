@@ -2,6 +2,7 @@
 
 use sea_orm::entity::prelude::*;
 
+// this model's function used on query transaction state detail. showing change of balance before and after tx.
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "address_token_balances")]
 pub struct Model {

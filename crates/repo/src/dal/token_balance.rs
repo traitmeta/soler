@@ -76,9 +76,20 @@ impl Mutation {
         // TODO what's unique index?
         let res = Entity::insert_many(datas)
             .on_conflict(
-                OnConflict::column(Column::AddressHash)
-                    .do_nothing()
-                    .to_owned(),
+                // CREATE UNIQUE INDEX "fetched_token_balances" ON "public"."address_token_balances" USING btree (
+                //     "address_hash" "pg_catalog"."bytea_ops" ASC NULLS LAST,
+                //     "token_contract_address_hash" "pg_catalog"."bytea_ops" ASC NULLS LAST,
+                //     COALESCE(token_id, '-1'::integer::numeric) "pg_catalog"."numeric_ops" ASC NULLS LAST,
+                //     "block_number" "pg_catalog"."int8_ops" ASC NULLS LAST
+                //   );
+                OnConflict::columns([
+                    Column::AddressHash,
+                    Column::TokenContractAddressHash,
+                    Column::TokenId,
+                    Column::BlockNumber,
+                ])
+                .do_nothing()
+                .to_owned(),
             )
             .exec(db)
             .await;
