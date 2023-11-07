@@ -1,5 +1,5 @@
-use ::entities::address_token_balances::{ActiveModel, Column, Entity, Model};
-use entities::address_token_balances::Relation;
+use entities::address_current_token_balances::Relation;
+use entities::address_current_token_balances::{ActiveModel, Column, Entity, Model};
 use migration::OnConflict;
 use sea_orm::*;
 
@@ -77,58 +77,8 @@ impl Mutation {
         let mut stmt = Entity::insert_many(datas)
             .build(DatabaseBackend::Postgres)
             .to_string();
-        stmt = format!("{} ON CONFLICT (\"address_hash\", \"token_contract_address_hash\", COALESCE(\"token_id\", -1), \"block_number\") DO NOTHING",  stmt);
+        stmt = format!("{} ON CONFLICT (\"address_hash\", \"token_contract_address_hash\", COALESCE(\"token_id\", -1)) DO NOTHING",  stmt);
         db.execute(Statement::from_string(DatabaseBackend::Postgres, stmt))
             .await
-    }
-
-    pub async fn save_copy<C>(
-        db: &C,
-        form_datas: &[Model],
-    ) -> Result<InsertResult<ActiveModel>, DbErr>
-    where
-        C: ConnectionTrait,
-    {
-        let mut datas = vec![];
-        for form_data in form_datas.iter() {
-            let mut model = form_data.clone().into_active_model();
-            model.id = ActiveValue::NotSet;
-            datas.push(model);
-        }
-
-        if datas.is_empty() {
-            return Err(DbErr::RecordNotInserted);
-        }
-
-        let res = Entity::insert_many(datas)
-            .on_conflict(
-                // CREATE UNIQUE INDEX "fetched_token_balances" ON "public"."address_token_balances" USING btree (
-                //     "address_hash" "pg_catalog"."bytea_ops" ASC NULLS LAST,
-                //     "token_contract_address_hash" "pg_catalog"."bytea_ops" ASC NULLS LAST,
-                //     COALESCE(token_id, '-1'::integer::numeric) "pg_catalog"."numeric_ops" ASC NULLS LAST,
-                //     "block_number" "pg_catalog"."int8_ops" ASC NULLS LAST
-                //   );
-                OnConflict::columns([
-                    Column::AddressHash,
-                    Column::TokenContractAddressHash,
-                    Column::TokenId,
-                    // Expr::expr(Func::coalesce([
-                    //     Expr::col(Column::TokenId).into(),
-                    //     Expr::val(-1).into(),
-                    // ]))
-                    // .into(),
-                    Column::BlockNumber,
-                ])
-                .do_nothing()
-                .to_owned(),
-            )
-            .exec(db)
-            .await;
-
-        if matches!(res, Err(DbErr::RecordNotInserted)) {
-            return Ok(InsertResult { last_insert_id: 0 });
-        }
-
-        res
     }
 }
