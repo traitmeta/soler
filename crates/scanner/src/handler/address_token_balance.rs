@@ -9,6 +9,16 @@ use ethers::types::H160;
 
 use crate::common::consts;
 
+pub fn process_token_balances(
+    token_map: &HashMap<Vec<u8>, TokenModel>,
+    token_transfers: &[TokenTransferModel],
+) -> (Vec<AddressTokenBalanceModel>, Vec<CurrentTokenBalanceModel>) {
+    let address_token_balance = process_address_token_balances(token_map, token_transfers);
+    let current_token_balance = process_current_token_balances(token_map, token_transfers);
+
+    (address_token_balance, current_token_balance)
+}
+
 pub fn process_address_token_balances(
     token_map: &HashMap<Vec<u8>, TokenModel>,
     token_transfers: &[TokenTransferModel],

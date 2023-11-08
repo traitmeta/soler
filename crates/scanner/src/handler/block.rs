@@ -3,6 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use anyhow::bail;
 use chrono::{NaiveDateTime, Utc};
 use entities::{
+    address_current_token_balances::Model as CurrentTokenBalanceModel,
     address_token_balances::Model as AddressTokenBalanceModel, addresses::Model as AddressModel,
     blocks::Model as BlockModel, internal_transactions::Model as InnerTransactionModel,
     logs::Model as LogModel, token_transfers::Model as TokenTransferModel,
@@ -43,6 +44,7 @@ pub struct HandlerModels {
     token_transfers: Vec<TokenTransferModel>,
     withdraws: Vec<WithdrawModel>,
     address_token_balance: Vec<AddressTokenBalanceModel>,
+    current_token_balance: Vec<CurrentTokenBalanceModel>,
 }
 
 pub async fn init_block(cli: EthCli, conn: &DbConn) {
@@ -288,6 +290,7 @@ pub async fn handle_block(
         handle_models.tokens,
         handle_models.token_transfers,
         handle_models.address_token_balance,
+        handle_models.current_token_balance,
     ) = handle_token_from_receipts(recipts);
 
     Ok((block_model, handle_models))

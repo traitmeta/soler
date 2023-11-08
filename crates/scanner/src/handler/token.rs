@@ -1,5 +1,7 @@
 use crate::{common::consts, contracts::decode};
+
 use chrono::Utc;
+use entities::address_current_token_balances::Model as CurrentTokenBalanceModel;
 use entities::address_token_balances::Model as AddressTokenBalanceModel;
 use entities::token_transfers::Model as TokenTransferModel;
 use entities::tokens::Model as TokenModel;
@@ -11,7 +13,7 @@ use std::{
     str::FromStr,
 };
 
-use super::address_token_balance::process_address_token_balances;
+use super::address_token_balance::process_token_balances;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct DecodedTopics {
@@ -57,6 +59,7 @@ pub fn handle_token_from_receipts(
     Vec<TokenModel>,
     Vec<TokenTransferModel>,
     Vec<AddressTokenBalanceModel>,
+    Vec<CurrentTokenBalanceModel>,
 ) {
     let mut acc: (Vec<TokenModel>, Vec<TokenTransferModel>) = (vec![], vec![]);
     for receipt in receipts.iter() {
@@ -73,10 +76,16 @@ pub fn handle_token_from_receipts(
             .or_insert(token.clone());
     }
 
-    let address_token_balance = process_address_token_balances(&tokens_map, &acc.1);
+    let (address_token_balances, current_token_balances) =
+        process_token_balances(&tokens_map, &acc.1);
     let tokens_uniq = tokens_map.values().cloned().collect::<Vec<TokenModel>>();
 
-    (tokens_uniq, acc.1, address_token_balance)
+    (
+        tokens_uniq,
+        acc.1,
+        address_token_balances,
+        current_token_balances,
+    )
 }
 
 pub fn token_process(logs: &[Log]) -> (Vec<TokenModel>, Vec<TokenTransferModel>) {
