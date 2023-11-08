@@ -18,7 +18,7 @@ pub struct Model {
     pub updated_at: DateTime,
     pub old_value: Option<Decimal>,
     #[sea_orm(column_type = "Decimal(Some((78, 0)))", nullable)]
-    pub token_id: Option<Decimal>,
+    pub token_id: Option<BigDecimal>,
     pub token_type: Option<String>,
 }
 

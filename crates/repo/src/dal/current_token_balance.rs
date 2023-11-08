@@ -1,5 +1,4 @@
-use entities::address_current_token_balances::Relation;
-use entities::address_current_token_balances::{ActiveModel, Column, Entity, Model};
+use entities::address_current_token_balances::{ActiveModel, Column, Entity, Model, Relation};
 use migration::OnConflict;
 use sea_orm::*;
 
