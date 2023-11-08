@@ -14,6 +14,7 @@ use ethers::types::{Block, Trace, Transaction, TransactionReceipt, TxHash, H256,
 use repo::dal::{
     address::Mutation as AddressMutation,
     block::{Mutation as BlockMutation, Query as BlockQuery},
+    current_token_balance::Mutation as CurrentTokenMutation,
     event::Mutation as EventMutation,
     internal_transaction::Mutation as InnerTransactionMutation,
     token::Mutation as TokenMutation,
@@ -219,6 +220,19 @@ pub async fn sync_to_db(
                 txn.rollback().await?;
                 bail!(ScannerError::Upsert {
                     src: "create address token balance".to_string(),
+                    err: e
+                });
+            }
+        }
+    }
+
+    if !handle_models.current_token_balance.is_empty() {
+        match CurrentTokenMutation::save(&txn, &handle_models.current_token_balance).await {
+            Ok(_) => {}
+            Err(e) => {
+                txn.rollback().await?;
+                bail!(ScannerError::Upsert {
+                    src: "create address current token balance".to_string(),
                     err: e
                 });
             }

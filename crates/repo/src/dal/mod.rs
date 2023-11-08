@@ -1,5 +1,6 @@
 pub mod address;
 pub mod block;
+pub mod current_token_balance;
 pub mod event;
 pub mod internal_transaction;
 pub mod log_receiver_chain;
