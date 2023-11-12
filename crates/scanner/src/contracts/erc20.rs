@@ -59,6 +59,22 @@ impl IERC20Call {
         }
     }
 
+    pub async fn balance_of_at_block_number(
+        &self,
+        contract_address: &str,
+        user_address: &str,
+        _block_number: usize,
+    ) -> Result<ethers::types::U256, Error> {
+        let client = Arc::new(&self.provider);
+        let address: Address = contract_address.parse().unwrap();
+        let contract = IERC20::new(address, client);
+        let user: H160 = user_address.parse().unwrap();
+        match contract.balance_of(user).call().await {
+            Ok(balance) => Ok(balance),
+            Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
+        }
+    }
+
     pub async fn name(&self, contract_address: &str) -> Result<String, Error> {
         let client = Arc::new(&self.provider);
         let address: Address = contract_address.parse().unwrap();
