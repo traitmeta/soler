@@ -15,7 +15,7 @@ config = { path = "../config" }
 
 anyhow = { version = "1" }
 clap = "4.4.6"
-ethers = "2.0.10"
+ethers = { version = "2.0.10" }
 hex = "0.4"
 md5 = "0.7"
 rand = "0.8"

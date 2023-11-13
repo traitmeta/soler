@@ -63,13 +63,13 @@ impl IERC20Call {
         &self,
         contract_address: &str,
         user_address: &str,
-        _block_number: usize,
+        block_number: u64,
     ) -> Result<ethers::types::U256, Error> {
         let client = Arc::new(&self.provider);
         let address: Address = contract_address.parse().unwrap();
         let contract = IERC20::new(address, client);
         let user: H160 = user_address.parse().unwrap();
-        match contract.balance_of(user).call().await {
+        match contract.balance_of(user).block(block_number).call().await {
             Ok(balance) => Ok(balance),
             Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
         }
