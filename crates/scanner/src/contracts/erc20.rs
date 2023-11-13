@@ -193,6 +193,39 @@ mod tests {
 
     #[test]
     #[ignore]
+    fn test_balance_of_at_block_number() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let contract = IERC20Call::new("https://eth.llamarpc.com");
+        match rt.block_on(contract.balance_of_at_block_number(
+            WETH_ADDRESS,
+            "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc3",
+            10000000,
+        )) {
+            Ok(balance) => {
+                println!("{}", balance.as_usize());
+                assert!(balance.is_zero());
+            }
+            Err(err) => println!("{}", err.to_string()),
+        };
+
+        match rt.block_on(contract.balance_of_at_block_number(
+            WETH_ADDRESS,
+            "0x1d6E9Cf5f6Ad4f8Eb809eC9d60922C1Fc23C6dEE",
+            13730341,
+        )) {
+            Ok(balance) => {
+                println!("{}", balance.as_usize());
+                assert!(!balance.is_zero());
+            }
+            Err(err) => println!("{}", err.to_string()),
+        };
+    }
+
+    #[test]
+    #[ignore]
     fn test_metadata() {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()

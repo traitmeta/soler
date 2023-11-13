@@ -97,10 +97,10 @@ mod tests {
         //     .global_ttl(Duration::from_secs(global_ttl))
         //     .build();
 
-        cache.handle_update(CacheKey::Min, None, 10);
-        cache.handle_update(CacheKey::Max, None, 20);
-        cache.handle_update(CacheKey::Min, Some(10), 5);
-        cache.handle_update(CacheKey::Max, Some(20), 30);
+        let _ = cache.handle_update(CacheKey::Min, None, 10);
+        let _ = cache.handle_update(CacheKey::Max, None, 20);
+        let _ = cache.handle_update(CacheKey::Min, Some(10), 5);
+        let _ = cache.handle_update(CacheKey::Max, Some(20), 30);
 
         // let min_block_number = map_cache.handle_fallback(BlockNumberCacheKey::Min).unwrap();
         // let max_block_number = map_cache.handle_fallback(BlockNumberCacheKey::Max).unwrap();
