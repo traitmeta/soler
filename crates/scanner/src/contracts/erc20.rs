@@ -218,7 +218,7 @@ mod tests {
         )) {
             Ok(balance) => {
                 println!("{}", balance.as_usize());
-                assert!(!balance.is_zero());
+                assert!(balance.as_usize() == 10000000000000000);
             }
             Err(err) => println!("{}", err.to_string()),
         };
