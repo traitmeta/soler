@@ -48,28 +48,19 @@ impl IERC20Call {
         &self,
         contract_address: &str,
         user_address: &str,
+        block_number: Option<u64>,
     ) -> Result<ethers::types::U256, Error> {
         let client = Arc::new(&self.provider);
         let address: Address = contract_address.parse().unwrap();
         let contract = IERC20::new(address, client);
         let user: H160 = user_address.parse().unwrap();
-        match contract.balance_of(user).call().await {
-            Ok(balance) => Ok(balance),
-            Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
-        }
-    }
+        let balance_of_call = contract.balance_of(user);
+        let balance_of_call = match block_number {
+            Some(num) => balance_of_call.block(num),
+            None => balance_of_call,
+        };
 
-    pub async fn balance_of_at_block_number(
-        &self,
-        contract_address: &str,
-        user_address: &str,
-        block_number: u64,
-    ) -> Result<ethers::types::U256, Error> {
-        let client = Arc::new(&self.provider);
-        let address: Address = contract_address.parse().unwrap();
-        let contract = IERC20::new(address, client);
-        let user: H160 = user_address.parse().unwrap();
-        match contract.balance_of(user).block(block_number).call().await {
+        match balance_of_call.call().await {
             Ok(balance) => Ok(balance),
             Err(err) => Err(anyhow!("Erc20 get user balance: {}", err.to_string())),
         }
@@ -170,9 +161,11 @@ mod tests {
             .build()
             .unwrap();
         let contract = IERC20Call::new("https://eth.llamarpc.com");
-        match rt.block_on(
-            contract.balance_of(WETH_ADDRESS, "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc3"),
-        ) {
+        match rt.block_on(contract.balance_of(
+            WETH_ADDRESS,
+            "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc3",
+            None,
+        )) {
             Ok(balance) => {
                 println!("{}", balance.as_usize());
                 assert!(balance.is_zero());
@@ -180,9 +173,11 @@ mod tests {
             Err(err) => println!("{}", err.to_string()),
         };
 
-        match rt.block_on(
-            contract.balance_of(WETH_ADDRESS, "0xb5d85CBf7cB3EE0D56b3bB207D5Fc4B82f43F511"),
-        ) {
+        match rt.block_on(contract.balance_of(
+            WETH_ADDRESS,
+            "0xb5d85CBf7cB3EE0D56b3bB207D5Fc4B82f43F511",
+            None,
+        )) {
             Ok(balance) => {
                 println!("{}", balance.as_usize());
                 assert!(!balance.is_zero());
@@ -199,10 +194,10 @@ mod tests {
             .build()
             .unwrap();
         let contract = IERC20Call::new("https://eth.llamarpc.com");
-        match rt.block_on(contract.balance_of_at_block_number(
+        match rt.block_on(contract.balance_of(
             WETH_ADDRESS,
             "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc3",
-            10000000,
+            Some(10000000),
         )) {
             Ok(balance) => {
                 println!("{}", balance.as_usize());
@@ -211,10 +206,10 @@ mod tests {
             Err(err) => println!("{}", err.to_string()),
         };
 
-        match rt.block_on(contract.balance_of_at_block_number(
+        match rt.block_on(contract.balance_of(
             WETH_ADDRESS,
             "0x1d6E9Cf5f6Ad4f8Eb809eC9d60922C1Fc23C6dEE",
-            13730341,
+            Some(13730341),
         )) {
             Ok(balance) => {
                 println!("{}", balance.as_usize());

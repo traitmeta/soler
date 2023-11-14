@@ -27,7 +27,7 @@ abigen!(
 pub struct TokenBalanceRequest {
     pub token_contract_address_hash: String,
     pub address_hash: String,
-    pub block_number: i64,
+    pub block_number: Option<u64>,
     pub token_id: Option<U256>,
     pub token_type: consts::TokenKind,
 }
@@ -68,7 +68,12 @@ impl BalanceReader {
             consts::TokenKind::ERC20 => {
                 let contract = TokenBalance::new(address, client);
                 let user: H160 = req.address_hash.parse().unwrap();
-                match contract.balance_of(user).call().await {
+                let balance_of_call = contract.balance_of(user);
+                let balance_of_call = match req.block_number {
+                    Some(num) => balance_of_call.block(num),
+                    None => balance_of_call,
+                };
+                match balance_of_call.call().await {
                     Ok(balance) => Ok(balance),
                     Err(err) => Err(anyhow!(
                         "Erc20 get balance: contract_addr:{}, user:{}, err:{}",
@@ -81,11 +86,12 @@ impl BalanceReader {
             consts::TokenKind::ERC1155 => {
                 let contract = Erc1155TokenBalance::new(address, client);
                 let user: H160 = req.address_hash.parse().unwrap();
-                match contract
-                    .balance_of(user, req.token_id.unwrap())
-                    .call()
-                    .await
-                {
+                let balance_of_call = contract.balance_of(user, req.token_id.unwrap());
+                let balance_of_call = match req.block_number {
+                    Some(num) => balance_of_call.block(num),
+                    None => balance_of_call,
+                };
+                match balance_of_call.call().await {
                     Ok(balance) => Ok(balance),
                     Err(err) => Err(anyhow!(
                         "Erc1155 get balance: contract_addr:{}, user:{}, err:{}",

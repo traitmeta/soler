@@ -31,7 +31,7 @@ pub async fn fetch_token_balances_from_blockchain(
                 hex::encode(token_balance.token_contract_address_hash.clone())
             ),
             address_hash: format!("0x{}", hex::encode(token_balance.address_hash.clone())),
-            block_number: token_balance.block_number,
+            block_number: Some(token_balance.block_number as u64),
             token_id: token_balance
                 .token_id
                 .as_ref()
@@ -97,7 +97,7 @@ pub async fn fetch_current_token_balance(
                 hex::encode(token_balance.token_contract_address_hash.clone())
             ),
             address_hash: format!("0x{}", hex::encode(token_balance.address_hash.clone())),
-            block_number: token_balance.block_number,
+            block_number: Some(token_balance.block_number as u64),
             token_id: token_balance
                 .token_id
                 .as_ref()
