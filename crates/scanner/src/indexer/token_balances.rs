@@ -14,8 +14,8 @@ use crate::{
     contracts::balance_reader::{BalanceReader, TokenBalanceRequest},
 };
 
-// First: get data from db and call contract get balance. this will make all data do it.
-// Second: use channel when address token balance model handler and sender it to channel. then balance fether received message and get balance form call contract
+// should be get balance with two ways, first is async, get data which have field block_number from db and call contract;
+// second is sync, when fetching and parsed data from block, send it to channel.
 pub async fn fetch_token_balances_from_blockchain(
     balance_reader: BalanceReader,
     token_balances: Vec<TokenBalanceModel>,
@@ -87,8 +87,13 @@ fn get_token_balance_key(token_balance: &TokenBalanceModel) -> String {
 pub async fn fetch_current_token_balance(
     balance_reader: BalanceReader,
     token_balance: &mut CurrentTokenBalanceModel,
+    max_block_number: u64,
 ) -> Result<()> {
     let backoff = 1;
+
+    if max_block_number - token_balance.block_number as u64 <= 1 {
+        return Ok(());
+    }
 
     loop {
         let req = TokenBalanceRequest {
