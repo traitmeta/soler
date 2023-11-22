@@ -84,6 +84,9 @@ fn get_token_balance_key(token_balance: &TokenBalanceModel) -> String {
     )
 }
 
+// This function fetches the current token balance asynchronously.
+// It takes a `BalanceReader` object, a mutable reference to a `CurrentTokenBalanceModel` object, and a `max_block_number` of type `u64` as input parameters.
+// It returns a `Result` type, which is `()` meaning there is no value to return in case of success, and an error in case of failure.
 pub async fn fetch_current_token_balance(
     balance_reader: BalanceReader,
     token_balance: &mut CurrentTokenBalanceModel,
