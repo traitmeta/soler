@@ -72,3 +72,26 @@ pub async fn get_address_tokens(
 
     Ok(Json(BaseResponse::success(resp)))
 }
+
+pub async fn get_address_tokens_copy(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(id): Path<String>,
+    Query(params): Query<TokenBalanceQueryParams>,
+) -> Result<Json<BaseResponse<Vec<AddressTokenResp>>>, AppError> {
+    let conn = get_conn(&state);
+
+    if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
+        return Err(AppError::from(CoreError::Param(id)));
+    }
+
+    let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
+    let res = TokenBalanceQuery::finds_by_type(conn, hash, params.r#type)
+        .await
+        .map_err(AppError::from)?;
+
+    let resp = vec![];
+
+    for model in res.iter() {}
+
+    Ok(Json(BaseResponse::success(resp)))
+}
