@@ -12,6 +12,7 @@ repository.workspace = true
 [dependencies]
 repo = { path = "../repo" }
 entities = { path = "../entities" }
+common = { path = "../common" }
 config = { path = "../config" }
 
 anyhow = "1.0"

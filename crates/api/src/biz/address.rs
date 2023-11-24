@@ -1,4 +1,5 @@
 use axum::extract::Query;
+use common::consts;
 use entities::address_token_balances::Model as TokenBalanceModel;
 use repo::dal::token_balance::Query as TokenBalanceQuery;
 use sea_orm::prelude::Decimal;
@@ -94,7 +95,7 @@ fn conv_model_to_resp(model: &TokenBalanceModel) -> AddressTokenResp {
         value: model.value.clone().map(|f| f.to_string()),
     };
 
-    let erc1155 = "ERC-1155".to_string();
+    let erc1155 = consts::ERC1155.to_string();
     match &model.token_type {
         Some(_erc1155) if *_erc1155 == erc1155 => {
             resp.token_id = model.token_id.clone().map(|f| f.to_string());
