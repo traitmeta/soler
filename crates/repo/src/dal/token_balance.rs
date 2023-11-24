@@ -1,5 +1,5 @@
 use ::entities::address_token_balances::{ActiveModel, Column, Entity, Model};
-use entities::address_token_balances::Relation;
+use entities::{address_token_balances::Relation, tokens};
 use migration::OnConflict;
 use sea_orm::*;
 
@@ -12,6 +12,22 @@ impl Query {
         token_type: String,
     ) -> Result<Vec<Model>, DbErr> {
         Entity::find()
+            .filter(
+                Condition::all()
+                    .add(Column::AddressHash.eq(address))
+                    .add(Column::TokenType.eq(Some(token_type))),
+            )
+            .all(db)
+            .await
+    }
+
+    pub async fn find_by_type_with_relation(
+        db: &DbConn,
+        address: Vec<u8>,
+        token_type: String,
+    ) -> Result<Vec<(Model, Option<tokens::Model>)>, DbErr> {
+        Entity::find()
+            .find_also_related(tokens::Entity)
             .filter(
                 Condition::all()
                     .add(Column::AddressHash.eq(address))
