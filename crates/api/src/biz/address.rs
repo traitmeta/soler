@@ -1,6 +1,6 @@
 use axum::extract::Query;
 use common::consts;
-use entities::address_token_balances::Model as TokenBalanceModel;
+use entities::{address_token_balances::Model as TokenBalanceModel, tokens::Model as TokenModel};
 use repo::dal::token_balance::Query as TokenBalanceQuery;
 use sea_orm::prelude::Decimal;
 
@@ -16,7 +16,7 @@ pub struct AddressTokenResp {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TokenResp {
     pub address: String,
-    pub circulating_market_cap: Option<Decimal>,
+    pub circulating_market_cap: Option<String>,
     pub decimals: Option<String>,
     pub exchange_rate: Option<String>,
     pub holders: Option<String>,
@@ -59,35 +59,37 @@ pub async fn get_address_tokens(
     }
 
     let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
-    let res = TokenBalanceQuery::finds_by_type(conn, hash, params.r#type)
+    let res = TokenBalanceQuery::find_by_type_with_relation(conn, hash, params.r#type)
         .await
         .map_err(AppError::from)?;
 
     let mut resp = vec![];
 
-    for model in res.iter() {
-        resp.push(conv_model_to_resp(model));
+    for (balance, token) in res.iter() {
+        match token {
+            Some(t) => resp.push(conv_model_to_resp(balance, t)),
+            None => (),
+        }
     }
 
     Ok(Json(BaseResponse::success(resp)))
 }
 
-fn conv_model_to_resp(model: &TokenBalanceModel) -> AddressTokenResp {
+fn conv_model_to_resp(model: &TokenBalanceModel, token: &TokenModel) -> AddressTokenResp {
     let mut resp = AddressTokenResp {
-        // TODO query Token info
         token: TokenResp {
             address: format!(
                 "0x{}",
                 hex::encode(model.token_contract_address_hash.clone())
             ),
-            circulating_market_cap: None,
-            decimals: None,
+            circulating_market_cap: token.circulating_market_cap.map(|f| f.to_string()),
+            decimals: token.decimals.map(|f| f.to_string()),
             exchange_rate: None,
-            holders: None,
-            icon_url: None,
-            name: None,
-            symbol: None,
-            total_supply: None,
+            holders: token.holder_count.map(|f| f.to_string()),
+            icon_url: token.icon_url.clone(),
+            name: token.name.clone(),
+            symbol: token.symbol.clone(),
+            total_supply: token.total_supply.map(|f| f.to_string()),
             r#type: model.token_type.clone().unwrap(),
         },
         token_id: None,
