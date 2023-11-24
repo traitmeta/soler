@@ -1,8 +1,5 @@
 use axum::extract::Query;
-use entities::{
-    address_token_balances::Model as TokenBalanceModel, blocks, tokens::Model as TokenModel,
-    transactions::Model,
-};
+use entities::address_token_balances::Model as TokenBalanceModel;
 use repo::dal::{token_balance::Query as TokenBalanceQuery, transaction::Query as DbQuery};
 use sea_orm::prelude::{BigDecimal, Decimal};
 
@@ -29,16 +26,16 @@ pub struct TokenResp {
     pub r#type: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TokenInstanceResp {
     pub animation_url: Option<String>,
     pub external_app_url: Option<String>,
-    pub id: String,
+    pub id: Option<String>,
     pub image_url: Option<String>,
     pub is_unique: Option<String>,
     pub metadata: Option<String>,
     pub owner: Option<String>,
-    pub token: TokenResp,
+    pub token: Option<TokenResp>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -50,30 +47,6 @@ pub struct TokenBalanceQueryParams {
 }
 
 pub async fn get_address_tokens(
-    Extension(state): Extension<Arc<AppState>>,
-    Query(params): Query<TokenBalanceQueryParams>,
-) -> Result<Json<BaseResponse<Vec<AddressTokenResp>>>, AppError> {
-    let conn = get_conn(&state);
-
-    if params.address.len() != 66
-        || !(params.address.starts_with("0x") || params.address.starts_with("0X"))
-    {
-        return Err(AppError::from(CoreError::Param(params.address)));
-    }
-
-    let hash = Vec::from_hex(&params.address[2..params.address.len()]).map_err(AppError::from)?;
-    let res = TokenBalanceQuery::finds_by_type(conn, hash, params.r#type)
-        .await
-        .map_err(AppError::from)?;
-
-    let resp = vec![];
-
-    for model in res.iter() {}
-
-    Ok(Json(BaseResponse::success(resp)))
-}
-
-pub async fn get_address_tokens_copy(
     Extension(state): Extension<Arc<AppState>>,
     Path(id): Path<String>,
     Query(params): Query<TokenBalanceQueryParams>,
@@ -89,9 +62,47 @@ pub async fn get_address_tokens_copy(
         .await
         .map_err(AppError::from)?;
 
-    let resp = vec![];
+    let mut resp = vec![];
 
-    for model in res.iter() {}
+    for model in res.iter() {
+        resp.push(conv_model_to_resp(model));
+    }
 
     Ok(Json(BaseResponse::success(resp)))
+}
+
+fn conv_model_to_resp(model: &TokenBalanceModel) -> AddressTokenResp {
+    let mut resp = AddressTokenResp {
+        // TODO query Token info
+        token: TokenResp {
+            address: format!(
+                "0x{}",
+                hex::encode(model.token_contract_address_hash.clone())
+            ),
+            circulating_market_cap: None,
+            decimals: None,
+            exchange_rate: None,
+            holders: None,
+            icon_url: None,
+            name: None,
+            symbol: None,
+            total_supply: None,
+            r#type: model.token_type.clone().unwrap(),
+        },
+        token_id: None,
+        token_instance: None,
+        value: model.value.clone().map(|f| f.to_string()),
+    };
+
+    let erc1155 = "ERC-1155".to_string();
+    match &model.token_type {
+        Some(_erc1155) if *_erc1155 == erc1155 => {
+            resp.token_id = model.token_id.clone().map(|f| f.to_string());
+            // TODO need query token instance
+            resp.token_instance = Some(TokenInstanceResp::default())
+        }
+        Some(_) => (),
+        None => (),
+    }
+    resp
 }
