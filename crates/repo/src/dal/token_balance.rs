@@ -6,6 +6,21 @@ use sea_orm::*;
 pub struct Query;
 
 impl Query {
+    pub async fn finds_by_type(
+        db: &DbConn,
+        address: Vec<u8>,
+        token_type: String,
+    ) -> Result<Vec<Model>, DbErr> {
+        Entity::find()
+            .filter(
+                Condition::all()
+                    .add(Column::AddressHash.eq(address))
+                    .add(Column::TokenType.eq(Some(token_type))),
+            )
+            .all(db)
+            .await
+    }
+
     // Builds an `Ecto.Query` to fetch the unfetched token balances.
     // Unfetched token balances are the ones that have the column `value_fetched_at` nil or the value is null. This query also
     // ignores the burn_address for tokens ERC-721 since the most tokens ERC-721 don't allow get the

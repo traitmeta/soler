@@ -6,11 +6,7 @@ use entities::{
 use repo::dal::{token::Query as TokenQuery, transaction::Query as DbQuery};
 use sea_orm::prelude::{BigDecimal, Decimal};
 
-use super::{
-    token_transfer::{decode_token_transfers, TokenTransferResp},
-    *,
-};
-
+use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AddressTokenResp {
     pub token: TokenResp,
@@ -43,56 +39,6 @@ pub struct TokenInstanceResp {
     pub metadata: Option<String>,
     pub owner: Option<String>,
     pub token: TokenResp,
-}
-
-fn conv_model_to_resp(
-    model: &Model,
-    block: Option<blocks::Model>,
-    token_transfers: Vec<TokenTransferModel>,
-    token_map: HashMap<Vec<u8>, TokenModel>,
-) -> TransactionResp {
-    let mut resp = TransactionResp {
-        cumulative_gas_used: model.cumulative_gas_used,
-        error: model.error.to_owned(),
-        gas_limit: model.gas,
-        gas_price: model.gas_price,
-        gas_used: model.gas_used,
-        hash: format!("0x{}", hex::encode(model.hash.clone())),
-        index: model.index,
-        input: format!("0x{}", hex::encode(model.input.clone())),
-        nonce: model.nonce,
-        status: model.status,
-        value: model.value.clone(),
-        block_time: match block {
-            Some(b) => b.timestamp,
-            None => model.inserted_at,
-        },
-        block_hash: model
-            .block_hash
-            .as_ref()
-            .map(|hash| format!("0x{}", hex::encode(hash))),
-        block_number: model.block_number,
-        from_address_hash: format!("0x{}", hex::encode(model.from_address_hash.clone())),
-        to_address_hash: model
-            .to_address_hash
-            .as_ref()
-            .map(|to| format!("0x{}", hex::encode(to))),
-        created_contract_address_hash: model
-            .created_contract_address_hash
-            .as_ref()
-            .map(|contract_addr| format!("0x{}", hex::encode(contract_addr))),
-        created_contract_code_indexed_at: model.created_contract_code_indexed_at,
-        revert_reason: model.revert_reason.clone(),
-        max_priority_fee_per_gas: model.max_priority_fee_per_gas,
-        max_fee_per_gas: model.max_fee_per_gas,
-        r#type: model.r#type,
-        has_error_in_internal_txs: model.has_error_in_internal_txs,
-        token_transfers: vec![],
-    };
-
-    resp.token_transfers = decode_token_transfers(token_map, &token_transfers);
-
-    resp
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -1,5 +1,6 @@
+use crate::err::AppError;
+
 use super::{
-    err::AppError,
     response::BaseResponse,
     state::{get_conn, AppState},
     Json,
