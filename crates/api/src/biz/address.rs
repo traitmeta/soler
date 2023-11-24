@@ -1,7 +1,7 @@
 use axum::extract::Query;
 use entities::address_token_balances::Model as TokenBalanceModel;
-use repo::dal::{token_balance::Query as TokenBalanceQuery, transaction::Query as DbQuery};
-use sea_orm::prelude::{BigDecimal, Decimal};
+use repo::dal::token_balance::Query as TokenBalanceQuery;
+use sea_orm::prelude::Decimal;
 
 use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize)]
