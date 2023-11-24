@@ -1,4 +1,5 @@
-use super::*;
+use axum::response::{IntoResponse, Response};
+use hyper::StatusCode;
 use thiserror::Error;
 
 pub async fn handler_404() -> impl IntoResponse {

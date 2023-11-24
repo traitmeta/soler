@@ -97,6 +97,7 @@ fn conv_model_to_resp(
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TokenBalanceQueryParams {
+    pub address: String,
     pub types: String,
     pub page_size: Option<u64>,
     pub page: Option<u64>,
@@ -104,16 +105,17 @@ pub struct TokenBalanceQueryParams {
 
 pub async fn get_address_tokens(
     Extension(state): Extension<Arc<AppState>>,
-    Path(id): Path<String>,
     Query(params): Query<TokenBalanceQueryParams>,
 ) -> Result<Json<BaseResponse<AddressTokenResp>>, AppError> {
     let conn = get_conn(&state);
 
-    if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
-        return Err(AppError::from(CoreError::Param(id)));
+    if params.address.len() != 66
+        || !(params.address.starts_with("0x") || params.address.starts_with("0X"))
+    {
+        return Err(AppError::from(CoreError::Param(params.address)));
     }
 
-    let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
+    let hash = Vec::from_hex(&params.address[2..params.address.len()]).map_err(AppError::from)?;
     let res = DbQuery::find_by_hash_with_relation(conn, hash)
         .await
         .map_err(AppError::from)?;
