@@ -6,11 +6,14 @@ use axum::{
 use std::{net::SocketAddr, sync::Arc};
 use tokio::signal;
 
-use crate::biz::{address, token_transfer};
+use crate::{
+    biz::{address, token_transfer},
+    err,
+};
 
 use super::{
     auth::jwt,
-    biz::{block, err, event, helth, response, state, transaction, user},
+    biz::{block, event, helth, response, state, transaction, user},
 };
 
 pub async fn route(addr: SocketAddr, app_state: state::AppState) {

@@ -3,7 +3,7 @@ use entities::{
     address_token_balances::Model as TokenBalanceModel, blocks, tokens::Model as TokenModel,
     transactions::Model,
 };
-use repo::dal::{token::Query as TokenQuery, transaction::Query as DbQuery};
+use repo::dal::{token_balance::Query as TokenBalanceQuery, transaction::Query as DbQuery};
 use sea_orm::prelude::{BigDecimal, Decimal};
 
 use super::*;
@@ -44,7 +44,7 @@ pub struct TokenInstanceResp {
 #[derive(Debug, Clone, Deserialize)]
 pub struct TokenBalanceQueryParams {
     pub address: String,
-    pub types: String,
+    pub r#type: String,
     pub page_size: Option<u64>,
     pub page: Option<u64>,
 }
@@ -52,7 +52,7 @@ pub struct TokenBalanceQueryParams {
 pub async fn get_address_tokens(
     Extension(state): Extension<Arc<AppState>>,
     Query(params): Query<TokenBalanceQueryParams>,
-) -> Result<Json<BaseResponse<AddressTokenResp>>, AppError> {
+) -> Result<Json<BaseResponse<Vec<AddressTokenResp>>>, AppError> {
     let conn = get_conn(&state);
 
     if params.address.len() != 66
@@ -62,35 +62,13 @@ pub async fn get_address_tokens(
     }
 
     let hash = Vec::from_hex(&params.address[2..params.address.len()]).map_err(AppError::from)?;
-    let res = DbQuery::find_by_hash_with_relation(conn, hash)
+    let res = TokenBalanceQuery::finds_by_type(conn, hash, params.r#type)
         .await
         .map_err(AppError::from)?;
 
-    match res {
-        Some((tx, block, token_transfers)) => {
-            tracing::info!(message = "transaction related block",block = ?block);
-            tracing::info!(message = "transaction related token transfers",token_transfers = ?token_transfers);
-            let mut token_contracts = vec![];
-            for token in token_transfers.iter() {
-                token_contracts.push(token.token_contract_address_hash.clone());
-            }
+    let resp = vec![];
 
-            let tokens = TokenQuery::find_by_contract_addresses(conn, token_contracts)
-                .await
-                .map_err(AppError::from)?;
+    for model in res.iter() {}
 
-            let tokens_map = tokens
-                .iter()
-                .map(|t| (t.contract_address_hash.clone(), t.clone()))
-                .collect::<HashMap<Vec<u8>, TokenModel>>();
-
-            Ok(Json(BaseResponse::success(conv_model_to_resp(
-                &tx,
-                block,
-                token_transfers,
-                tokens_map,
-            ))))
-        }
-        None => Err(AppError::from(CoreError::NotFound)),
-    }
+    Ok(Json(BaseResponse::success(resp)))
 }
