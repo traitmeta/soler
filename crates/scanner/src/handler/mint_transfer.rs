@@ -1,6 +1,6 @@
 use ethers::types::{Log, TransactionReceipt, H160};
 
-use crate::common::consts;
+use common::consts;
 
 pub struct MintTransfer {
     pub from: Vec<u8>,

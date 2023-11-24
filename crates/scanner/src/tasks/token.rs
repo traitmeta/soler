@@ -1,6 +1,8 @@
-use crate::{common::consts, contracts::erc20::IERC20Call};
+use crate::contracts::erc20::IERC20Call;
+
 use anyhow::{anyhow, Error};
 use bigdecimal::FromPrimitive;
+use common::consts;
 use config::db::DB;
 use repo::dal::token::{Mutation, Query};
 use repo::orm::conn::connect_db;

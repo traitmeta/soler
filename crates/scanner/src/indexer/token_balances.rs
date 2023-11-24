@@ -9,10 +9,8 @@ use tracing::error;
 use entities::address_current_token_balances::Model as CurrentTokenBalanceModel;
 use entities::address_token_balances::Model as TokenBalanceModel;
 
-use crate::{
-    common::consts,
-    contracts::balance_reader::{BalanceReader, TokenBalanceRequest},
-};
+use crate::contracts::balance_reader::{BalanceReader, TokenBalanceRequest};
+use common::consts;
 
 // should be get balance with two ways, first is async, get data which have field block_number from db and call contract;
 // second is sync, when fetching and parsed data from block, send it to channel.

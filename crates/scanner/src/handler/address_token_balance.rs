@@ -7,7 +7,7 @@ use entities::token_transfers::Model as TokenTransferModel;
 use entities::tokens::Model as TokenModel;
 use ethers::types::H160;
 
-use crate::common::consts;
+use common::consts;
 
 pub fn process_token_balances(
     token_map: &HashMap<Vec<u8>, TokenModel>,

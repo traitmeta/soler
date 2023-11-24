@@ -1,6 +1,7 @@
-use crate::{common::consts, contracts::decode};
+use crate::contracts::decode;
 
 use chrono::Utc;
+use common::consts;
 use entities::address_current_token_balances::Model as CurrentTokenBalanceModel;
 use entities::address_token_balances::Model as AddressTokenBalanceModel;
 use entities::token_transfers::Model as TokenTransferModel;

@@ -11,6 +11,7 @@ repository.workspace = true
 entities = { path = "../entities" }
 migration = { path = "../migration" }
 repo = { path = "../repo" }
+common = { path = "../common" }
 config = { path = "../config" }
 
 anyhow = { version = "1" }

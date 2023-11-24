@@ -1,5 +1,6 @@
+use common::consts;
 use ethers::types::{TransactionReceipt, H160, H256};
-use scanner::{common::consts, evms::eth::EthCli, handler::token::token_process};
+use scanner::{evms::eth::EthCli, handler::token::token_process};
 use serde_json::json;
 use std::{env, fs::File, io::BufReader, path::PathBuf};
 use tokio::runtime::Runtime;

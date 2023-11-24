@@ -8,7 +8,7 @@ use ethers::{
     types::{Address, H160, U256},
 };
 
-use crate::common::consts;
+use common::consts;
 
 abigen!(
     TokenBalance,
