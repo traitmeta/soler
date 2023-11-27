@@ -30,7 +30,7 @@ pub async fn route(addr: SocketAddr, app_state: state::AppState) {
             "/tx/:id/token-transfers",
             get(token_transfer::get_token_transfers),
         )
-        .route("/address/:id", get(transaction::get_transaction))
+        .route("/address/:id", get(address::get_address))
         .route("/address/:id/tokens", get(address::get_address_tokens))
         .route("/protected", get(jwt::protected))
         .route("/authorize/bearer", post(jwt::authorize))

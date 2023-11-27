@@ -46,6 +46,58 @@ pub struct TokenBalanceQueryParams {
     pub page: Option<u64>,
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct AddressResp {
+    pub block_number_balance_updated_at: Option<u64>,
+    pub coin_balance: Option<String>,
+    pub creation_tx_hash: Option<String>,
+    pub creator_address_hash: Option<String>,
+    pub exchange_rate: Option<String>,
+    pub has_beacon_chain_withdrawals: bool,
+    pub has_custom_methods_read: bool,
+    pub has_custom_methods_write: bool,
+    pub has_decompiled_code: bool,
+    pub has_logs: bool,
+    pub has_methods_read: bool,
+    pub has_methods_read_proxy: bool,
+    pub has_methods_write: bool,
+    pub has_methods_write_proxy: bool,
+    pub has_token_transfers: bool,
+    pub has_tokens: bool,
+    pub has_validated_blocks: bool,
+    pub hash: String,
+    pub is_contract: bool,
+    pub name: Option<String>,
+    pub is_verified: Option<bool>,
+}
+
+pub async fn get_address(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<BaseResponse<AddressResp>>, AppError> {
+    let conn = get_conn(&state);
+
+    if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
+        return Err(AppError::from(CoreError::Param(id)));
+    }
+
+    let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
+    let res = TokenBalanceQuery::find_by_type_with_relation(conn, hash, params.r#type)
+        .await
+        .map_err(AppError::from)?;
+
+    let mut resp = vec![];
+
+    for (balance, token) in res.iter() {
+        match token {
+            Some(t) => resp.push(conv_model_to_resp(balance, t)),
+            None => (),
+        }
+    }
+
+    Ok(Json(BaseResponse::success(resp)))
+}
+
 pub async fn get_address_tokens(
     Extension(state): Extension<Arc<AppState>>,
     Path(id): Path<String>,
