@@ -1,7 +1,7 @@
 use axum::extract::Query;
 use common::consts;
-use entities::{address_token_balances::Model as TokenBalanceModel, tokens::Model as TokenModel};
-use repo::dal::token_balance::Query as TokenBalanceQuery;
+use entities::{address_token_balances::Model as TokenBalanceModel, tokens::Model as TokenModel, addresses::Model as AddressModel};
+use repo::dal::{address::Query as AddressQuery, token_balance::Query as TokenBalanceQuery};
 
 use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -40,7 +40,7 @@ pub struct TokenInstanceResp {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TokenBalanceQueryParams {
-    pub address: String,
+    // pub address: String,
     pub r#type: String,
     pub page_size: Option<u64>,
     pub page: Option<u64>,
@@ -77,25 +77,29 @@ pub async fn get_address(
 ) -> Result<Json<BaseResponse<AddressResp>>, AppError> {
     let conn = get_conn(&state);
 
-    if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
+    if id.len() != 42 || !(id.starts_with("0x") || id.starts_with("0X")) {
         return Err(AppError::from(CoreError::Param(id)));
     }
 
     let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
-    let res = TokenBalanceQuery::find_by_type_with_relation(conn, hash, params.r#type)
+    let res = AddressQuery::find_by_hash(conn, hash)
         .await
         .map_err(AppError::from)?;
 
-    let mut resp = vec![];
-
-    for (balance, token) in res.iter() {
-        match token {
-            Some(t) => resp.push(conv_model_to_resp(balance, t)),
-            None => (),
-        }
+    match res {
+        Some(t) => Ok(Json(BaseResponse::success(conv_address_model_to_resp(&t)))),
+        None => Err(AppError::from(CoreError::NotFound)),
     }
+}
 
-    Ok(Json(BaseResponse::success(resp)))
+fn conv_address_model_to_resp(model: &AddressModel) -> AddressResp {
+    let mut resp = AddressResp::default();
+    resp.hash=format!(
+        "0x{}",
+        hex::encode(model.hash.clone())
+    );
+
+    resp
 }
 
 pub async fn get_address_tokens(
@@ -105,7 +109,7 @@ pub async fn get_address_tokens(
 ) -> Result<Json<BaseResponse<Vec<AddressTokenResp>>>, AppError> {
     let conn = get_conn(&state);
 
-    if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
+    if id.len() != 42 || !(id.starts_with("0x") || id.starts_with("0X")) {
         return Err(AppError::from(CoreError::Param(id)));
     }
 
