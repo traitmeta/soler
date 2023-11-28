@@ -1,6 +1,9 @@
 use axum::extract::Query;
 use common::consts;
-use entities::{address_token_balances::Model as TokenBalanceModel, tokens::Model as TokenModel, addresses::Model as AddressModel};
+use entities::{
+    address_token_balances::Model as TokenBalanceModel, addresses::Model as AddressModel,
+    tokens::Model as TokenModel,
+};
 use repo::dal::{address::Query as AddressQuery, token_balance::Query as TokenBalanceQuery};
 
 use super::*;
@@ -36,14 +39,6 @@ pub struct TokenInstanceResp {
     pub metadata: Option<String>,
     pub owner: Option<String>,
     pub token: Option<TokenResp>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct TokenBalanceQueryParams {
-    // pub address: String,
-    pub r#type: String,
-    pub page_size: Option<u64>,
-    pub page: Option<u64>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -93,13 +88,17 @@ pub async fn get_address(
 }
 
 fn conv_address_model_to_resp(model: &AddressModel) -> AddressResp {
-    let mut resp = AddressResp::default();
-    resp.hash=format!(
-        "0x{}",
-        hex::encode(model.hash.clone())
-    );
+    AddressResp {
+        hash: format!("0x{}", hex::encode(model.hash.clone())),
+        ..Default::default()
+    }
+}
 
-    resp
+#[derive(Debug, Clone, Deserialize)]
+pub struct TokenBalanceQueryParams {
+    pub r#type: String,
+    pub page_size: Option<u64>,
+    pub page: Option<u64>,
 }
 
 pub async fn get_address_tokens(
