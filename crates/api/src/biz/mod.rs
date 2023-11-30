@@ -1,6 +1,5 @@
 pub mod address;
 pub mod block;
-pub mod body_parser;
 pub mod event;
 pub mod helth;
 pub mod response;
@@ -10,10 +9,8 @@ pub mod token_transfer;
 pub mod transaction;
 pub mod user;
 
-use async_trait::async_trait;
 use axum::{
-    body::{self, Body, BoxBody, Bytes, Full},
-    extract::FromRequest,
+    body::{Body, Bytes},
     extract::Path,
     http::{Request, StatusCode},
     middleware::Next,
