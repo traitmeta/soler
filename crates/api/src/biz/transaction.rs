@@ -139,8 +139,9 @@ pub async fn get_transaction(
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Validate)]
 pub struct QueryParams {
+    #[validate(range(min = 0))]
     pub block_height: i64,
     pub page_size: Option<u64>,
     pub page: Option<u64>,

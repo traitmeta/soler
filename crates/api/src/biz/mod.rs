@@ -24,5 +24,6 @@ use response::BaseResponse;
 use serde::{Deserialize, Serialize};
 use state::{get_conn, AppState};
 use std::{collections::HashMap, sync::Arc};
+use validator::Validate;
 
 use crate::err;
