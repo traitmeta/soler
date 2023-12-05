@@ -5,6 +5,8 @@ use entities::{
 use repo::dal::{token::Query as TokenQuery, transaction::Query as DbQuery};
 use sea_orm::prelude::{BigDecimal, Decimal};
 
+use crate::checker::base::check_hash;
+
 use super::{
     token_transfer::{decode_token_transfers, TokenTransferResp},
     *,
@@ -101,11 +103,10 @@ pub async fn get_transaction(
 ) -> Result<Json<BaseResponse<TransactionResp>>, AppError> {
     let conn = get_conn(&state);
 
-    if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
-        return Err(AppError::from(CoreError::Param(id)));
-    }
-
-    let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
+    let hash = match check_hash(id) {
+        Ok(h) => h,
+        Err(e) => return Err(e),
+    };
     let res = DbQuery::find_by_hash_with_relation(conn, hash)
         .await
         .map_err(AppError::from)?;

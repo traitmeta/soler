@@ -74,11 +74,11 @@ pub async fn get_address(
 ) -> Result<Json<BaseResponse<AddressResp>>, AppError> {
     let conn = get_conn(&state);
 
-    let hash = match check_address(id) {
+    let address = match check_address(id) {
         Ok(h) => h,
         Err(e) => return Err(e),
     };
-    let res = AddressQuery::find_by_hash(conn, hash)
+    let res = AddressQuery::find_by_hash(conn, address)
         .await
         .map_err(AppError::from)?;
 
@@ -109,12 +109,12 @@ pub async fn get_address_tokens(
 ) -> Result<Json<BaseResponse<Vec<AddressTokenResp>>>, AppError> {
     let conn = get_conn(&state);
 
-    let hash = match check_address(id) {
+    let address = match check_address(id) {
         Ok(h) => h,
         Err(e) => return Err(e),
     };
 
-    let res = TokenBalanceQuery::find_by_type_with_relation(conn, hash, params.r#type)
+    let res = TokenBalanceQuery::find_by_type_with_relation(conn, address, params.r#type)
         .await
         .map_err(AppError::from)?;
 

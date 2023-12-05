@@ -1,6 +1,8 @@
 use entities::{token_transfers::Model, tokens::Model as TokenModel};
 use repo::dal::token_transfer::Query as DbQuery;
 
+use crate::checker::base::check_hash;
+
 use super::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -96,11 +98,10 @@ pub async fn get_token_transfers(
 ) -> Result<Json<BaseResponse<Vec<TokenTransferResp>>>, AppError> {
     let conn = get_conn(&state);
 
-    if id.len() != 66 || !(id.starts_with("0x") || id.starts_with("0X")) {
-        return Err(AppError::from(CoreError::Param(id)));
-    }
-
-    let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
+    let hash = match check_hash(id) {
+        Ok(h) => h,
+        Err(e) => return Err(e),
+    };
     let res = DbQuery::find_by_tx(conn, hash)
         .await
         .map_err(AppError::from)?;
