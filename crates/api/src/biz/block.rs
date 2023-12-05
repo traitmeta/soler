@@ -1,3 +1,4 @@
+use common::chain_ident;
 use entities::blocks::Model;
 use repo::dal::block::Query as DbQuery;
 use sea_orm::prelude::Decimal;
@@ -27,8 +28,8 @@ fn conv_model_to_resp(model: Model) -> BlockResp {
         difficulty: model.difficulty,
         gas_limit: model.gas_limit,
         gas_used: model.gas_used,
-        hash: format!("0x{}", hex::encode(model.hash)),
-        miner_hash: format!("0x{}", hex::encode(model.miner_hash)),
+        hash: chain_ident!(model.hash),
+        miner_hash: chain_ident!(model.miner_hash),
         nonce: format!("0x{}", hex::encode(model.nonce)),
         number: model.number,
         parent_hash: format!("0x{}", hex::encode(model.parent_hash)),
