@@ -6,6 +6,8 @@ use entities::{
 };
 use repo::dal::{address::Query as AddressQuery, token_balance::Query as TokenBalanceQuery};
 
+use crate::checker::addr::check_address;
+
 use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AddressTokenResp {
@@ -72,11 +74,10 @@ pub async fn get_address(
 ) -> Result<Json<BaseResponse<AddressResp>>, AppError> {
     let conn = get_conn(&state);
 
-    if id.len() != 42 || !(id.starts_with("0x") || id.starts_with("0X")) {
-        return Err(AppError::from(CoreError::Param(id)));
-    }
-
-    let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
+    let hash = match check_address(id) {
+        Ok(h) => h,
+        Err(e) => return Err(e),
+    };
     let res = AddressQuery::find_by_hash(conn, hash)
         .await
         .map_err(AppError::from)?;
@@ -108,11 +109,11 @@ pub async fn get_address_tokens(
 ) -> Result<Json<BaseResponse<Vec<AddressTokenResp>>>, AppError> {
     let conn = get_conn(&state);
 
-    if id.len() != 42 || !(id.starts_with("0x") || id.starts_with("0X")) {
-        return Err(AppError::from(CoreError::Param(id)));
-    }
+    let hash = match check_address(id) {
+        Ok(h) => h,
+        Err(e) => return Err(e),
+    };
 
-    let hash = Vec::from_hex(&id[2..id.len()]).map_err(AppError::from)?;
     let res = TokenBalanceQuery::find_by_type_with_relation(conn, hash, params.r#type)
         .await
         .map_err(AppError::from)?;
