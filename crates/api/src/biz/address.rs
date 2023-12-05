@@ -6,7 +6,7 @@ use entities::{
 };
 use repo::dal::{address::Query as AddressQuery, token_balance::Query as TokenBalanceQuery};
 
-use crate::checker::addr::check_address;
+use crate::checker::base::check_address;
 
 use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize)]
