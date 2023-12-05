@@ -90,7 +90,7 @@ pub async fn get_address(
 
 fn conv_address_model_to_resp(model: &AddressModel) -> AddressResp {
     AddressResp {
-        hash: format!("0x{}", hex::encode(model.hash.clone())),
+        hash: chain_ident!(model.hash.clone()),
         ..Default::default()
     }
 }

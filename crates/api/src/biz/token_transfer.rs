@@ -40,16 +40,13 @@ pub fn decode_token_transfers(
 pub fn decode_token_transfer(token: &TokenModel, token_transfer: &Model) -> Vec<TokenTransferResp> {
     let mut token_transfers = vec![];
     let mut resp = TokenTransferResp {
-        transaction_hash: format!("0x{}", hex::encode(token_transfer.transaction_hash.clone())),
+        transaction_hash: chain_ident!(token_transfer.transaction_hash.clone()),
         log_index: token_transfer.log_index,
-        from: format!(
-            "0x{}",
-            hex::encode(token_transfer.from_address_hash.clone())
-        ),
-        to: format!("0x{}", hex::encode(token_transfer.to_address_hash.clone())),
+        from: chain_ident!(token_transfer.from_address_hash.clone()),
+        to: chain_ident!(token_transfer.to_address_hash.clone()),
         token: token::conv_model_to_resp(token),
         block_number: token_transfer.block_number,
-        block_hash: format!("0x{}", hex::encode(token_transfer.block_hash.clone())),
+        block_hash: chain_ident!(token_transfer.block_hash.clone()),
         total: vec![],
     };
 

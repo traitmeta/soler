@@ -1,3 +1,4 @@
+use common::chain_ident;
 use entities::tokens::Model;
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +30,7 @@ pub struct TokenResp {
 
 pub fn conv_model_to_resp(model: &Model) -> TokenResp {
     TokenResp {
-        address: format!("0x{}", hex::encode(model.contract_address_hash.clone())),
+        address: chain_ident!(model.contract_address_hash.clone()),
         circulating_market_cap: model.circulating_market_cap.map(|c| c.to_string()),
         decimals: model.decimals.map(|c| c.to_string()),
         holders: model.holder_count.map(|c| c.to_string()),
