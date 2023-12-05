@@ -1,3 +1,4 @@
+use common::chain_ident;
 use entities::{
     blocks, token_transfers::Model as TokenTransferModel, tokens::Model as TokenModel,
     transactions::Model,
@@ -59,9 +60,9 @@ fn conv_model_to_resp(
         gas_limit: model.gas,
         gas_price: model.gas_price,
         gas_used: model.gas_used,
-        hash: format!("0x{}", hex::encode(model.hash.clone())),
+        hash: chain_ident!(model.hash.clone()),
         index: model.index,
-        input: format!("0x{}", hex::encode(model.input.clone())),
+        input: chain_ident!(model.input.clone()),
         nonce: model.nonce,
         status: model.status,
         value: model.value.clone(),
@@ -69,20 +70,14 @@ fn conv_model_to_resp(
             Some(b) => b.timestamp,
             None => model.inserted_at,
         },
-        block_hash: model
-            .block_hash
-            .as_ref()
-            .map(|hash| format!("0x{}", hex::encode(hash))),
+        block_hash: model.block_hash.as_ref().map(|hash| chain_ident!(hash)),
         block_number: model.block_number,
-        from_address_hash: format!("0x{}", hex::encode(model.from_address_hash.clone())),
-        to_address_hash: model
-            .to_address_hash
-            .as_ref()
-            .map(|to| format!("0x{}", hex::encode(to))),
+        from_address_hash: chain_ident!(model.from_address_hash.clone()),
+        to_address_hash: model.to_address_hash.as_ref().map(|to| chain_ident!(to)),
         created_contract_address_hash: model
             .created_contract_address_hash
             .as_ref()
-            .map(|contract_addr| format!("0x{}", hex::encode(contract_addr))),
+            .map(|contract_addr| chain_ident!(contract_addr)),
         created_contract_code_indexed_at: model.created_contract_code_indexed_at,
         revert_reason: model.revert_reason.clone(),
         max_priority_fee_per_gas: model.max_priority_fee_per_gas,

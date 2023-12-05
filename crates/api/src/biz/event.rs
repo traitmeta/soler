@@ -18,7 +18,7 @@ fn conv_model_to_resp(models: Vec<Model>) -> Vec<LogResp> {
     let mut log_resp_list = vec![];
     for model in models.into_iter() {
         let log = LogResp {
-            data: format!("0x{}", hex::encode(model.data.clone())),
+            data: chain_ident!(model.data.clone()),
             index: model.index,
             r#type: model.r#type,
             topics: vec![
@@ -27,11 +27,9 @@ fn conv_model_to_resp(models: Vec<Model>) -> Vec<LogResp> {
                 model.third_topic,
                 model.fourth_topic,
             ],
-            address_hash: model
-                .address_hash
-                .map(|addr| format!("0x{}", hex::encode(addr))),
-            transaction_hash: format!("0x{}", hex::encode(model.transaction_hash.clone())),
-            block_hash: format!("0x{}", hex::encode(model.block_hash.clone())),
+            address_hash: model.address_hash.map(|addr| chain_ident!(addr)),
+            transaction_hash: chain_ident!(model.transaction_hash.clone()),
+            block_hash: chain_ident!(model.block_hash.clone()),
             block_number: model.block_number,
         };
 
