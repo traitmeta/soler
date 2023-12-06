@@ -1,6 +1,6 @@
 use ethers::types::{Log, TransactionReceipt, H160};
 
-use common::consts;
+use common::{chain_ident, consts};
 
 pub struct MintTransfer {
     pub from: Vec<u8>,
@@ -22,7 +22,7 @@ fn parse(logs: &[Log]) -> Vec<MintTransfer> {
     let mut mint_transfers: Vec<MintTransfer> = Vec::new();
 
     for log in logs.iter() {
-        let first_topic = format!("0x{}", hex::encode(log.topics[0].as_bytes()));
+        let first_topic = chain_ident!(log.topics[0].as_bytes());
         if first_topic.as_str() == consts::BRIDGE_HASH {
             if let Some(params) = parse_params(log) {
                 mint_transfers.push(params);

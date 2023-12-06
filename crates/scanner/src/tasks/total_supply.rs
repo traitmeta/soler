@@ -1,6 +1,7 @@
 use super::publisher::{BroadcastType, Publisher};
 use crate::{cache::block_number::Cache, common::err::FetchError, contracts::erc20::IERC20Call};
 use chrono::Utc;
+use common::chain_ident;
 use repo::dal::token::{Mutation, Query};
 use sea_orm::prelude::Decimal;
 use sea_orm::DbConn;
@@ -46,8 +47,7 @@ impl TokenTotalSupplyOnDemand {
         if token.total_supply_updated_at_block.is_none()
             || max_block_number - token.total_supply_updated_at_block.unwrap() > self.ttl_in_blocks
         {
-            let token_address_hash =
-                format!("0x{}", hex::encode(token.contract_address_hash.clone()));
+            let token_address_hash = chain_ident!(token.contract_address_hash.clone());
 
             let total_supply = self
                 .erc20_call

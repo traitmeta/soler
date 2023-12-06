@@ -2,7 +2,7 @@ use crate::contracts::erc20::IERC20Call;
 
 use anyhow::{anyhow, Error};
 use bigdecimal::FromPrimitive;
-use common::consts;
+use common::{chain_ident, consts};
 use config::db::DB;
 use repo::dal::token::{Mutation, Query};
 use repo::orm::conn::connect_db;
@@ -18,7 +18,7 @@ pub async fn handle_erc20_metadata(rpc_url: &str, conn: &DbConn) -> Result<(), E
     match Query::filter_uncataloged(conn, consts::ERC20).await {
         Ok(models) => {
             for mut model in models.into_iter() {
-                let contract_addr = format!("0x{}", hex::encode(&model.contract_address_hash));
+                let contract_addr = chain_ident!(&model.contract_address_hash);
                 match erc20_call.metadata(contract_addr.as_str()).await {
                     Ok((name, symbol, decimals, total_supply)) => {
                         model.name = Some(name);
@@ -100,7 +100,7 @@ pub async fn handle_erc20_total_supply(
     match Query::filter_uncataloged(conn.as_ref(), consts::ERC20).await {
         Ok(models) => {
             for mut model in models.into_iter() {
-                let contract_addr = format!("0x{}", hex::encode(&model.contract_address_hash));
+                let contract_addr = chain_ident!(&model.contract_address_hash);
                 if let Ok(total_supply) = erc20_call.total_supply(contract_addr.as_str()).await {
                     model.total_supply = Decimal::from_i128(total_supply.as_u128() as i128);
                 }

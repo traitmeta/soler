@@ -1,7 +1,7 @@
 use crate::contracts::decode;
 
 use chrono::Utc;
-use common::consts;
+use common::{chain_ident, consts};
 use entities::address_current_token_balances::Model as CurrentTokenBalanceModel;
 use entities::address_token_balances::Model as AddressTokenBalanceModel;
 use entities::token_transfers::Model as TokenTransferModel;
@@ -153,7 +153,7 @@ fn do_parse(
     let decoded_topics = decode_topics(log);
     match decoded_topics.first_topic {
         Some(first) => {
-            let first_topic = format!("0x{}", hex::encode(first.as_bytes()));
+            let first_topic = chain_ident!(first.as_bytes());
             let first_str = first_topic.as_str();
             let mut kind = TokenKind::None;
             if first_str == consts::TOKEN_TRANSFER_SIGNATURE
@@ -261,7 +261,7 @@ fn parse_weth_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     };
 
     if let Some(first_topic) = topics.first_topic {
-        let first_topic = format!("0x{}", hex::encode(first_topic.as_bytes()));
+        let first_topic = chain_ident!(first_topic.as_bytes());
         let first_str = first_topic.as_str();
         if first_str == consts::WETH_DEPOSIT_SIGNATURE {
             // TODO this will be mint for api
@@ -334,7 +334,7 @@ fn parse_erc1155_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     token.r#type = consts::ERC1155.to_string();
 
     if let Some(first_topic) = topics.first_topic {
-        let first_topic = format!("0x{}", hex::encode(first_topic.as_bytes()));
+        let first_topic = chain_ident!(first_topic.as_bytes());
         let first_str = first_topic.as_str();
         if first_str == consts::ERC1155_BATCH_TRANSFER_SIGNATURE {
             match decode::decode_erc1155_batch_event_data(log.data.to_vec().as_slice()) {

@@ -10,7 +10,7 @@ use entities::address_current_token_balances::Model as CurrentTokenBalanceModel;
 use entities::address_token_balances::Model as TokenBalanceModel;
 
 use crate::contracts::balance_reader::{BalanceReader, TokenBalanceRequest};
-use common::consts;
+use common::{chain_ident, consts};
 
 // should be get balance with two ways, first is async, get data which have field block_number from db and call contract;
 // second is sync, when fetching and parsed data from block, send it to channel.
@@ -28,7 +28,7 @@ pub async fn fetch_token_balances_from_blockchain(
                 "0x{}",
                 hex::encode(token_balance.token_contract_address_hash.clone())
             ),
-            address_hash: format!("0x{}", hex::encode(token_balance.address_hash.clone())),
+            address_hash: chain_ident!(token_balance.address_hash.clone()),
             block_number: Some(token_balance.block_number as u64),
             token_id: token_balance
                 .token_id
@@ -102,7 +102,7 @@ pub async fn fetch_current_token_balance(
                 "0x{}",
                 hex::encode(token_balance.token_contract_address_hash.clone())
             ),
-            address_hash: format!("0x{}", hex::encode(token_balance.address_hash.clone())),
+            address_hash: chain_ident!(token_balance.address_hash.clone()),
             block_number: Some(token_balance.block_number as u64),
             token_id: token_balance
                 .token_id

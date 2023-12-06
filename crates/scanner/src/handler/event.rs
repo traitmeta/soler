@@ -1,4 +1,5 @@
 use chrono::Utc;
+use common::chain_ident;
 use entities::logs::Model as LogModel;
 use ethers::types::TransactionReceipt;
 
@@ -33,7 +34,7 @@ pub fn handle_block_event(receipts: &[TransactionReceipt]) -> Vec<LogModel> {
             };
 
             for (i, topic) in log.topics.iter().enumerate() {
-                let tp = Some(format!("0x{}", hex::encode(topic.as_bytes())));
+                let tp = Some(chain_ident!(topic.as_bytes()));
                 match i {
                     0 => event.first_topic = tp,
                     1 => event.second_topic = tp,
