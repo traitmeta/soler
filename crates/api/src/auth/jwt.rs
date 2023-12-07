@@ -44,7 +44,7 @@ pub async fn authorize(Json(payload): Json<AuthPayload>) -> Result<Json<AuthBody
     }
 
     let claims = Claims {
-        address: "0x0x3bfc6e0fe30a5ae3e42b085293c1586e5c28a75d".to_owned(),
+        address: "0x3bfc6e0fe30a5ae3e42b085293c1586e5c28a75d".to_owned(),
         nonce: "19939393".to_owned(),
         // Mandatory expiry time as UTC timestamp
         exp: Some(2000000000), // May 2033
