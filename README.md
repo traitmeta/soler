@@ -1,7 +1,7 @@
 ![Build](https://github.com/traitmeta/soler/workflows/Build/badge.svg)
 ![Tests](https://github.com/traitmeta/soler/workflows/Tests/badge.svg)
 ![Lints](https://github.com/traitmeta/soler/workflows/Lints/badge.svg)
-[![codecov](https://codecov.io/gh/traitmeta/soler/branch/master/graph/badge.svg)](https://codecov.io/gh/traitmeta/soler)
+[![codecov](https://codecov.io/gh/traitmeta/soler/branch/main/graph/badge.svg)](https://codecov.io/gh/traitmeta/soler)
 
 # Soler
 
