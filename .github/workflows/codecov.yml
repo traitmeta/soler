@@ -2,9 +2,9 @@ name: Codecov
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 env:
   CARGO_TERM_COLOR: always
@@ -45,6 +45,8 @@ jobs:
         run: grcov . --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           files: ./coverage.lcov
           flags: rust
