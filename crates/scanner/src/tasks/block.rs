@@ -6,7 +6,7 @@ use repo::orm::conn::connect_db;
 use tokio::time::interval;
 
 use crate::evms::eth::EthCli;
-use crate::handler::block::{handle_block_NEW, sync_to_db};
+use crate::handler::block::{handle_block, sync_to_db};
 use config::db::DB;
 
 pub async fn sync_task(rpc_url: String, db_cfg: DB) {
@@ -38,7 +38,7 @@ pub async fn sync_task(rpc_url: String, db_cfg: DB) {
 
             let block_traces = cli.trace_block(current_number).await;
             let recipts = cli.get_block_receipt(current_number).await;
-            let handle_models = handle_block_NEW(&current_block, &block_traces, &recipts)
+            let handle_models = handle_block(&current_block, &block_traces, &recipts)
                 .await
                 .unwrap();
 
