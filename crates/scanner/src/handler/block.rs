@@ -110,14 +110,10 @@ fn convert_block_to_model(block: &Block<TxHash>) -> BlockModel {
     block
 }
 
-pub async fn sync_to_db(
-    conn: &DbConn,
-    block: &BlockModel,
-    handle_models: DataModels,
-) -> anyhow::Result<()> {
+pub async fn sync_to_db(conn: &DbConn, handle_models: HandlerModels) -> anyhow::Result<()> {
     let txn = conn.begin().await?;
 
-    match BlockMutation::create(&txn, block).await {
+    match BlockMutation::create(&txn, &handle_models.block).await {
         Ok(_) => {}
         Err(e) => {
             txn.rollback().await?;
@@ -127,8 +123,8 @@ pub async fn sync_to_db(
             });
         }
     }
-    if !handle_models.transactions.is_empty() {
-        match TransactionMutation::create(&txn, &handle_models.transactions).await {
+    if !handle_models.datas.transactions.is_empty() {
+        match TransactionMutation::create(&txn, &handle_models.datas.transactions).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
@@ -140,8 +136,8 @@ pub async fn sync_to_db(
         }
     }
 
-    if !handle_models.events.is_empty() {
-        match EventMutation::create(&txn, &handle_models.events).await {
+    if !handle_models.datas.events.is_empty() {
+        match EventMutation::create(&txn, &handle_models.datas.events).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
@@ -153,8 +149,8 @@ pub async fn sync_to_db(
         }
     }
 
-    if !handle_models.inner_tx.is_empty() {
-        match InnerTransactionMutation::create(&txn, &handle_models.inner_tx).await {
+    if !handle_models.datas.inner_tx.is_empty() {
+        match InnerTransactionMutation::create(&txn, &handle_models.datas.inner_tx).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
@@ -166,8 +162,8 @@ pub async fn sync_to_db(
         }
     }
 
-    if !handle_models.addresses.is_empty() {
-        match AddressMutation::save(&txn, &handle_models.addresses).await {
+    if !handle_models.datas.addresses.is_empty() {
+        match AddressMutation::save(&txn, &handle_models.datas.addresses).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
@@ -179,8 +175,8 @@ pub async fn sync_to_db(
         }
     }
 
-    if !handle_models.tokens.is_empty() {
-        match TokenMutation::save(&txn, &handle_models.tokens).await {
+    if !handle_models.datas.tokens.is_empty() {
+        match TokenMutation::save(&txn, &handle_models.datas.tokens).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
@@ -192,8 +188,8 @@ pub async fn sync_to_db(
         }
     }
 
-    if !handle_models.token_transfers.is_empty() {
-        match TokenTransferMutation::create(&txn, &handle_models.token_transfers).await {
+    if !handle_models.datas.token_transfers.is_empty() {
+        match TokenTransferMutation::create(&txn, &handle_models.datas.token_transfers).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
@@ -205,8 +201,8 @@ pub async fn sync_to_db(
         }
     }
 
-    if !handle_models.withdraws.is_empty() {
-        match WithdrawalMutation::create(&txn, &handle_models.withdraws).await {
+    if !handle_models.datas.withdraws.is_empty() {
+        match WithdrawalMutation::create(&txn, &handle_models.datas.withdraws).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
@@ -218,8 +214,8 @@ pub async fn sync_to_db(
         }
     }
 
-    if !handle_models.address_token_balance.is_empty() {
-        match TokenBalanceMutation::save(&txn, &handle_models.address_token_balance).await {
+    if !handle_models.datas.address_token_balance.is_empty() {
+        match TokenBalanceMutation::save(&txn, &handle_models.datas.address_token_balance).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
@@ -231,8 +227,8 @@ pub async fn sync_to_db(
         }
     }
 
-    if !handle_models.current_token_balance.is_empty() {
-        match CurrentTokenMutation::save(&txn, &handle_models.current_token_balance).await {
+    if !handle_models.datas.current_token_balance.is_empty() {
+        match CurrentTokenMutation::save(&txn, &handle_models.datas.current_token_balance).await {
             Ok(_) => {}
             Err(e) => {
                 txn.rollback().await?;
