@@ -35,8 +35,13 @@ use super::{address::process_block_addresses, withdrawal::withdrawals_process};
 use crate::common::err::ScannerError;
 use crate::evms::eth::EthCli;
 
-#[derive(Default)]
 pub struct HandlerModels {
+    block: BlockModel,
+    datas: DataModels,
+}
+
+#[derive(Default)]
+pub struct DataModels {
     transactions: Vec<TransactionModel>,
     events: Vec<LogModel>,
     inner_tx: Vec<InnerTransactionModel>,
@@ -108,7 +113,7 @@ fn convert_block_to_model(block: &Block<TxHash>) -> BlockModel {
 pub async fn sync_to_db(
     conn: &DbConn,
     block: &BlockModel,
-    handle_models: HandlerModels,
+    handle_models: DataModels,
 ) -> anyhow::Result<()> {
     let txn = conn.begin().await?;
 
@@ -244,12 +249,95 @@ pub async fn sync_to_db(
     Ok(())
 }
 
+pub async fn handle_block_NEW(
+    block: &Block<Transaction>,
+    traces: &[Trace],
+    recipts: &[TransactionReceipt],
+) -> anyhow::Result<HandlerModels> {
+    let data_model = parse_block(block, traces, recipts).await?;
+    let block_header = handle_block_header(block).await?;
+    Ok(HandlerModels {
+        block: block_header,
+        datas: data_model,
+    })
+}
+
+pub async fn handle_block_header(block: &Block<Transaction>) -> anyhow::Result<BlockModel> {
+    let block_model = BlockModel {
+        difficulty: Some(Decimal::from_i128_with_scale(
+            block.difficulty.as_u128() as i128,
+            0,
+        )),
+        gas_limit: Decimal::from_i128_with_scale(block.gas_limit.as_u128() as i128, 0),
+        gas_used: Decimal::from_i128_with_scale(block.gas_used.as_u128() as i128, 0),
+        hash: match block.hash {
+            Some(hash) => hash.as_bytes().to_vec(),
+            None => vec![],
+        },
+        miner_hash: match block.author {
+            Some(hash) => hash.as_bytes().to_vec(),
+            None => vec![],
+        },
+        nonce: match block.nonce {
+            Some(nonce) => nonce.as_bytes().to_vec(),
+            None => vec![],
+        },
+        number: match block.number {
+            Some(number) => number.as_u64() as i64,
+            None => 0,
+        },
+        parent_hash: block.parent_hash.as_bytes().to_vec(),
+        size: block.size.map(|size| size.as_u32() as i32),
+        timestamp: NaiveDateTime::from_timestamp_opt(block.timestamp.as_u64() as i64, 0).unwrap(),
+        base_fee_per_gas: block.base_fee_per_gas.map(|base_fee_per_gas| {
+            Decimal::from_i128_with_scale(base_fee_per_gas.as_u128() as i128, 0)
+        }),
+        consensus: true,
+        total_difficulty: block.total_difficulty.map(|total_difficulty| {
+            Decimal::from_i128_with_scale(total_difficulty.as_u128() as i128, 0)
+        }),
+        inserted_at: Utc::now().naive_utc(),
+        updated_at: Utc::now().naive_utc(),
+        refetch_needed: Some(false),
+        is_empty: Some(block.transactions.is_empty()), // transaction count is zero
+    };
+
+    Ok(block_model)
+}
+
+pub async fn parse_block(
+    block: &Block<Transaction>,
+    traces: &[Trace],
+    recipts: &[TransactionReceipt],
+) -> anyhow::Result<DataModels> {
+    let mut data_models = DataModels::default();
+    data_models.withdraws = withdrawals_process(block.hash, block.withdrawals.clone());
+    let recipet_map = recipts
+        .iter()
+        .map(|r| (r.transaction_hash, r.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let trace_map = classify_txs(traces);
+    data_models.transactions = handle_transactions(block, &recipet_map, &trace_map).await?;
+    data_models.events = handle_block_event(recipts);
+    data_models.inner_tx = handler_inner_transaction(traces);
+    data_models.addresses = process_block_addresses(block, &recipet_map, &trace_map);
+    (
+        data_models.tokens,
+        data_models.token_transfers,
+        data_models.address_token_balance,
+        data_models.current_token_balance,
+    ) = handle_token_from_receipts(recipts);
+
+    Ok(data_models)
+}
+
 pub async fn handle_block(
     block: &Block<Transaction>,
     traces: &[Trace],
     recipts: &[TransactionReceipt],
-) -> anyhow::Result<(BlockModel, HandlerModels)> {
-    let mut handle_models = HandlerModels::default();
+) -> anyhow::Result<(BlockModel, DataModels)> {
+    let mut handle_models = DataModels::default();
     let block_model = BlockModel {
         difficulty: Some(Decimal::from_i128_with_scale(
             block.difficulty.as_u128() as i128,
