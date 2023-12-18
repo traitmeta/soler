@@ -27,3 +27,8 @@ There are two main types of eth_call: read contract calls and write contract cal
     - pending — the pending state and transactions block
 - Returns:
   - data – the return value of the executed contract
+
+
+### ethers abi
+
+use ethers abi and set block number befor call function. this can also implement token balance at giving block number.
