@@ -30,7 +30,6 @@ async fn process_transaction(
     receipt: Option<&TransactionReceipt>,
     traces: Option<&Vec<(Trace, i32)>>,
 ) -> anyhow::Result<TransactionModel> {
-    // tracing::debug!("hand transaction, tx: {:?}", tx);
     tracing::info!("hand transaction, txHash: {:#032x}", tx.hash);
 
     let mut transaction = TransactionModel {
