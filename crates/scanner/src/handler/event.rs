@@ -7,7 +7,6 @@ pub fn handle_block_event(receipts: &[TransactionReceipt]) -> Vec<LogModel> {
     let mut events = Vec::new();
     for receipt in receipts.iter() {
         for log in receipt.logs.iter() {
-            // tracing::debug!("handle_block_event, log: {:?}", log);
             let mut event = LogModel {
                 data: log.data.to_vec(),
                 index: match log.log_index {
