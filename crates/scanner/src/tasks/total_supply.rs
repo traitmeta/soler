@@ -4,7 +4,6 @@ use bigdecimal::BigDecimal;
 use chrono::Utc;
 use common::chain_ident;
 use repo::dal::token::{Mutation, Query};
-use sea_orm::prelude::Decimal;
 use sea_orm::DbConn;
 use std::str::FromStr;
 use std::sync::Arc;

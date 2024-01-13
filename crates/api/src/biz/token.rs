@@ -37,7 +37,7 @@ pub fn conv_model_to_resp(model: &Model) -> TokenResp {
         icon_url: model.icon_url.clone(),
         name: model.name.clone(),
         symbol: model.symbol.clone(),
-        total_supply: model.total_supply.map(|c| c.to_string()),
+        total_supply: model.total_supply.clone().map(|c| c.to_string()),
         r#type: model.r#type.clone(),
     }
 }

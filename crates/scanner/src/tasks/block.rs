@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::{sync::Arc, time::Duration};
 
 use repo::dal::block::Query;

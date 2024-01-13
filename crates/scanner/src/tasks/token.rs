@@ -1,11 +1,9 @@
 use crate::contracts::erc20::IERC20Call;
 
 use anyhow::{anyhow, Error};
-use bigdecimal::{BigDecimal, FromPrimitive};
+use bigdecimal::BigDecimal;
 use common::{chain_ident, consts};
-use config::db::DB;
 use repo::dal::token::{Mutation, Query};
-use repo::orm::conn::connect_db;
 use sea_orm::DatabaseConnection;
 use sea_orm::{prelude::Decimal, DbConn};
 use std::str::FromStr;

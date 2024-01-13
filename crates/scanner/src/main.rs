@@ -22,7 +22,7 @@ fn main() {
         .init();
 
     let args = Args::parse();
-    let config = BaseConfig::load(&args.config_path).unwrap();
+    let config = BaseConfig::load(args.config_path).unwrap();
     let mut goerli_url = "";
     if config.chains.contains_key("Goerli") {
         let goerli_chain_cfg = config.chains.get("Goerli").unwrap();

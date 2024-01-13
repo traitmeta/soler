@@ -144,7 +144,7 @@ fn conv_model_to_resp(model: &TokenBalanceModel, token: &TokenModel) -> AddressT
             icon_url: token.icon_url.clone(),
             name: token.name.clone(),
             symbol: token.symbol.clone(),
-            total_supply: token.total_supply.map(|f| f.to_string()),
+            total_supply: token.total_supply.as_ref().map(|f| f.to_string()),
             r#type: model.token_type.clone().unwrap(),
         },
         token_id: None,
