@@ -1,13 +1,14 @@
 use crate::contracts::erc20::IERC20Call;
 
 use anyhow::{anyhow, Error};
-use bigdecimal::FromPrimitive;
+use bigdecimal::{BigDecimal, FromPrimitive};
 use common::{chain_ident, consts};
 use config::db::DB;
 use repo::dal::token::{Mutation, Query};
 use repo::orm::conn::connect_db;
 use sea_orm::DatabaseConnection;
 use sea_orm::{prelude::Decimal, DbConn};
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
@@ -24,8 +25,8 @@ pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Re
                         model.name = Some(name);
                         model.symbol = Some(symbol);
                         model.decimals = Some(Decimal::new(decimals as i64, 0));
-                        // TODO change to BigDecimal
-                        model.total_supply = Decimal::from_i128(total_supply.as_u128() as i128);
+                        model.total_supply =
+                            Some(BigDecimal::from_str(total_supply.to_string().as_str()).unwrap());
                         model.skip_metadata = Some(true);
                     }
                     Err(e) => {
@@ -44,8 +45,10 @@ pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Re
                         };
                         match erc20_call.total_supply(contract_addr.as_str()).await {
                             Ok(total_supply) => {
-                                model.total_supply =
-                                    Decimal::from_i128(total_supply.as_u128() as i128)
+                                model.total_supply = Some(
+                                    BigDecimal::from_str(total_supply.to_string().as_str())
+                                        .unwrap(),
+                                );
                             }
                             Err(_) => err_count += 1,
                         };
@@ -103,7 +106,8 @@ pub async fn handle_erc20_total_supply(
             for mut model in models.into_iter() {
                 let contract_addr = chain_ident!(&model.contract_address_hash);
                 if let Ok(total_supply) = erc20_call.total_supply(contract_addr.as_str()).await {
-                    model.total_supply = Decimal::from_i128(total_supply.as_u128() as i128);
+                    model.total_supply =
+                        Some(BigDecimal::from_str(total_supply.to_string().as_str()).unwrap());
                 }
 
                 if let Err(e) = Mutation::update_total_supply(conn.as_ref(), &model).await {

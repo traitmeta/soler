@@ -1,10 +1,12 @@
 use super::publisher::{BroadcastType, Publisher};
 use crate::{cache::block_number::Cache, common::err::FetchError, contracts::erc20::IERC20Call};
+use bigdecimal::BigDecimal;
 use chrono::Utc;
 use common::chain_ident;
 use repo::dal::token::{Mutation, Query};
 use sea_orm::prelude::Decimal;
 use sea_orm::DbConn;
+use std::str::FromStr;
 use std::sync::Arc;
 
 pub struct TokenTotalSupplyOnDemand {
@@ -56,10 +58,8 @@ impl TokenTotalSupplyOnDemand {
                 .unwrap();
             token.total_supply_updated_at_block = Some(max_block_number);
             token.updated_at = Utc::now().naive_utc();
-            token.total_supply = Some(Decimal::from_i128_with_scale(
-                total_supply.as_u128() as i128,
-                0,
-            ));
+            token.total_supply =
+                Some(BigDecimal::from_str(total_supply.to_string().as_str()).unwrap());
 
             let updated_token = Mutation::update_total_supply(self.conn.as_ref(), &token)
                 .await

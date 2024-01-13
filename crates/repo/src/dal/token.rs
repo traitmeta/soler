@@ -128,7 +128,7 @@ impl Mutation {
         ActiveModel {
             name: Set(form_data.name.to_owned()),
             symbol: Set(form_data.symbol.to_owned()),
-            total_supply: Set(form_data.total_supply),
+            total_supply: Set(form_data.total_supply.to_owned()),
             decimals: Set(form_data.decimals),
             r#type: Unchanged(form_data.r#type.to_owned()),
             cataloged: Set(form_data.cataloged),
@@ -153,7 +153,7 @@ impl Mutation {
     {
         // Bulk set attributes using ActiveModel
         let mut token = form_data.clone().into_active_model();
-        token.total_supply = Set(form_data.total_supply);
+        token.total_supply = Set(form_data.total_supply.to_owned());
         token.total_supply_updated_at_block = Set(form_data.total_supply_updated_at_block);
         token.updated_at = Set(Utc::now().naive_utc());
 
@@ -168,6 +168,7 @@ impl Mutation {
 mod tests {
     use crate::orm::conn::connect_db;
     use ::entities::tokens::Model;
+    use bigdecimal::{BigDecimal, FromPrimitive};
     use chrono::Utc;
     use config::db::DB;
     use ethers::types::H160;
@@ -239,7 +240,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        db_model.total_supply = Some(Decimal::new(101, 0));
+        db_model.total_supply = BigDecimal::from_i32(101);
         db_model.total_supply_updated_at_block = Some(1993);
         rt.block_on(Mutation::update_total_supply(&conn, &db_model))
             .unwrap();
@@ -258,7 +259,7 @@ mod tests {
         let model = Model {
             name: None,
             symbol: None,
-            total_supply: Some(Decimal::new(666, 0)),
+            total_supply: BigDecimal::from_i32(666),
             decimals: None,
             r#type: "ERC20".to_string(),
             cataloged: None,

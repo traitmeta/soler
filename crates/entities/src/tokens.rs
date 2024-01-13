@@ -10,7 +10,7 @@ pub struct Model {
     pub name: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
     pub symbol: Option<String>,
-    pub total_supply: Option<Decimal>,
+    pub total_supply: Option<BigDecimal>,
     pub decimals: Option<Decimal>,
     pub r#type: String,
     pub cataloged: Option<bool>,
