@@ -61,11 +61,11 @@ pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Re
                 }
 
                 tracing::info!(
-                    "update erc20 metadata name: {}, symbol: {}, decimals: {}, total_supply: {}",
-                    &model.name.clone().unwrap(),
-                    &model.symbol.clone().unwrap(),
-                    &model.decimals.unwrap(),
-                    &model.total_supply.clone().unwrap(),
+                    "update erc20 metadata name: {:?}, symbol: {:?}, decimals: {:?}, total_supply: {:?}",
+                    &model.name.clone(),
+                    &model.symbol.clone(),
+                    &model.decimals,
+                    &model.total_supply.clone(),
                 );
                 if let Err(e) = Mutation::update_metadata(conn, &model).await {
                     return Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string()));
