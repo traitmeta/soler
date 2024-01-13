@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::bail;
 use chrono::{NaiveDateTime, Utc};
@@ -23,7 +23,7 @@ use repo::dal::{
     transaction::Mutation as TransactionMutation,
     withdrawal::Mutation as WithdrawalMutation,
 };
-use sea_orm::{prelude::Decimal, DbConn, TransactionTrait};
+use sea_orm::{prelude::Decimal, DatabaseConnection, DbConn, TransactionTrait};
 
 use super::internal_transaction::{classify_txs, handler_inner_transaction};
 use super::token::handle_token_from_receipts;
@@ -50,8 +50,8 @@ pub struct DataModels {
     current_token_balance: Vec<CurrentTokenBalanceModel>,
 }
 
-pub async fn init_block(cli: EthCli, conn: &DbConn) {
-    if let Some(block) = BlockQuery::select_latest(conn).await.unwrap() {
+pub async fn init_block(cli: Arc<EthCli>, conn: Arc<DatabaseConnection>) {
+    if let Some(block) = BlockQuery::select_latest(conn.as_ref()).await.unwrap() {
         if block.number != 0 {
             return;
         }
@@ -61,7 +61,7 @@ pub async fn init_block(cli: EthCli, conn: &DbConn) {
     let latest_block = cli.get_block(latest_block_number).await;
     let block = convert_block_to_model(&latest_block);
 
-    BlockMutation::create(conn, &block).await.unwrap();
+    BlockMutation::create(conn.as_ref(), &block).await.unwrap();
 }
 
 fn convert_block_to_model(block: &Block<TxHash>) -> BlockModel {

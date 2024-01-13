@@ -6,6 +6,7 @@ use common::{chain_ident, consts};
 use config::db::DB;
 use repo::dal::token::{Mutation, Query};
 use repo::orm::conn::connect_db;
+use sea_orm::DatabaseConnection;
 use sea_orm::{prelude::Decimal, DbConn};
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,8 +14,7 @@ use tokio::time::interval;
 
 // all metadata ok than update skip metadata
 // and now, catalog will be set ture at once call metadata
-pub async fn handle_erc20_metadata(rpc_url: &str, conn: &DbConn) -> Result<(), Error> {
-    let erc20_call = IERC20Call::new(rpc_url);
+pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Result<(), Error> {
     match Query::filter_uncataloged(conn, consts::ERC20).await {
         Ok(models) => {
             for mut model in models.into_iter() {
@@ -69,16 +69,17 @@ pub async fn handle_erc20_metadata(rpc_url: &str, conn: &DbConn) -> Result<(), E
     }
 }
 
-pub async fn strat_token_metadata_task(rpc_url: String, db_cfg: DB) {
-    let conn = connect_db(db_cfg).await.unwrap();
-    let mut interval = interval(Duration::from_secs(3));
-    loop {
-        interval.tick().await;
-        match handle_erc20_metadata(rpc_url.as_str(), &conn).await {
-            Ok(_) => (),
-            Err(err) => tracing::error!(message = "token metadata task", err = ?err),
-        };
-    }
+pub fn strat_token_metadata_task(erc20_call: IERC20Call, conn: Arc<DatabaseConnection>) {
+    tokio::task::spawn(async move {
+        let mut interval = interval(Duration::from_secs(3));
+        loop {
+            interval.tick().await;
+            match handle_erc20_metadata(&erc20_call, conn.as_ref()).await {
+                Ok(_) => (),
+                Err(err) => tracing::error!(message = "token metadata task", err = ?err),
+            };
+        }
+    });
 }
 
 pub async fn strat_token_total_updater_task(rpc_url: String, conn: Arc<DbConn>) {
