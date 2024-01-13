@@ -90,16 +90,17 @@ pub fn strat_token_metadata_task(erc20_call: IERC20Call, conn: Arc<DatabaseConne
     });
 }
 
-pub async fn strat_token_total_updater_task(rpc_url: String, conn: Arc<DbConn>) {
-    let mut interval = interval(Duration::from_secs(3));
-    let erc20_call = Arc::new(IERC20Call::new(rpc_url.as_str()));
-    loop {
-        interval.tick().await;
-        match handle_erc20_total_supply(erc20_call.clone(), conn.clone()).await {
-            Ok(_) => (),
-            Err(err) => tracing::error!(message = "token total supply task", err = ?err),
-        };
-    }
+pub async fn strat_token_total_updater_task(erc20_call: Arc<IERC20Call>, conn: Arc<DbConn>) {
+    tokio::task::spawn(async move {
+        let mut interval = interval(Duration::from_secs(3));
+        loop {
+            interval.tick().await;
+            match handle_erc20_total_supply(erc20_call.clone(), conn.clone()).await {
+                Ok(_) => (),
+                Err(err) => tracing::error!(message = "token total supply task", err = ?err),
+            };
+        }
+    });
 }
 
 pub async fn handle_erc20_total_supply(

@@ -26,7 +26,7 @@ pub fn decode_erc721_event_data(data: &[u8]) -> anyhow::Result<(H160, H160, U256
             let from: H160;
             let to: H160;
             let token_id: U256;
-            if let Some(Token::Address(addr)) = tokens.get(0) {
+            if let Some(Token::Address(addr)) = tokens.first() {
                 from = *addr;
             } else {
                 return Err(anyhow!("Erc721 decode from address error"));
@@ -58,7 +58,7 @@ pub fn decode_erc1155_single_event_data(data: &[u8]) -> anyhow::Result<(U256, U2
         Ok(tokens) => {
             let id: U256;
             let value: U256;
-            if let Some(Token::Uint(token_id)) = tokens.get(0) {
+            if let Some(Token::Uint(token_id)) = tokens.first() {
                 id = *token_id;
             } else {
                 return Err(anyhow!("Erc1155 decode token_id error"));
@@ -87,7 +87,7 @@ pub fn decode_erc1155_batch_event_data(data: &[u8]) -> anyhow::Result<(Vec<U256>
         Ok(tokens) => {
             let mut ids = vec![];
             let mut values = vec![];
-            if let Some(Token::Array(token_ids)) = tokens.get(0) {
+            if let Some(Token::Array(token_ids)) = tokens.first() {
                 for id in token_ids {
                     if let Token::Uint(id_uint) = id {
                         ids.push(*id_uint);
