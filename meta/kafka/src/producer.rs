@@ -6,6 +6,7 @@ use rdkafka::config::ClientConfig;
 use rdkafka::message::{Header, OwnedHeaders};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 
+#[allow(clippy::get_first)]
 pub async fn produce(kfk_cfg: &KafkaCfg) {
     let producer: &FutureProducer = &ClientConfig::new()
         .set("bootstrap.servers", kfk_cfg.brokers_to_str())
