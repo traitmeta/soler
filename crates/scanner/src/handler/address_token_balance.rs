@@ -81,7 +81,7 @@ fn is_erc721_burn(token_type: &str, to_address: Vec<u8>) -> bool {
         return true;
     }
 
-    return false;
+    false
 }
 
 pub fn process_current_token_balances(
