@@ -29,11 +29,6 @@ pub fn process_address_token_balances(
             .get(&token.token_contract_address_hash)
             .unwrap()
             .r#type;
-
-        if is_erc721_burn(token_type, token.to_address_hash.clone()) {
-            continue;
-        }
-
         let mut from_model = AddressTokenBalanceModel {
             address_hash: token.from_address_hash.clone(),
             block_number: token.block_number.unwrap_or(0),
@@ -49,7 +44,6 @@ pub fn process_address_token_balances(
 
         let mut to_model = from_model.clone();
         to_model.address_hash = token.to_address_hash.clone();
-
         if let Some(token_ids) = &token.token_ids {
             for token_id in token_ids {
                 let mut from_model_tmp = from_model.clone();
@@ -69,7 +63,9 @@ pub fn process_address_token_balances(
         }
 
         resp.push(from_model);
-        resp.push(to_model);
+        if !is_erc721_burn(token_type, token.to_address_hash.clone()) {
+            resp.push(to_model);
+        }
     }
 
     resp

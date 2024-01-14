@@ -8,6 +8,18 @@ impl Query {
     pub async fn find_by_hash(db: &DbConn, hash: Vec<u8>) -> Result<Option<Model>, DbErr> {
         Entity::find().filter(Column::Hash.eq(hash)).one(db).await
     }
+
+    pub async fn filter_no_featched(db: &DbConn, block_height: i64) -> Result<Vec<Model>, DbErr> {
+        Entity::find()
+            .filter(
+                Condition::any()
+                    .add(Column::FetchedCoinBalanceBlockNumber.lte(Some(block_height)))
+                    .add(Column::FetchedCoinBalanceBlockNumber.is_null()),
+            )
+            .limit(50)
+            .all(db)
+            .await
+    }
 }
 
 pub struct Mutation;

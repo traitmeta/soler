@@ -1,4 +1,5 @@
 use ::entities::address_token_balances::{ActiveModel, Column, Entity, Model};
+use chrono::Utc;
 use entities::{address_token_balances::Relation, tokens};
 use migration::OnConflict;
 use sea_orm::*;
@@ -161,5 +162,20 @@ impl Mutation {
         }
 
         res
+    }
+
+    pub async fn update_balance<C>(db: &C, form_data: &Model) -> Result<Model, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let mut token = form_data.clone().into_active_model();
+        token.value = Set(form_data.value.to_owned());
+        token.value_fetched_at = Set(form_data.value_fetched_at);
+        token.updated_at = Set(Utc::now().naive_utc());
+
+        Entity::update(token)
+            .filter(Column::Id.eq(form_data.id))
+            .exec(db)
+            .await
     }
 }

@@ -92,7 +92,7 @@ fn test_handle_transfer_weth_deposit() {
     assert!(tokens[0].r#type.as_bytes() == consts::ERC20.as_bytes());
     assert!(tokens[1].r#type.as_bytes() == consts::ERC20.as_bytes());
     assert!(token_transfers.len() == 4);
-    assert!(token_transfers[0].from_address_hash == consts::ZERO_ADDRESS.as_bytes().to_vec());
+    assert!(token_transfers[0].from_address_hash == H160::zero().as_bytes().to_vec());
     assert!(token_transfers[0].amount.is_some());
     assert!(token_transfers[2].amount.is_some());
     if let Some(amount) = &token_transfers[0].amount {

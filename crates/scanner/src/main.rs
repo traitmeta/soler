@@ -2,10 +2,11 @@ use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
 use repo::orm::conn::connect_db;
 use scanner::{
-    contracts::erc20::IERC20Call,
+    contracts::{balance_reader::BalanceReader, erc20::IERC20Call},
     evms::eth::EthCli,
     handler::block::init_block,
     tasks::{
+        address::address_token_balance_task,
         block::handle_block_task,
         token::{token_metadata_task, token_total_updater_task},
     },
@@ -58,6 +59,9 @@ fn main() {
         let erc20_call = Arc::new(IERC20Call::new(rpc_url.as_str()));
         token_metadata_task(erc20_call.clone(), conn.clone());
         token_total_updater_task(eth_cli.clone(), erc20_call.clone(), conn.clone());
+
+        let reader = Arc::new(BalanceReader::new(rpc_url.as_str()));
+        address_token_balance_task(reader.clone(), conn.clone());
     });
 
     // wait for SIGINT on the main thread

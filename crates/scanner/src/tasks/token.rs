@@ -13,9 +13,9 @@ use tokio::time::interval;
 
 // all metadata failed then update skip metadata
 // or catalog will be set ture
-pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Result<(), Error> {
+pub async fn handle_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Result<(), Error> {
     let Ok(models) = Query::filter_uncataloged_and_no_skip_metadata(conn, None).await else {
-        return Err(anyhow!("handle_erc20_metadata: filter_uncataloged failed"));
+        return Err(anyhow!("handle_metadata: filter_uncataloged failed"));
     };
     for mut model in models.into_iter() {
         let contract_addr = chain_ident!(&model.contract_address_hash);
@@ -59,7 +59,7 @@ pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Re
         }
 
         tracing::info!(
-            "update erc20 metadata id: {}, name: {:?}, symbol: {:?}, decimals: {:?}, total_supply: {:?}",
+            "update metadata id: {}, name: {:?}, symbol: {:?}, decimals: {:?}, total_supply: {:?}",
             contract_addr.clone(),
             &model.name.clone(),
             &model.symbol.clone(),
@@ -67,7 +67,7 @@ pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Re
             &model.total_supply.clone(),
         );
         if let Err(e) = Mutation::update_metadata(conn, &model).await {
-            return Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string()));
+            return Err(anyhow!("Handler metadata: {:?}", e.to_string()));
         }
     }
     Ok(())
@@ -78,7 +78,7 @@ pub fn token_metadata_task(erc20_call: Arc<IERC20Call>, conn: Arc<DatabaseConnec
         let mut interval = interval(Duration::from_secs(300));
         loop {
             interval.tick().await;
-            match handle_erc20_metadata(erc20_call.as_ref(), conn.as_ref()).await {
+            match handle_metadata(erc20_call.as_ref(), conn.as_ref()).await {
                 Ok(_) => (),
                 Err(err) => tracing::error!(message = "token metadata task", err = ?err),
             };
@@ -92,7 +92,7 @@ pub fn token_total_updater_task(cli: Arc<EthCli>, erc20_call: Arc<IERC20Call>, c
         let mut interval = interval(Duration::from_secs(300));
         loop {
             interval.tick().await;
-            match handle_erc20_total_supply(cli.clone(), erc20_call.clone(), conn.clone()).await {
+            match handle_token_total_supply(cli.clone(), erc20_call.clone(), conn.clone()).await {
                 Ok(_) => (),
                 Err(err) => tracing::error!(message = "token total supply task", err = ?err),
             };
@@ -100,7 +100,7 @@ pub fn token_total_updater_task(cli: Arc<EthCli>, erc20_call: Arc<IERC20Call>, c
     });
 }
 
-pub async fn handle_erc20_total_supply(
+pub async fn handle_token_total_supply(
     cli: Arc<EthCli>,
     erc20_call: Arc<IERC20Call>,
     conn: Arc<DbConn>,
@@ -119,17 +119,17 @@ pub async fn handle_erc20_total_supply(
                     model.total_supply_updated_at_block = Some(block_number as i64);
                 }
                 tracing::info!(
-                    "update erc20 total_supply contract_address: {:?}, total_supply: {:?}, block_height: {}",
+                    "update total_supply contract_address: {:?}, total_supply: {:?}, block_height: {}",
                     contract_addr.clone(),
                     &model.total_supply.clone(),
                     block_number,
                 );
                 if let Err(e) = Mutation::update_total_supply(conn.as_ref(), &model).await {
-                    return Err(anyhow!("Handler Erc20 total supply: {:?}", e.to_string()));
+                    return Err(anyhow!("Handler total supply: {:?}", e.to_string()));
                 }
             }
             Ok(())
         }
-        Err(e) => Err(anyhow!("Handler Erc20 total supply: {:?}", e.to_string())),
+        Err(e) => Err(anyhow!("Handler total supply: {:?}", e.to_string())),
     }
 }
