@@ -191,4 +191,17 @@ impl EthCli {
 
         (Some(block_info.timestamp), logs)
     }
+
+    pub async fn get_balance(&self, from: H160, block_number: Option<u64>) -> U256 {
+        if let Some(number) = block_number {
+            let amount = self
+                .provider
+                .get_balance(from, Some(BlockId::Number(number.into())))
+                .await
+                .unwrap();
+            return amount;
+        }
+
+        self.provider.get_balance(from, None).await.unwrap()
+    }
 }
