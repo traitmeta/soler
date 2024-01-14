@@ -47,7 +47,7 @@ pub async fn handle_address_token_balance(
     Ok(())
 }
 
-pub fn token_metadata_task(erc20_call: Arc<IERC20Call>, conn: Arc<DatabaseConnection>) {
+pub fn address_token_balance_task(erc20_call: Arc<IERC20Call>, conn: Arc<DatabaseConnection>) {
     tokio::task::spawn(async move {
         let mut interval = interval(Duration::from_secs(300));
         loop {
