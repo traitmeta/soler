@@ -23,7 +23,7 @@ pub struct Model {
     pub inserted_at: DateTime,
     pub updated_at: DateTime,
     pub holder_count: Option<i32>,
-    pub skip_metadata: Option<bool>,
+    pub skip_metadata: Option<bool>, // this mean contract not set metadata
     pub fiat_value: Option<Decimal>,
     pub circulating_market_cap: Option<Decimal>,
     pub total_supply_updated_at_block: Option<i64>,

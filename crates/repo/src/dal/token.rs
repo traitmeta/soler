@@ -60,12 +60,23 @@ impl Query {
             .await
     }
 
-    pub async fn filter_uncataloged(db: &DbConn, r_type: &str) -> Result<Vec<Model>, DbErr> {
+    pub async fn filter_uncataloged_and_no_skip_metadata(
+        db: &DbConn,
+        r_type: &str,
+    ) -> Result<Vec<Model>, DbErr> {
         Entity::find()
             .filter(
-                Condition::any()
-                    .add(Column::Cataloged.eq(Some(false)))
-                    .add(Column::Cataloged.is_null()),
+                Condition::all()
+                    .add(
+                        Condition::any()
+                            .add(Column::Cataloged.eq(Some(false)))
+                            .add(Column::Cataloged.is_null()),
+                    )
+                    .add(
+                        Condition::any()
+                            .add(Column::SkipMetadata.eq(Some(false)))
+                            .add(Column::SkipMetadata.is_null()),
+                    ),
             )
             .filter(Column::Type.eq(r_type.to_string()))
             .limit(50)

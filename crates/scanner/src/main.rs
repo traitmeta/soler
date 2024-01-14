@@ -5,7 +5,10 @@ use scanner::{
     contracts::erc20::IERC20Call,
     evms::eth::EthCli,
     handler::block::init_block,
-    tasks::{block::handle_block_task, token::token_metadata_task},
+    tasks::{
+        block::handle_block_task,
+        token::{token_metadata_task, token_total_updater_task},
+    },
 };
 use std::sync::Arc;
 use tracing::instrument;
@@ -54,7 +57,7 @@ fn main() {
 
         let erc20_call = Arc::new(IERC20Call::new(rpc_url.as_str()));
         token_metadata_task(erc20_call.clone(), conn.clone());
-        token_metadata_task(erc20_call.clone(), conn.clone());
+        token_total_updater_task(eth_cli.clone(), erc20_call.clone(), conn.clone());
     });
 
     // wait for SIGINT on the main thread
