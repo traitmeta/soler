@@ -24,7 +24,7 @@ pub async fn handle_address_token_balance(
         let contract_addr = chain_ident!(&model.token_contract_address_hash);
         let address = chain_ident!(&model.address_hash);
         // this is the first try
-        match erc20_call
+        if let Ok(balance) = erc20_call
             .balance_of(
                 contract_addr.as_str(),
                 address.as_str(),
@@ -32,20 +32,16 @@ pub async fn handle_address_token_balance(
             )
             .await
         {
-            Ok(balance) => {
-                model.value = Some(BigDecimal::from_str(balance.to_string().as_str()).unwrap());
-                model.value_fetched_at = Some(Utc::now().naive_utc());
+            model.value = Some(BigDecimal::from_str(balance.to_string().as_str()).unwrap());
+            model.value_fetched_at = Some(Utc::now().naive_utc());
+            tracing::info!(
+                "update address token balance id: {}, address: {:?}",
+                contract_addr.clone(),
+                address.clone(),
+            );
+            if let Err(e) = Mutation::update_balance(conn, &model).await {
+                return Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string()));
             }
-            Err(_) => {}
-        }
-
-        tracing::info!(
-            "update address token balance id: {}, address: {:?}",
-            contract_addr.clone(),
-            address.clone(),
-        );
-        if let Err(e) = Mutation::update_balance(conn, &model).await {
-            return Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string()));
         }
     }
     Ok(())
