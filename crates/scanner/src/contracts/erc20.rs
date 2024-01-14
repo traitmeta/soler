@@ -34,11 +34,21 @@ impl IERC20Call {
         Self { provider }
     }
 
-    pub async fn total_supply(&self, contract_address: &str) -> Result<ethers::types::U256, Error> {
+    pub async fn total_supply(
+        &self,
+        contract_address: &str,
+        block_number: Option<u64>,
+    ) -> Result<ethers::types::U256, Error> {
         let client = Arc::new(&self.provider);
         let address: Address = contract_address.parse().unwrap();
         let contract = IERC20::new(address, client);
-        match contract.total_supply().call().await {
+        let total_supply_call = contract.total_supply();
+        let total_supply_call = match block_number {
+            Some(num) => total_supply_call.block(num),
+            None => total_supply_call,
+        };
+
+        match total_supply_call.call().await {
             Ok(total_supply) => Ok(total_supply),
             Err(err) => Err(anyhow!("Erc20 get total supply: {}", err.to_string())),
         }
@@ -115,7 +125,7 @@ impl IERC20Call {
             Err(e) => return Err(e),
         };
 
-        let total_supply = match self.total_supply(contract_address).await {
+        let total_supply = match self.total_supply(contract_address, None).await {
             Ok(s) => s,
             Err(e) => return Err(e),
         };
@@ -130,26 +140,35 @@ mod tests {
     const WETH_ADDRESS: &str = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 
     #[test]
-    #[ignore]
     fn test_total_supply() {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
         let contract = IERC20Call::new("https://eth.llamarpc.com");
-        match rt.block_on(contract.total_supply(WETH_ADDRESS)) {
+        match rt.block_on(contract.total_supply(WETH_ADDRESS, None)) {
             Ok(total_supply) => {
                 assert!(!total_supply.is_zero());
             }
             Err(err) => println!("{}", err.to_string()),
         };
 
-        match rt.block_on(contract.total_supply("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc3")) {
+        match rt.block_on(contract.total_supply(WETH_ADDRESS, Some(19002000))) {
             Ok(total_supply) => {
-                assert!(total_supply.as_u32() != 0);
-                println!("{}", total_supply.as_u128())
+                assert!(total_supply.as_u128() == 3273632455691877918976991);
             }
-            Err(_) => assert!(true),
+            Err(err) => println!("{}", err.to_string()),
+        };
+
+        match rt.block_on(contract.total_supply("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc3", None))
+        {
+            Ok(_) => {
+                assert!(false);
+                println!("this address is not erc20 contract")
+            }
+            Err(_) => {
+                assert!(true);
+            }
         };
     }
 

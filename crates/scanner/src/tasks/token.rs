@@ -1,4 +1,5 @@
 use crate::contracts::erc20::IERC20Call;
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Error};
 use bigdecimal::BigDecimal;
@@ -6,9 +7,7 @@ use common::{chain_ident, consts};
 use repo::dal::token::{Mutation, Query};
 use sea_orm::DatabaseConnection;
 use sea_orm::{prelude::Decimal, DbConn};
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
+
 use tokio::time::interval;
 
 // all metadata ok than update skip metadata
@@ -41,7 +40,7 @@ pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Re
                             Ok(decimals) => model.decimals = Some(Decimal::new(decimals as i64, 0)),
                             Err(_) => err_count += 1,
                         };
-                        match erc20_call.total_supply(contract_addr.as_str()).await {
+                        match erc20_call.total_supply(contract_addr.as_str(), None).await {
                             Ok(total_supply) => {
                                 model.total_supply = Some(
                                     BigDecimal::from_str(total_supply.to_string().as_str())
@@ -77,12 +76,12 @@ pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Re
     }
 }
 
-pub fn strat_token_metadata_task(erc20_call: IERC20Call, conn: Arc<DatabaseConnection>) {
+pub fn token_metadata_task(erc20_call: Arc<IERC20Call>, conn: Arc<DatabaseConnection>) {
     tokio::task::spawn(async move {
         let mut interval = interval(Duration::from_secs(3));
         loop {
             interval.tick().await;
-            match handle_erc20_metadata(&erc20_call, conn.as_ref()).await {
+            match handle_erc20_metadata(erc20_call.as_ref(), conn.as_ref()).await {
                 Ok(_) => (),
                 Err(err) => tracing::error!(message = "token metadata task", err = ?err),
             };
@@ -90,7 +89,7 @@ pub fn strat_token_metadata_task(erc20_call: IERC20Call, conn: Arc<DatabaseConne
     });
 }
 
-pub async fn strat_token_total_updater_task(erc20_call: Arc<IERC20Call>, conn: Arc<DbConn>) {
+pub async fn token_total_updater_task(erc20_call: Arc<IERC20Call>, conn: Arc<DbConn>) {
     tokio::task::spawn(async move {
         let mut interval = interval(Duration::from_secs(3));
         loop {
@@ -111,11 +110,17 @@ pub async fn handle_erc20_total_supply(
         Ok(models) => {
             for mut model in models.into_iter() {
                 let contract_addr = chain_ident!(&model.contract_address_hash);
-                if let Ok(total_supply) = erc20_call.total_supply(contract_addr.as_str()).await {
+                if let Ok(total_supply) =
+                    erc20_call.total_supply(contract_addr.as_str(), None).await
+                {
                     model.total_supply =
                         Some(BigDecimal::from_str(total_supply.to_string().as_str()).unwrap());
                 }
-
+                tracing::info!(
+                    "update erc20 total_supply contract_address: {:?}, total_supply: {:?}",
+                    contract_addr.clone(),
+                    &model.total_supply.clone(),
+                );
                 if let Err(e) = Mutation::update_total_supply(conn.as_ref(), &model).await {
                     return Err(anyhow!("Handler Erc20 total supply: {:?}", e.to_string()));
                 }

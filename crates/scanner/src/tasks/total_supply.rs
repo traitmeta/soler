@@ -52,7 +52,7 @@ impl TokenTotalSupplyOnDemand {
 
             let total_supply = self
                 .erc20_call
-                .total_supply(token_address_hash.as_str())
+                .total_supply(token_address_hash.as_str(), None)
                 .await
                 .unwrap();
             token.total_supply_updated_at_block = Some(max_block_number);
