@@ -2,7 +2,7 @@ use clap::Parser;
 use config::{base::BaseConfig, Args, Config};
 use repo::orm::conn::connect_db;
 use scanner::{
-    contracts::erc20::IERC20Call,
+    contracts::{balance_reader::BalanceReader, erc20::IERC20Call},
     evms::eth::EthCli,
     handler::block::init_block,
     tasks::{
@@ -56,10 +56,12 @@ fn main() {
             config.chains.get("Goerli").unwrap().chain_name
         );
 
-        let erc20_call = Arc::new(IERC20Call::new(rpc_url.as_str()));
-        token_metadata_task(erc20_call.clone(), conn.clone());
-        token_total_updater_task(eth_cli.clone(), erc20_call.clone(), conn.clone());
-        address_token_balance_task(erc20_call.clone(), conn.clone());
+        // let erc20_call = Arc::new(IERC20Call::new(rpc_url.as_str()));
+        // token_metadata_task(erc20_call.clone(), conn.clone());
+        // token_total_updater_task(eth_cli.clone(), erc20_call.clone(), conn.clone());
+
+        let reader = Arc::new(BalanceReader::new(rpc_url.as_str()));
+        address_token_balance_task(reader.clone(), conn.clone());
     });
 
     // wait for SIGINT on the main thread

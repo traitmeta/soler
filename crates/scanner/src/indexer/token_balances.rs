@@ -2,7 +2,7 @@ use anyhow::Result;
 use bigdecimal::BigDecimal;
 use chrono::Utc;
 use ethers::types::U256;
-use std::{collections::HashMap, str::FromStr, time::Duration};
+use std::{str::FromStr, time::Duration};
 use tokio::time;
 use tracing::error;
 
@@ -15,25 +15,27 @@ use common::{chain_ident, consts};
 // should be get balance with two ways, first is async, get data which have field block_number from db and call contract;
 // second is sync, when fetching and parsed data from block, send it to channel.
 pub async fn fetch_token_balances_from_blockchain(
-    balance_reader: BalanceReader,
+    balance_reader: &BalanceReader,
     token_balances: Vec<TokenBalanceModel>,
-) -> Result<HashMap<String, Vec<TokenBalanceModel>>> {
-    println!("fetching token balances, count: {}", token_balances.len());
-
+) -> Result<Vec<TokenBalanceModel>> {
     let mut fetched_token_balances = vec![];
-    let mut failed_token_balances = vec![];
+    // let mut failed_token_balances = vec![];
     for token_balance in token_balances.iter() {
+        let token_hash = chain_ident!(token_balance.token_contract_address_hash.clone());
+        let address_hash = chain_ident!(token_balance.address_hash.clone());
+        tracing::info!(
+            "update address token => token balance: {:?}, address_hash :{:?}",
+            token_hash.clone(),
+            address_hash.clone()
+        );
         let req = TokenBalanceRequest {
-            token_contract_address_hash: format!(
-                "0x{}",
-                hex::encode(token_balance.token_contract_address_hash.clone())
-            ),
-            address_hash: chain_ident!(token_balance.address_hash.clone()),
+            token_hash,
+            address_hash,
             block_number: Some(token_balance.block_number as u64),
             token_id: token_balance
                 .token_id
                 .as_ref()
-                .map(|token_id| U256::from(token_id.to_string().as_bytes())),
+                .map(|token_id| token_id.to_string()),
             token_type: token_balance
                 .token_type
                 .as_ref()
@@ -53,24 +55,24 @@ pub async fn fetch_token_balances_from_blockchain(
                 fetched_token_balances.push(item);
             }
             Err(_) => {
-                failed_token_balances.push(item);
+                // failed_token_balances.push(item);
             }
         }
     }
 
-    let mut token_balances_map = HashMap::new();
-    for token_balance in fetched_token_balances {
-        let key = get_token_balance_key(&token_balance);
-        token_balances_map
-            .entry(key)
-            .or_insert_with(Vec::new)
-            .push(token_balance.clone());
-    }
+    // let mut token_balances_map = HashMap::new();
+    // for token_balance in fetched_token_balances {
+    //     let key = get_token_balance_key(&token_balance);
+    //     token_balances_map
+    //         .entry(key)
+    //         .or_insert_with(Vec::new)
+    //         .push(token_balance.clone());
+    // }
 
-    Ok(token_balances_map)
+    Ok(fetched_token_balances)
 }
 
-fn get_token_balance_key(token_balance: &TokenBalanceModel) -> String {
+fn _get_token_balance_key(token_balance: &TokenBalanceModel) -> String {
     format!(
         "0x{}_{}_0x{}",
         hex::encode(token_balance.token_contract_address_hash.clone()),
@@ -98,7 +100,7 @@ pub async fn fetch_current_token_balance(
 
     loop {
         let req = TokenBalanceRequest {
-            token_contract_address_hash: format!(
+            token_hash: format!(
                 "0x{}",
                 hex::encode(token_balance.token_contract_address_hash.clone())
             ),
@@ -107,7 +109,7 @@ pub async fn fetch_current_token_balance(
             token_id: token_balance
                 .token_id
                 .as_ref()
-                .map(|token_id| U256::from(token_id.to_string().as_bytes())),
+                .map(|token_id| token_id.to_string()),
             token_type: token_balance
                 .token_type
                 .as_ref()

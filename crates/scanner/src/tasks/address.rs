@@ -1,10 +1,8 @@
-use crate::contracts::erc20::IERC20Call;
-use std::{str::FromStr, sync::Arc, time::Duration};
+use crate::contracts::balance_reader::BalanceReader;
+use crate::indexer::token_balances::fetch_token_balances_from_blockchain;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Error};
-use bigdecimal::BigDecimal;
-use chrono::Utc;
-use common::chain_ident;
 use repo::dal::token_balance::{Mutation, Query};
 use sea_orm::DatabaseConnection;
 use sea_orm::DbConn;
@@ -12,7 +10,7 @@ use sea_orm::DbConn;
 use tokio::time::interval;
 
 pub async fn handle_address_token_balance(
-    erc20_call: &IERC20Call,
+    reader: &BalanceReader,
     conn: &DbConn,
 ) -> Result<(), Error> {
     let Ok(models) = Query::unfetched_token_balances(conn).await else {
@@ -20,39 +18,28 @@ pub async fn handle_address_token_balance(
             "handle_erc20_metadata: unfetched_token_balances failed"
         ));
     };
-    for mut model in models.into_iter() {
-        let contract_addr = chain_ident!(&model.token_contract_address_hash);
-        let address = chain_ident!(&model.address_hash);
-        // this is the first try
-        if let Ok(balance) = erc20_call
-            .balance_of(
-                contract_addr.as_str(),
-                address.as_str(),
-                Some(model.block_number as u64),
-            )
-            .await
-        {
-            model.value = Some(BigDecimal::from_str(balance.to_string().as_str()).unwrap());
-            model.value_fetched_at = Some(Utc::now().naive_utc());
-            tracing::info!(
-                "update address token balance id: {}, address: {:?}",
-                contract_addr.clone(),
-                address.clone(),
-            );
-            if let Err(e) = Mutation::update_balance(conn, &model).await {
-                return Err(anyhow!("Handler Erc20 metadata: {:?}", e.to_string()));
-            }
+
+    let res = fetch_token_balances_from_blockchain(reader, models)
+        .await
+        .unwrap();
+    for model in res.into_iter() {
+        if let Err(e) = Mutation::update_balance(conn, &model).await {
+            return Err(anyhow!(
+                "Handler address_token_balance: {:?}",
+                e.to_string()
+            ));
         }
+        tracing::info!("update address token => model: {:?}", &model);
     }
     Ok(())
 }
 
-pub fn address_token_balance_task(erc20_call: Arc<IERC20Call>, conn: Arc<DatabaseConnection>) {
+pub fn address_token_balance_task(reader: Arc<BalanceReader>, conn: Arc<DatabaseConnection>) {
     tokio::task::spawn(async move {
         let mut interval = interval(Duration::from_secs(300));
         loop {
             interval.tick().await;
-            match handle_address_token_balance(erc20_call.as_ref(), conn.as_ref()).await {
+            match handle_address_token_balance(reader.as_ref(), conn.as_ref()).await {
                 Ok(_) => (),
                 Err(err) => tracing::error!(message = "token metadata task", err = ?err),
             };

@@ -224,12 +224,12 @@ fn parse_erc20_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     let (mut token, mut transfer_model) = defualt_model(log);
     transfer_model.from_address_hash = topics
         .second_topic
-        .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
+        .map_or(H160::zero().as_bytes().to_vec(), |topic| {
             H160::from(topic).as_bytes().to_vec()
         });
     transfer_model.to_address_hash = topics
         .third_topic
-        .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
+        .map_or(H160::zero().as_bytes().to_vec(), |topic| {
             H160::from(topic).as_bytes().to_vec()
         });
     token.r#type = consts::ERC20.to_string();
@@ -281,12 +281,12 @@ fn parse_erc721_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     let (mut token, mut transfer_model) = defualt_model(log);
     transfer_model.from_address_hash = topics
         .second_topic
-        .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
+        .map_or(H160::zero().as_bytes().to_vec(), |topic| {
             H160::from(topic).as_bytes().to_vec()
         });
     transfer_model.to_address_hash = topics
         .third_topic
-        .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
+        .map_or(H160::zero().as_bytes().to_vec(), |topic| {
             H160::from(topic).as_bytes().to_vec()
         });
     token.r#type = consts::ERC721.to_string();
@@ -323,12 +323,12 @@ fn parse_erc1155_params(log: &Log) -> (TokenModel, TokenTransferModel) {
     let (mut token, mut transfer_model) = defualt_model(log);
     transfer_model.from_address_hash = topics
         .third_topic
-        .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
+        .map_or(H160::zero().as_bytes().to_vec(), |topic| {
             H160::from(topic).as_bytes().to_vec()
         });
     transfer_model.to_address_hash = topics
         .fourth_topic
-        .map_or(consts::ZERO_ADDRESS.as_bytes().to_vec(), |topic| {
+        .map_or(H160::zero().as_bytes().to_vec(), |topic| {
             H160::from(topic).as_bytes().to_vec()
         });
     token.r#type = consts::ERC1155.to_string();
@@ -379,8 +379,8 @@ fn defualt_model(log: &Log) -> (TokenModel, TokenTransferModel) {
             .transaction_hash
             .map_or(vec![], |hash| hash.as_bytes().to_vec()),
         log_index: log.log_index.map_or(0, |idx| idx.as_u32() as i32),
-        from_address_hash: consts::ZERO_ADDRESS.as_bytes().to_vec(),
-        to_address_hash: consts::ZERO_ADDRESS.as_bytes().to_vec(),
+        from_address_hash: H160::zero().as_bytes().to_vec(),
+        to_address_hash: H160::zero().as_bytes().to_vec(),
         amount: None,
         token_id: None,
         token_contract_address_hash: log.address.as_bytes().to_vec(),
