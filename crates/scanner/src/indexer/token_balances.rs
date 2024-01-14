@@ -1,7 +1,6 @@
 use anyhow::Result;
 use bigdecimal::BigDecimal;
 use chrono::Utc;
-use ethers::types::U256;
 use std::{str::FromStr, time::Duration};
 use tokio::time;
 use tracing::error;
@@ -23,11 +22,6 @@ pub async fn fetch_token_balances_from_blockchain(
     for token_balance in token_balances.iter() {
         let token_hash = chain_ident!(token_balance.token_contract_address_hash.clone());
         let address_hash = chain_ident!(token_balance.address_hash.clone());
-        tracing::info!(
-            "update address token => token balance: {:?}, address_hash :{:?}",
-            token_hash.clone(),
-            address_hash.clone()
-        );
         let req = TokenBalanceRequest {
             token_hash,
             address_hash,

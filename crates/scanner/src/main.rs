@@ -56,9 +56,9 @@ fn main() {
             config.chains.get("Goerli").unwrap().chain_name
         );
 
-        // let erc20_call = Arc::new(IERC20Call::new(rpc_url.as_str()));
-        // token_metadata_task(erc20_call.clone(), conn.clone());
-        // token_total_updater_task(eth_cli.clone(), erc20_call.clone(), conn.clone());
+        let erc20_call = Arc::new(IERC20Call::new(rpc_url.as_str()));
+        token_metadata_task(erc20_call.clone(), conn.clone());
+        token_total_updater_task(eth_cli.clone(), erc20_call.clone(), conn.clone());
 
         let reader = Arc::new(BalanceReader::new(rpc_url.as_str()));
         address_token_balance_task(reader.clone(), conn.clone());
