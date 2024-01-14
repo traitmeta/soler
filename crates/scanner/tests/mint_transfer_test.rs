@@ -1,5 +1,6 @@
+use entities::address_current_token_balances;
 use ethers::types::TransactionReceipt;
-use scanner::handler::event::handle_block_event;
+use scanner::handler::{event::handle_block_event, token::handle_token_from_receipts};
 
 use std::{env, fs::File, io::BufReader, path::PathBuf};
 
@@ -29,4 +30,21 @@ fn test_handle_batch_transfer_1155() {
 
     let events = handle_block_event(&receipts);
     assert!(events.len() >= 1);
+}
+
+#[test]
+fn test_handle_token_from_receipts() {
+    let mut current_dir = common_dir_path();
+    current_dir.push("receipts/erc20_transfer.json");
+    let file = File::open(&current_dir).expect(&format!("{}", &current_dir.as_path().display()));
+    let reader = BufReader::new(file);
+    let receipt: TransactionReceipt = serde_json::from_reader(reader).unwrap();
+    let receipts = vec![receipt];
+
+    let (tokens, tokens_transfer, address_token_balances, address_current_token_balances) =
+        handle_token_from_receipts(&receipts);
+    assert!(tokens.len() >= 1);
+    assert!(tokens_transfer.len() >= 1);
+    assert!(address_token_balances.len() >= 1);
+    assert!(address_current_token_balances.len() >= 1);
 }

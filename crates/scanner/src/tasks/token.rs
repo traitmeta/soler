@@ -75,7 +75,7 @@ pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Re
 
 pub fn token_metadata_task(erc20_call: Arc<IERC20Call>, conn: Arc<DatabaseConnection>) {
     tokio::task::spawn(async move {
-        let mut interval = interval(Duration::from_secs(3));
+        let mut interval = interval(Duration::from_secs(300));
         loop {
             interval.tick().await;
             match handle_erc20_metadata(erc20_call.as_ref(), conn.as_ref()).await {
@@ -89,7 +89,7 @@ pub fn token_metadata_task(erc20_call: Arc<IERC20Call>, conn: Arc<DatabaseConnec
 // TODO use channel to receive contranct transfer action and then update contract's total supply
 pub fn token_total_updater_task(cli: Arc<EthCli>, erc20_call: Arc<IERC20Call>, conn: Arc<DbConn>) {
     tokio::task::spawn(async move {
-        let mut interval = interval(Duration::from_secs(3));
+        let mut interval = interval(Duration::from_secs(300));
         loop {
             interval.tick().await;
             match handle_erc20_total_supply(cli.clone(), erc20_call.clone(), conn.clone()).await {

@@ -30,7 +30,7 @@ pub fn process_address_token_balances(
             .unwrap()
             .r#type;
 
-        if filter_burn_address(token_type, token.to_address_hash.clone()) {
+        if is_erc721_burn(token_type, token.to_address_hash.clone()) {
             continue;
         }
 
@@ -75,9 +75,13 @@ pub fn process_address_token_balances(
     resp
 }
 
-fn filter_burn_address(token_type: &str, to_address: Vec<u8>) -> bool {
+fn is_erc721_burn(token_type: &str, to_address: Vec<u8>) -> bool {
     let zero_address: H160 = consts::ZERO_ADDRESS.parse().unwrap();
-    to_address == zero_address.as_bytes().to_vec() || token_type != consts::ERC721
+    if to_address == zero_address.as_bytes().to_vec() && token_type == consts::ERC721 {
+        return true;
+    }
+
+    return false;
 }
 
 pub fn process_current_token_balances(
@@ -91,7 +95,7 @@ pub fn process_current_token_balances(
             .unwrap()
             .r#type;
 
-        if filter_burn_address(token_type, token.to_address_hash.clone()) {
+        if is_erc721_burn(token_type, token.to_address_hash.clone()) {
             continue;
         }
 
@@ -135,4 +139,31 @@ pub fn process_current_token_balances(
     }
 
     resp
+}
+
+#[cfg(test)]
+mod tests {
+    use common::consts;
+    use hex::FromHex;
+
+    use crate::handler::address_token_balance::is_erc721_burn;
+
+    #[test]
+    fn test_is_erc721_burn() {
+        assert_eq!(
+            is_erc721_burn(
+                consts::ERC721,
+                Vec::from_hex("0000000000000000000000000000000000000000").unwrap()
+            ),
+            true
+        );
+
+        assert_eq!(
+            is_erc721_burn(
+                consts::ERC721,
+                Vec::from_hex("0000000000000000000000000000000000000001").unwrap()
+            ),
+            false
+        );
+    }
 }
