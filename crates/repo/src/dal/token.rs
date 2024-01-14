@@ -47,41 +47,50 @@ impl Query {
         paginator.fetch_page(page - 1).await.map(|p| (p, num_pages))
     }
 
-    pub async fn filter_not_skip_metadata(db: &DbConn, r_type: &str) -> Result<Vec<Model>, DbErr> {
-        Entity::find()
+    pub async fn filter_not_skip_metadata(
+        db: &DbConn,
+        block_height: i64,
+        r_type: Option<&str>,
+    ) -> Result<Vec<Model>, DbErr> {
+        let mut query = Entity::find()
             .filter(
                 Condition::any()
                     .add(Column::SkipMetadata.eq(Some(false)))
                     .add(Column::SkipMetadata.is_null()),
             )
-            .filter(Column::Type.eq(r_type.to_string()))
-            .limit(50)
-            .all(db)
-            .await
+            .filter(
+                Condition::any()
+                    .add(Column::TotalSupplyUpdatedAtBlock.is_null())
+                    .add(Column::TotalSupplyUpdatedAtBlock.lte(Some(block_height))),
+            );
+        if let Some(r_type) = r_type {
+            query = query.filter(Column::Type.eq(r_type.to_string()));
+        }
+
+        query.limit(50).all(db).await
     }
 
     pub async fn filter_uncataloged_and_no_skip_metadata(
         db: &DbConn,
-        r_type: &str,
+        r_type: Option<&str>,
     ) -> Result<Vec<Model>, DbErr> {
-        Entity::find()
-            .filter(
-                Condition::all()
-                    .add(
-                        Condition::any()
-                            .add(Column::Cataloged.eq(Some(false)))
-                            .add(Column::Cataloged.is_null()),
-                    )
-                    .add(
-                        Condition::any()
-                            .add(Column::SkipMetadata.eq(Some(false)))
-                            .add(Column::SkipMetadata.is_null()),
-                    ),
-            )
-            .filter(Column::Type.eq(r_type.to_string()))
-            .limit(50)
-            .all(db)
-            .await
+        let mut query = Entity::find().filter(
+            Condition::all()
+                .add(
+                    Condition::any()
+                        .add(Column::Cataloged.eq(Some(false)))
+                        .add(Column::Cataloged.is_null()),
+                )
+                .add(
+                    Condition::any()
+                        .add(Column::SkipMetadata.eq(Some(false)))
+                        .add(Column::SkipMetadata.is_null()),
+                ),
+        );
+        if let Some(r_type) = r_type {
+            query = query.filter(Column::Type.eq(r_type.to_string()));
+        }
+        query.limit(50).all(db).await
     }
 }
 

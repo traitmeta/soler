@@ -4,7 +4,7 @@ use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Error};
 use bigdecimal::BigDecimal;
-use common::{chain_ident, consts};
+use common::chain_ident;
 use repo::dal::token::{Mutation, Query};
 use sea_orm::DatabaseConnection;
 use sea_orm::{prelude::Decimal, DbConn};
@@ -14,8 +14,7 @@ use tokio::time::interval;
 // all metadata failed then update skip metadata
 // or catalog will be set ture
 pub async fn handle_erc20_metadata(erc20_call: &IERC20Call, conn: &DbConn) -> Result<(), Error> {
-    let Ok(models) = Query::filter_uncataloged_and_no_skip_metadata(conn, consts::ERC20).await
-    else {
+    let Ok(models) = Query::filter_uncataloged_and_no_skip_metadata(conn, None).await else {
         return Err(anyhow!("handle_erc20_metadata: filter_uncataloged failed"));
     };
     for mut model in models.into_iter() {
@@ -87,6 +86,7 @@ pub fn token_metadata_task(erc20_call: Arc<IERC20Call>, conn: Arc<DatabaseConnec
     });
 }
 
+// TODO use channel to receive contranct transfer action and then update contract's total supply
 pub fn token_total_updater_task(cli: Arc<EthCli>, erc20_call: Arc<IERC20Call>, conn: Arc<DbConn>) {
     tokio::task::spawn(async move {
         let mut interval = interval(Duration::from_secs(3));
@@ -106,7 +106,7 @@ pub async fn handle_erc20_total_supply(
     conn: Arc<DbConn>,
 ) -> Result<(), Error> {
     let block_number = cli.get_block_number().await;
-    match Query::filter_not_skip_metadata(conn.as_ref(), consts::ERC20).await {
+    match Query::filter_not_skip_metadata(conn.as_ref(), block_number as i64, None).await {
         Ok(models) => {
             for mut model in models.into_iter() {
                 let contract_addr = chain_ident!(&model.contract_address_hash);
@@ -119,9 +119,10 @@ pub async fn handle_erc20_total_supply(
                     model.total_supply_updated_at_block = Some(block_number as i64);
                 }
                 tracing::info!(
-                    "update erc20 total_supply contract_address: {:?}, total_supply: {:?}",
+                    "update erc20 total_supply contract_address: {:?}, total_supply: {:?}, block_height: {}",
                     contract_addr.clone(),
                     &model.total_supply.clone(),
+                    block_number,
                 );
                 if let Err(e) = Mutation::update_total_supply(conn.as_ref(), &model).await {
                     return Err(anyhow!("Handler Erc20 total supply: {:?}", e.to_string()));
