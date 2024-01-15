@@ -80,13 +80,11 @@ impl EthCli {
         block.unwrap()
     }
 
-    pub async fn get_block_with_tx(&self, block_number: u64) -> Block<Transaction> {
-        let block = self
-            .provider
+    pub async fn get_block_with_tx(&self, block_number: u64) -> Option<Block<Transaction>> {
+        self.provider
             .get_block_with_txs(BlockNumber::Number(block_number.into()))
             .await
-            .unwrap();
-        block.unwrap()
+            .unwrap()
     }
 
     pub async fn get_block_by_hash(&self, block_hash: H256) -> Block<TxHash> {

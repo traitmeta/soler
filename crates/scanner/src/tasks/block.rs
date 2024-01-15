@@ -29,7 +29,11 @@ pub async fn sync_task(rpc_url: String, db_cfg: DB) {
             }
             let current_number = latest_block.number as u64 + 1;
             let current_block = cli.get_block_with_tx(current_number).await;
+            if current_block.is_none() {
+                return;
+            }
 
+            let current_block = current_block.unwrap();
             tracing::info!(
                 "get currentBlock blockNumber: {}, blockHash: {:#032x}, hash size: {}",
                 current_block.number.unwrap(),
@@ -72,7 +76,11 @@ pub async fn block_handler(cli: Arc<EthCli>, conn: Arc<DatabaseConnection>) {
         }
         let current_number = latest_block.number as u64 + 1;
         let current_block = cli.get_block_with_tx(current_number).await;
+        if current_block.is_none() {
+            return;
+        }
 
+        let current_block = current_block.unwrap();
         tracing::info!(
             "get currentBlock blockNumber: {}, blockHash: {:#032x}, hash size: {}",
             current_block.number.unwrap(),
