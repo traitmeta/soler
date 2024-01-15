@@ -1,14 +1,12 @@
 use std::{sync::Arc, time::Duration};
 
 use repo::dal::block::Query;
-use repo::orm::conn::connect_db;
 use sea_orm::DatabaseConnection;
 
 use tokio::time::interval;
 
 use crate::evms::eth::EthCli;
 use crate::handler::block::{handle_block, sync_to_db};
-use config::db::DB;
 
 pub fn handle_block_task(cli: Arc<EthCli>, conn: Arc<DatabaseConnection>) {
     tokio::task::spawn(async move {

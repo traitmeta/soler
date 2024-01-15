@@ -62,14 +62,12 @@ pub fn process_address_token_balances(
             to_model.token_id = Some(token_id.clone());
         }
 
-        if chain_ident!(&from_model.address_hash) != chain_ident!(H160::zero().as_bytes().to_vec())
-        {
+        if chain_ident!(&from_model.address_hash) != chain_ident!(H160::zero().as_bytes()) {
             resp.push(from_model);
         }
 
         if !is_erc721_burn(token_type, token.to_address_hash.clone())
-            && chain_ident!(&to_model.address_hash)
-                != chain_ident!(H160::zero().as_bytes().to_vec())
+            && chain_ident!(&to_model.address_hash) != chain_ident!(H160::zero().as_bytes())
         {
             resp.push(to_model);
         }
