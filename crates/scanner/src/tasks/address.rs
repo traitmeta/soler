@@ -15,7 +15,7 @@ pub async fn handle_address_token_balance(
 ) -> Result<(), Error> {
     let Ok(models) = Query::unfetched_token_balances(conn).await else {
         return Err(anyhow!(
-            "handle_erc20_metadata: unfetched_token_balances failed"
+            "handle_address_token_balance: unfetched_token_balances failed"
         ));
     };
 

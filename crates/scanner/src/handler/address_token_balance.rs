@@ -7,7 +7,7 @@ use entities::token_transfers::Model as TokenTransferModel;
 use entities::tokens::Model as TokenModel;
 use ethers::types::H160;
 
-use common::consts;
+use common::{chain_ident, consts};
 
 pub fn process_token_balances(
     token_map: &HashMap<Vec<u8>, TokenModel>,
@@ -62,8 +62,15 @@ pub fn process_address_token_balances(
             to_model.token_id = Some(token_id.clone());
         }
 
-        resp.push(from_model);
-        if !is_erc721_burn(token_type, token.to_address_hash.clone()) {
+        if chain_ident!(&from_model.address_hash) != chain_ident!(H160::zero().as_bytes().to_vec())
+        {
+            resp.push(from_model);
+        }
+
+        if !is_erc721_burn(token_type, token.to_address_hash.clone())
+            && chain_ident!(&to_model.address_hash)
+                != chain_ident!(H160::zero().as_bytes().to_vec())
+        {
             resp.push(to_model);
         }
     }
