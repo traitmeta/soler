@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{api::Api, chain::Chain, db::DB, kafka::Kafka, redis::Redis, whitelist::Addr, Config};
@@ -19,8 +17,8 @@ pub struct BaseConfig {
     /// connection is established with these nodes.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub addresses: Vec<Addr>,
-    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
-    pub chains: HashMap<String, Chain>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chain: Option<Chain>,
 }
 
 impl Config for BaseConfig {}

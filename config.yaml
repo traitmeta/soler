@@ -16,17 +16,12 @@ kafka:
     - https://localhost:10068
   topics:
     - test
-chains:
-  Goerli:
-    url: https://rpc.ankr.com/eth_goerli
-    chain_id: 1
-    chain_name: ETH_Goerli
-    contracts: [0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85]
-    interval: 3
-  SUI:
-    url: https://fullnode.testnet.sui.io:443
-    chain_name: SUI_test
-    interval: 3
+chain:
+  url: https://rpc.ankr.com/eth_goerli
+  chain_id: 1
+  chain_name: ETH_Goerli
+  contracts: [0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85]
+  interval: 3
 
 whitelist:
   - 0x001

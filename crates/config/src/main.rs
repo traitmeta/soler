@@ -48,8 +48,7 @@ async fn main() -> Result<()> {
         info!("Started Kafka endpoint at {:?}", kafka.brokers);
     }
 
-    info!("Started Chains lens {:?}", config.chains.len());
-    info!("Started ETH Chain endpoint at {:?}", config.chains["ETH"]);
+    info!("Started Chains lens {:?}", config.chain);
 
     // TODO: Do we want to provide a way for the node to gracefully shutdown?
     loop {

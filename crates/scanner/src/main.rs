@@ -27,15 +27,10 @@ fn main() {
 
     let args = Args::parse();
     let config = BaseConfig::load(args.config_path).unwrap();
-    let mut goerli_url = "";
-    if config.chains.contains_key("Goerli") {
-        let goerli_chain_cfg = config.chains.get("Goerli").unwrap();
-        goerli_url = goerli_chain_cfg.url.as_str();
-    } else {
-        tracing::error!("Init failed for not found Goerli chain config");
-    }
+    let chain = config.chain.unwrap();
+    let chain_rpc_url = &chain.url.as_str();
 
-    let rpc_url = Arc::new(goerli_url.to_string());
+    let rpc_url = Arc::new(chain_rpc_url.to_string());
     let db_cfg = config.database.unwrap();
     let scanner = tokio::runtime::Builder::new_multi_thread()
         .thread_name("scanner-runtime")
@@ -51,10 +46,6 @@ fn main() {
         init_block(eth_cli.clone(), conn.clone()).await;
 
         handle_block_task(eth_cli.clone(), conn.clone());
-        tracing::debug!(
-            "end chain sync: {:?}",
-            config.chains.get("Goerli").unwrap().chain_name
-        );
 
         let erc20_call = Arc::new(IERC20Call::new(rpc_url.as_str()));
         token_metadata_task(erc20_call.clone(), conn.clone());
