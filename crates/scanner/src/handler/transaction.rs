@@ -8,7 +8,7 @@ use sea_orm::prelude::{BigDecimal, Decimal};
 
 use crate::common::err::ScannerError;
 
-pub async fn handle_transactions(
+pub fn handle_transactions(
     block: &Block<Transaction>,
     recipt_map: &HashMap<H256, TransactionReceipt>,
     trace_map: &HashMap<H256, Vec<(Trace, i32)>>,
@@ -17,14 +17,14 @@ pub async fn handle_transactions(
     for tx in block.transactions.iter() {
         let recipt = recipt_map.get(&tx.hash);
         let traces = trace_map.get(&tx.hash);
-        let transaction = process_transaction(tx, &block.number, recipt, traces).await?;
+        let transaction = process_transaction(tx, &block.number, recipt, traces)?;
         transactions.push(transaction);
     }
 
     Ok(transactions)
 }
 
-async fn process_transaction(
+fn process_transaction(
     tx: &Transaction,
     block_number: &Option<U64>,
     receipt: Option<&TransactionReceipt>,

@@ -179,7 +179,7 @@ pub async fn parse_block(
         .collect::<HashMap<_, _>>();
 
     let trace_map = classify_txs(traces);
-    data_models.transactions = handle_transactions(block, &recipet_map, &trace_map).await?;
+    data_models.transactions = handle_transactions(block, &recipet_map, &trace_map)?;
     data_models.events = handle_block_event(recipts);
     data_models.inner_tx = handler_inner_transaction(traces);
     data_models.addresses = process_block_addresses(block, &recipet_map, &trace_map);

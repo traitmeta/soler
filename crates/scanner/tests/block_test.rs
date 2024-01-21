@@ -1,9 +1,11 @@
 use bigdecimal::FromPrimitive;
-use ethers::types::{Block, Transaction};
-use scanner::handler::block::handle_block_header;
+use ethers::types::{Block, Trace, Transaction, TransactionReceipt};
+use scanner::handler::{
+    block::handle_block_header, internal_transaction::classify_txs,
+    transaction::handle_transactions,
+};
 use sea_orm::prelude::Decimal;
-
-use std::{env, fs::File, io::BufReader, path::PathBuf};
+use std::{collections::HashMap, env, fs::File, io::BufReader, path::PathBuf};
 
 const TEST_DATA_DIR: &str = "tests/data/";
 
@@ -23,7 +25,7 @@ fn common_dir_path() -> PathBuf {
 #[test]
 fn test_handle_block_header() {
     let mut current_dir = common_dir_path();
-    current_dir.push("blocks/block_with_txdetails.json");
+    current_dir.push("blocks/with_txdetails.json");
     let file = File::open(&current_dir).expect(&format!("{}", &current_dir.as_path().display()));
     let reader = BufReader::new(file);
     let block: Block<Transaction> = serde_json::from_reader(reader).unwrap();
@@ -40,6 +42,46 @@ fn test_handle_block_header() {
         Err(_) => {
             assert!(false);
             println!("Block header: None");
+        }
+    }
+}
+
+#[test]
+fn test_handle_transactions() {
+    let mut current_dir = common_dir_path();
+    current_dir.push("blocks/with_txdetails.json");
+    let file = File::open(&current_dir).expect(&format!("{}", &current_dir.as_path().display()));
+    let reader = BufReader::new(file);
+    let block: Block<Transaction> = serde_json::from_reader(reader).unwrap();
+
+    let mut current_dir = common_dir_path();
+    current_dir.push("blocks/recipts.json");
+    let file = File::open(&current_dir).expect(&format!("{}", &current_dir.as_path().display()));
+    let reader = BufReader::new(file);
+    let recipts: Vec<TransactionReceipt> = serde_json::from_reader(reader).unwrap();
+
+    let mut current_dir = common_dir_path();
+    current_dir.push("blocks/traces.json");
+    let file = File::open(&current_dir).expect(&format!("{}", &current_dir.as_path().display()));
+    let reader = BufReader::new(file);
+    let traces: Vec<Trace> = serde_json::from_reader(reader).unwrap();
+
+    let recipet_map = recipts
+        .iter()
+        .map(|r| (r.transaction_hash, r.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let trace_map = classify_txs(traces.as_slice());
+
+    let trxes = handle_transactions(&block, &recipet_map, &trace_map);
+    match trxes {
+        Ok(txs) => {
+            println!("Transactions: {:?}", txs);
+            assert!(txs.len() == 13);
+        }
+        Err(e) => {
+            assert!(false);
+            println!("Transactions: err: {}", e);
         }
     }
 }
