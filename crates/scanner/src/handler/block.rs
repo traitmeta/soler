@@ -113,14 +113,14 @@ pub async fn handle_block(
     recipts: &[TransactionReceipt],
 ) -> anyhow::Result<HandlerModels> {
     let data_model = parse_block(block, traces, recipts).await?;
-    let block_header = handle_block_header(block).await?;
+    let block_header = handle_block_header(block)?;
     Ok(HandlerModels {
         block: block_header,
         datas: data_model,
     })
 }
 
-pub async fn handle_block_header(block: &Block<Transaction>) -> anyhow::Result<BlockModel> {
+pub fn handle_block_header(block: &Block<Transaction>) -> anyhow::Result<BlockModel> {
     let block_model = BlockModel {
         difficulty: Some(Decimal::from_i128_with_scale(
             block.difficulty.as_u128() as i128,

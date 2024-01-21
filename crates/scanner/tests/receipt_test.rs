@@ -1,4 +1,3 @@
-use entities::address_current_token_balances;
 use ethers::types::TransactionReceipt;
 use scanner::handler::{event::handle_block_event, token::handle_token_from_receipts};
 
