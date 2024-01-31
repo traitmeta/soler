@@ -1,7 +1,8 @@
 use bigdecimal::FromPrimitive;
 use ethers::types::{Block, Trace, Transaction, TransactionReceipt};
 use scanner::handler::{
-    block::handle_block_header, internal_transaction::classify_txs,
+    block::handle_block_header,
+    internal_transaction::{classify_txs, handler_inner_transaction},
     transaction::handle_transactions,
 };
 use sea_orm::prelude::Decimal;
@@ -84,4 +85,16 @@ fn test_handle_transactions() {
             println!("Transactions: err: {}", e);
         }
     }
+}
+
+#[test]
+fn test_handle_inner_tx() {
+    let mut current_dir = common_dir_path();
+    current_dir.push("blocks/traces.json");
+    let file = File::open(&current_dir).expect(&format!("{}", &current_dir.as_path().display()));
+    let reader = BufReader::new(file);
+    let traces: Vec<Trace> = serde_json::from_reader(reader).unwrap();
+
+    let inner_tx = handler_inner_transaction(&traces);
+    assert!(inner_tx.len() == 40);
 }
