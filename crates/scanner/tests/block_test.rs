@@ -1,6 +1,7 @@
 use bigdecimal::FromPrimitive;
 use ethers::types::{Block, Trace, Transaction, TransactionReceipt};
 use scanner::handler::{
+    address::process_block_addresses,
     block::handle_block_header,
     internal_transaction::{classify_txs, handler_inner_transaction},
     transaction::handle_transactions,
@@ -85,6 +86,37 @@ fn test_handle_transactions() {
             println!("Transactions: err: {}", e);
         }
     }
+}
+
+#[test]
+fn test_handle_addresses() {
+    let mut current_dir = common_dir_path();
+    current_dir.push("blocks/with_txdetails.json");
+    let file = File::open(&current_dir).expect(&format!("{}", &current_dir.as_path().display()));
+    let reader = BufReader::new(file);
+    let block: Block<Transaction> = serde_json::from_reader(reader).unwrap();
+
+    let mut current_dir = common_dir_path();
+    current_dir.push("blocks/recipts.json");
+    let file = File::open(&current_dir).expect(&format!("{}", &current_dir.as_path().display()));
+    let reader = BufReader::new(file);
+    let recipts: Vec<TransactionReceipt> = serde_json::from_reader(reader).unwrap();
+
+    let mut current_dir = common_dir_path();
+    current_dir.push("blocks/traces.json");
+    let file = File::open(&current_dir).expect(&format!("{}", &current_dir.as_path().display()));
+    let reader = BufReader::new(file);
+    let traces: Vec<Trace> = serde_json::from_reader(reader).unwrap();
+
+    let recipet_map = recipts
+        .iter()
+        .map(|r| (r.transaction_hash, r.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let trace_map = classify_txs(traces.as_slice());
+
+    let addresses = process_block_addresses(&block, &recipet_map, &trace_map);
+    assert!(addresses.len() == 21);
 }
 
 #[test]
