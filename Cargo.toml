@@ -10,7 +10,6 @@ members = [
   "crates/chain-tools",
   "meta/kafka",
   "meta/rpc",
-  "mq",
 ]
 
 resolver = "2"
