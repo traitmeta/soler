@@ -8,8 +8,6 @@ members = [
   "crates/repo",
   "crates/scanner",
   "crates/chain-tools",
-  "meta/kafka",
-  "meta/rpc",
 ]
 
 resolver = "2"
