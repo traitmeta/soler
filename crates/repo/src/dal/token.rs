@@ -192,7 +192,6 @@ mod tests {
     use chrono::Utc;
     use config::db::DB;
     use ethers::types::H160;
-    use sea_orm::prelude::Decimal;
 
     use super::{Mutation, Query};
 
