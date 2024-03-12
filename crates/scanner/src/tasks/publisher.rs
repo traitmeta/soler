@@ -1,12 +1,25 @@
-use sea_orm::strum::Display;
 use serde::{Deserialize, Serialize};
-use std::sync::mpsc::Sender;
+use std::{fmt::{self, Display, Formatter}, sync::mpsc::Sender};
 
-#[derive(Debug, Display, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BroadcastType {
     OnDamend,
     None,
 }
+
+impl Display for BroadcastType {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+          f,
+          "{}",
+          match self {
+            Self::OnDamend => "OnDamend",
+            Self::None => "",
+          }
+        )
+      }
+}
+
 pub struct Publisher {
     allowed_events: Vec<String>,
     sender: Sender<String>,
