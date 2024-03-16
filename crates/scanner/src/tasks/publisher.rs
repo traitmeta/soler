@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::{fmt::{self, Display, Formatter}, sync::mpsc::Sender};
+use std::{
+    fmt::{self, Display, Formatter},
+    sync::mpsc::Sender,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BroadcastType {
@@ -10,14 +13,14 @@ pub enum BroadcastType {
 impl Display for BroadcastType {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
-          f,
-          "{}",
-          match self {
-            Self::OnDamend => "OnDamend",
-            Self::None => "",
-          }
+            f,
+            "{}",
+            match self {
+                Self::OnDamend => "OnDamend",
+                Self::None => "",
+            }
         )
-      }
+    }
 }
 
 pub struct Publisher {
