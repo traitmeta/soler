@@ -39,7 +39,7 @@ features = [
     "debug-print",
     "with-bigdecimal",
 ]
-version = "0.12.2"
+version = "0.12.14"
 
 [dev-dependencies]
 tokio = { version = "1.20.0", features = ["macros", "rt"] }

@@ -21,4 +21,4 @@ features = [
     "with-bigdecimal",
     "with-json",
 ]
-version = "0.12.2"
+version = "0.12.14"
