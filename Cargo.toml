@@ -1,14 +1,5 @@
 [workspace]
-members = [
-  "crates/api",
-  "crates/common",
-  "crates/config",
-  "crates/entities",
-  "crates/migration",
-  "crates/repo",
-  "crates/scanner",
-  "crates/chain-tools",
-]
+members = ["crates/*"]
 
 resolver = "2"
 
